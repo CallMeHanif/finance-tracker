@@ -82,7 +82,7 @@
                     <button onclick="switchPageMobile('reports')" id="nav-mob-reports" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Laporan</button>
                     <button onclick="switchPageMobile('setup')" id="nav-mob-setup" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Setup Akun</button>
                 </nav>
-                <button onclick="closeMobileMenu(); openModal();" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
+                <button onclick="openModalMobile()" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
                     <i data-lucide="plus-circle" class="w-4 h-4"></i>
                     <span>Tambah Transaksi</span>
                 </button>
@@ -453,6 +453,7 @@
         <p>&copy; 2026 Personal Finance System Ecosystem.</p>
     </footer>
 
+    <!-- HELPER SCRIPT UNTUK INTERAKSI MENU MOBILE -->
     <script>
         function toggleMobileMenu() {
             const menu = document.getElementById('mobileMenu');
@@ -471,11 +472,19 @@
             lucide.createIcons();
         }
         function switchPageMobile(pageId) {
-            // Memindahkan penutupan menu ke setelah fungsi switchPage selesai agar transisi render DOM tidak patah
             if (typeof switchPage === 'function') {
                 switchPage(pageId);
             }
             setTimeout(closeMobileMenu, 100);
+        }
+        function openModalMobile() {
+            // Tutup menu dulu, lalu berikan jeda sedikit sebelum modal transaksi dimunculkan
+            closeMobileMenu();
+            setTimeout(() => {
+                if (typeof openModal === 'function') {
+                    openModal();
+                }
+            }, 150);
         }
         function openWipeModal() {
             document.getElementById('wipeDataModal').classList.remove('hidden');
