@@ -571,6 +571,13 @@ function duplicateTransaction(id) {
 }
 
 function openModal() {
+    const modal = document.getElementById('transactionModal');
+    if (!modal) {
+        console.error("Modal tidak ditemukan!");
+        return;
+    }
+    
+    console.log("Membuka modal...");
     document.getElementById('modalTitle').innerHTML = `<i data-lucide="plus-circle" class="text-blueSystem-500 w-4 h-4"></i> Tambah Transaksi`;
     document.getElementById('form-edit-id').value = '';
     document.getElementById('form-name').value = '';
@@ -578,8 +585,11 @@ function openModal() {
     document.getElementById('form-notes').value = '';
     document.getElementById('form-type').value = 'Credit';
     document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
+    
     adjustFormInputs();
-    document.getElementById('transactionModal').classList.remove('hidden');
+    
+    // Pastikan class 'hidden' dihapus
+    modal.classList.remove('hidden'); 
     lucide.createIcons();
 }
 function closeModal() { document.getElementById('transactionModal').classList.add('hidden'); }
