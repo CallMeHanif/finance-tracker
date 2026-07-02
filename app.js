@@ -1,23 +1,18 @@
 // app.js - Logika Finansial, Grafik, dan Sinkronisasi Cloud
 let userAccounts = [
-    { name: "Cash", type: "Cash", initial: 222186 },
-    { name: "Blu by BCA", type: "Bank", initial: 0 },
+    { name: "Cash", type: "Cash", initial: 1200500 },
+    { name: "BCA", type: "Bank", initial: 2200100 },
     { name: "BSI", type: "Bank", initial: 60000 },
     { name: "Bank Jago", type: "Bank", initial: 1000000 },
-    { name: "Tapcash", type: "E Wallet", initial: 55499 },
-    { name: "LinkAja", type: "E Wallet", initial: 0 },
-    { name: "Bibit Hanif", type: "Tabungan", initial: 545898 },
-    { name: "Bibit Mama", type: "Tabungan", initial: 10595157 },
-    { name: "Valas", type: "Bank", initial: 3069867.02 }
+    { name: "Gopay", type: "E Wallet", initial: 55499 },
+    { name: "Bibit", type: "Tabungan", initial: 545898 },
 ];
 
 let transactions = [
-    { id: "1", date: "2026-06-15", name: "Gaji Utama", credit: 0, debit: 6500000, category: "Gaji", account: "Blu by BCA", notes: "Transfer Bulanan" },
+    { id: "1", date: "2026-06-15", name: "Gaji", credit: 0, debit: 6500000, category: "Gaji", account: "BCA", notes: "Transfer Bulanan" },
     { id: "2", date: "2026-06-18", name: "Makan Siang", credit: 45000, debit: 0, category: "Makan", account: "Cash", notes: "" },
-    { id: "3", date: "2026-06-20", name: "Profit Lynk.id", credit: 0, debit: 1500000, category: "Profit", account: "Bank Jago", notes: "" },
-    { id: "4", date: "2026-07-02", name: "Makan Harian", credit: 20000, debit: 0, category: "Makan", account: "Cash", notes: "" },
-    { id: "5", date: "2026-07-02", name: "Belanja", credit: 52600, debit: 0, category: "Belanja", account: "Cash", notes: "" },
-    { id: "6", date: "2026-07-03", name: "BPJS", credit: 152500, debit: 0, category: "Langganan", account: "Blu by BCA", notes: "" }
+    { id: "3", date: "2026-07-02", name: "Belanja", credit: 52600, debit: 0, category: "Belanja", account: "Cash", notes: "" },
+    { id: "4", date: "2026-07-03", name: "BPJS", credit: 152500, debit: 0, category: "Langganan", account: "BCA", notes: "" }
 ];
 
 let activePage = 'dashboard';
@@ -250,7 +245,7 @@ function renderTransactionsPage() {
 
         tableBody.innerHTML += `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${t.date}</td>
+                <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${formatTanggalIndo(t.date)}</td>
                 <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${t.name}</td>
                 <td class="py-2.5 px-4 ${colorClass}">${formatRupiah(amt)}</td>
                 <td class="py-2.5 px-4 text-slate-500">${displayCategory}</td>
@@ -668,4 +663,29 @@ function fetchFromGoogleSheets() {
         populateFormDropdowns();
         renderDashboard();
     });
+}
+
+// ==========================================
+// FUNGSI BARU UNTUK FORMAT TANGGAL DI FRONTEND
+// ==========================================
+function formatTanggalIndo(stringIso) {
+    if (!stringIso) return "-";
+    
+    // Keamanan tambahan: Jika formatnya sudah string pendek "YYYY-MM-DD", 
+    // ubah manual agar tidak terkena pergeseran timezone oleh object Date.
+    if (stringIso.includes('T')) {
+        const date = new Date(stringIso);
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    } else {
+        // Jika format string biasa "2026-07-02" dari local storage
+        const parts = stringIso.split('-');
+        if(parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Hasil: DD/MM/YYYY
+        }
+        return stringIso;
+    }
 }
