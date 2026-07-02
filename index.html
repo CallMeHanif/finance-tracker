@@ -40,9 +40,8 @@
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
 
-    <!-- Header -->
     <header class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
-        <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between relative">
             <div class="flex items-center gap-6">
                 <div class="flex items-center gap-2.5">
                     <div class="bg-bca-500 text-white p-2 rounded-xl shadow-md shadow-bca-500/20">
@@ -50,8 +49,7 @@
                     </div>
                     <h1 class="text-base font-bold tracking-tight text-bca-500 dark:text-bca-100">Finance Tracker</h1>
                 </div>
-                <!-- Navigation Tabs -->
-                <nav class="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold">
+                <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold">
                     <button onclick="switchPage('dashboard')" id="nav-dashboard" class="px-4 py-1.5 rounded-lg transition-all">Dashboard</button>
                     <button onclick="switchPage('transactions')" id="nav-transactions" class="px-4 py-1.5 rounded-lg transition-all">Transaksi</button>
                     <button onclick="switchPage('reports')" id="nav-reports" class="px-4 py-1.5 rounded-lg transition-all">Laporan</button>
@@ -60,7 +58,7 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <button onclick="openModal()" class="bg-bca-500 hover:bg-bca-600 dark:bg-bca-600 dark:hover:bg-bca-500 text-white font-semibold py-1.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5">
+                <button onclick="openModal()" class="hidden sm:flex bg-bca-500 hover:bg-bca-600 dark:bg-bca-600 dark:hover:bg-bca-500 text-white font-semibold py-1.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5">
                     <i data-lucide="plus-circle" class="w-4 h-4"></i>
                     <span>Tambah Transaksi</span>
                 </button>
@@ -72,14 +70,28 @@
                     <i data-lucide="cloud" class="w-4 h-4"></i>
                     <span id="cloudIndicatorDot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400"></span>
                 </button>
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors" id="burgerBtn">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="mobileMenu" class="hidden absolute top-16 left-0 w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-3 shadow-md md:hidden z-50">
+                <nav class="flex flex-col gap-1 text-xs font-semibold">
+                    <button onclick="switchPageMobile('dashboard')" id="nav-mob-dashboard" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Dashboard</button>
+                    <button onclick="switchPageMobile('transactions')" id="nav-mob-transactions" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Transaksi</button>
+                    <button onclick="switchPageMobile('reports')" id="nav-mob-reports" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Laporan</button>
+                    <button onclick="switchPageMobile('setup')" id="nav-mob-setup" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Setup Akun</button>
+                </nav>
+                <button onclick="closeMobileMenu(); openModal();" class="w-full bg-bca-500 hover:bg-bca-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Tambah Transaksi</span>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Workspace -->
     <main class="max-w-[1600px] mx-auto w-full px-6 py-6 flex-1">
 
-        <!-- ================= PAGE 1: DASHBOARD ================= -->
         <div id="page-dashboard" class="page-content hidden space-y-6">
             <div class="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2">
@@ -136,7 +148,6 @@
             </div>
         </div>
 
-        <!-- ================= PAGE 2: TRANSACTIONS ================= -->
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 <div class="bg-slate-950 text-white rounded-2xl p-4 shadow-md">
@@ -180,7 +191,6 @@
                             <option value="Otomotif">Otomotif</option>
                             <option value="Transfer">Transfer Dana</option>
                         </select>
-                        <button onclick="clearTransactions()" class="text-[11px] text-slate-400 hover:text-rose-600 font-medium ml-2 whitespace-nowrap">Reset Data Awal</button>
                     </div>
                 </div>
 
@@ -205,7 +215,6 @@
             </div>
         </div>
 
-        <!-- ================= PAGE 3: REPORTS ================= -->
         <div id="page-reports" class="page-content hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
@@ -246,36 +255,50 @@
             </div>
         </div>
 
-        <!-- ================= PAGE 4: SETUP AKUN ================= -->
         <div id="page-setup" class="page-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-                <h3 class="text-sm font-bold flex items-center gap-1.5 text-bca-500 dark:text-white" id="setupFormTitle">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Akun Keuangan
-                </h3>
-                <form id="setupAccountForm" onsubmit="saveNewSetupAccount(event)" class="space-y-3">
-                    <input type="hidden" id="setup-acc-edit-id">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Nama Akun Finansial</label>
-                        <input type="text" id="setup-acc-name" placeholder="Contoh: Cash Hanif" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none text-slate-800 dark:text-white">
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold flex items-center gap-1.5 text-bca-500 dark:text-white" id="setupFormTitle">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Akun Keuangan
+                    </h3>
+                    <form id="setupAccountForm" onsubmit="saveNewSetupAccount(event)" class="space-y-3">
+                        <input type="hidden" id="setup-acc-edit-id">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Nama Akun Finansial</label>
+                            <input type="text" id="setup-acc-name" placeholder="Contoh: Cash Hanif" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none text-slate-800 dark:text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Akun</label>
+                            <select id="setup-acc-type" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                                <option value="Bank">Bank</option>
+                                <option value="Tabungan">Tabungan / Investasi</option>
+                                <option value="Cash">Cash (Uang Fisik)</option>
+                                <option value="E Wallet">E Wallet</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Saldo Awal (Rp)</label>
+                            <input type="number" id="setup-acc-balance" placeholder="0" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none text-slate-800 dark:text-white">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" id="setupCancelBtn" onclick="resetSetupForm()" class="hidden flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 rounded-xl text-xs font-medium">Batal</button>
+                            <button type="submit" class="flex-1 bg-bca-500 hover:bg-bca-600 text-white font-semibold py-2 px-4 rounded-xl text-xs transition-colors shadow-sm">Simpan Akun</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-950/50 rounded-2xl p-5 shadow-sm space-y-3.5">
+                    <div>
+                        <h3 class="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                            <i data-lucide="shield-alert" class="w-4 h-4"></i> Danger Zone
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-1">Gunakan opsi ini jika ingin membersihkan seluruh workspace dan mulai kembali dari nol.</p>
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Akun</label>
-                        <select id="setup-acc-type" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                            <option value="Bank">Bank</option>
-                            <option value="Tabungan">Tabungan / Investasi</option>
-                            <option value="Cash">Cash (Uang Fisik)</option>
-                            <option value="E Wallet">E Wallet</option>
-                        </select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Saldo Awal (Rp)</label>
-                        <input type="number" id="setup-acc-balance" placeholder="0" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none text-slate-800 dark:text-white">
-                    </div>
-                    <div class="flex gap-2">
-                        <button type="button" id="setupCancelBtn" onclick="resetSetupForm()" class="hidden flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 rounded-xl text-xs font-medium">Batal</button>
-                        <button type="submit" class="flex-1 bg-bca-500 hover:bg-bca-600 text-white font-semibold py-2 px-4 rounded-xl text-xs transition-colors shadow-sm">Simpan Akun</button>
-                    </div>
-                </form>
+                    <button onclick="openWipeModal()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 font-semibold py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Hapus Semua Data Workspace</span>
+                    </button>
+                </div>
             </div>
 
             <div class="lg:col-span-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
@@ -300,7 +323,6 @@
         </div>
     </main>
 
-    <!-- SETTINGS MODAL DI HEADER -->
     <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -330,7 +352,6 @@
         </div>
     </div>
 
-    <!-- TRANSACTIONS MODAL -->
     <div id="transactionModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -394,7 +415,6 @@
         </div>
     </div>
 
-    <!-- REUSABLE DELETE MODAL TRAP -->
     <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-5 text-center space-y-4">
             <div class="mx-auto w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500">
@@ -411,11 +431,59 @@
         </div>
     </div>
 
+    <div id="wipeDataModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/50 rounded-2xl shadow-xl max-w-md w-full p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div class="mx-auto w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <i data-lucide="trash-2" class="w-7 h-7"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h4 class="font-bold text-base text-slate-900 dark:text-white">Kosongkan Seluruh Data Keuangan?</h4>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    Tindakan ini akan menghapus <strong class="text-rose-600 dark:text-rose-400">seluruh riwayat transaksi dan setup akun</strong> secara permanen (baik lokal browser maupun database Google Sheets jika terhubung).
+                </p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeWipeModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-xs font-bold transition-colors">Batal</button>
+                <button id="confirmWipeBtn" onclick="executeWipeAllData()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm shadow-rose-600/20">Ya, Hapus Semua</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-4 text-center text-xs text-slate-400 mt-auto">
         <p>&copy; 2026 Personal Finance System Ecosystem.</p>
     </footer>
 
-    <!-- PEMANGGILAN FILE LOGIKA UTAMA -->
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const icon = document.querySelector('#burgerBtn i');
+            menu.classList.toggle('hidden');
+            if (menu.classList.contains('hidden')) {
+                icon.setAttribute('data-lucide', 'menu');
+            } else {
+                icon.setAttribute('data-lucide', 'x');
+            }
+            lucide.createIcons();
+        }
+        function closeMobileMenu() {
+            document.getElementById('mobileMenu').classList.add('hidden');
+            document.querySelector('#burgerBtn i').setAttribute('data-lucide', 'menu');
+            lucide.createIcons();
+        }
+        function switchPageMobile(pageId) {
+            closeMobileMenu();
+            if (typeof switchPage === 'function') {
+                switchPage(pageId);
+            }
+        }
+        function openWipeModal() {
+            document.getElementById('wipeDataModal').classList.remove('hidden');
+        }
+        function closeWipeModal() {
+            document.getElementById('wipeDataModal').classList.add('hidden');
+        }
+    </script>
+
     <script src="app.js"></script>
 </body>
 </html>

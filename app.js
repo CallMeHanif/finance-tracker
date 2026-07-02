@@ -82,11 +82,20 @@ function switchPage(pageId) {
     activePage = pageId;
     document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
     document.getElementById('page-' + pageId).classList.remove('hidden');
+    
+    // Reset desktop & mobile navigation states
     document.querySelectorAll('nav button').forEach(btn => {
-        btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900";
+        btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900 w-full text-left md:w-auto";
     });
+    
+    // Highlight desktop nav
     const activeBtn = document.getElementById('nav-' + pageId);
     if(activeBtn) activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-bca-500 dark:text-white shadow-sm";
+    
+    // Highlight mobile nav
+    const activeMobBtn = document.getElementById('nav-mob-' + pageId);
+    if(activeMobBtn) activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-bca-500 dark:text-white font-bold";
+
     renderDashboard();
 }
 
@@ -517,7 +526,7 @@ function handleTransactionSubmit(e) {
 
 function editTransaction(id) {
     const t = transactions.find(tx => tx.id === id);
-    if (!t) return;
+    if (!tx) return;
 
     document.getElementById('modalTitle').innerHTML = `<i data-lucide="edit-2" class="text-bca-500 w-4 h-4"></i> Edit Transaksi`;
     document.getElementById('form-edit-id').value = t.id;
@@ -598,10 +607,57 @@ function executeDelete() {
     triggerCloudPush();
 }
 
-function clearTransactions() {
-    if(confirm('Reset semua data riwayat kembali ke data awal?')) {
-        localStorage.removeItem('transactions');
-        window.location.reload();
+// ==========================================
+// FUNGSI BARU UNTUK MENGOSONGKAN SEMUA DATA WIPE SYSTEM
+// ==========================================
+function executeWipeAllData() {
+    // Kosongkan state data di memory run-time
+    userAccounts = [];
+    transactions = [];
+
+    // Bersihkan data di local storage browser
+    localStorage.removeItem('userAccounts');
+    localStorage.removeItem('transactions');
+
+    // Perbarui pilihan dropdown form input agar sinkron dengan array kosong
+    populateFormDropdowns();
+
+    // Tutup tampilan modal wipe konfirmasi
+    if(typeof closeWipeModal === 'function') {
+        closeWipeModal();
+    } else {
+        const modal = document.getElementById('wipeDataModal');
+        if(modal) modal.classList.add('hidden');
+    }
+
+    // Jika terhubung ke mode Google Sheets, kirim payload kosong untuk meriset server spreadsheet
+    const mode = localStorage.getItem('dbMode');
+    const url = localStorage.getItem('sheetsUrl');
+    if (mode === 'sheets' && url) {
+        const statusEl = document.getElementById('syncStatus');
+        if(statusEl) statusEl.innerText = "🔄 Mengosongkan database cloud Google Sheets...";
+
+        fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: "syncAll",
+                userAccounts: [],
+                transactions: []
+            })
+        })
+        .then(() => {
+            if(statusEl) statusEl.innerText = "🗑️ Cloud database dikosongkan sempurna.";
+            renderDashboard();
+        })
+        .catch(err => {
+            if(statusEl) statusEl.innerText = "❌ Gagal meriset cloud: " + err.toString();
+            renderDashboard();
+        });
+    } else {
+        // Jika mode lokal offline, langsung re-render dashboard dengan workspace kosong
+        renderDashboard();
     }
 }
 
@@ -642,7 +698,7 @@ function fetchFromGoogleSheets() {
     .then(res => res.json())
     .then(resData => {
         if (resData && resData.status === "success") {
-            if(resData.userAccounts && resData.userAccounts.length > 0) {
+            if(resData.userAccounts) {
                 userAccounts = resData.userAccounts;
                 localStorage.setItem('userAccounts', JSON.stringify(userAccounts));
             }
@@ -665,14 +721,9 @@ function fetchFromGoogleSheets() {
     });
 }
 
-// ==========================================
-// FUNGSI BARU UNTUK FORMAT TANGGAL DI FRONTEND
-// ==========================================
 function formatTanggalIndo(stringIso) {
     if (!stringIso) return "-";
     
-    // Keamanan tambahan: Jika formatnya sudah string pendek "YYYY-MM-DD", 
-    // ubah manual agar tidak terkena pergeseran timezone oleh object Date.
     if (stringIso.includes('T')) {
         const date = new Date(stringIso);
         return date.toLocaleDateString('id-ID', {
@@ -681,10 +732,9 @@ function formatTanggalIndo(stringIso) {
             year: 'numeric'
         });
     } else {
-        // Jika format string biasa "2026-07-02" dari local storage
         const parts = stringIso.split('-');
         if(parts.length === 3) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Hasil: DD/MM/YYYY
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
         return stringIso;
     }
