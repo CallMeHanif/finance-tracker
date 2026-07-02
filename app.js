@@ -83,18 +83,22 @@ function switchPage(pageId) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
     document.getElementById('page-' + pageId).classList.remove('hidden');
     
-    // Reset desktop & mobile navigation states
+    // 1. Reset styling untuk semua button navigasi (Desktop & Mobile)
     document.querySelectorAll('nav button').forEach(btn => {
         btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900 w-full text-left md:w-auto";
     });
     
-    // Highlight desktop nav
+    // 2. Highlight/Aktifkan button navigasi versi Desktop jika ada
     const activeBtn = document.getElementById('nav-' + pageId);
-    if(activeBtn) activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-bca-500 dark:text-white shadow-sm";
+    if(activeBtn) {
+        activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-bca-500 dark:text-white shadow-sm";
+    }
     
-    // Highlight mobile nav
+    // 3. Highlight/Aktifkan button navigasi versi Mobile jika ada
     const activeMobBtn = document.getElementById('nav-mob-' + pageId);
-    if(activeMobBtn) activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-bca-500 dark:text-white font-bold";
+    if(activeMobBtn) {
+        activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-bca-500 dark:text-white font-bold";
+    }
 
     renderDashboard();
 }
