@@ -83,21 +83,21 @@ function switchPage(pageId) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
     document.getElementById('page-' + pageId).classList.remove('hidden');
     
-    // 1. Reset styling untuk semua button navigasi (Desktop & Mobile)
+    // Reset styling navigasi dasar (Desktop & Mobile)
     document.querySelectorAll('nav button').forEach(btn => {
         btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900 w-full text-left md:w-auto";
     });
     
-    // 2. Highlight/Aktifkan button navigasi versi Desktop jika ada
+    // Highlight button navigasi Desktop
     const activeBtn = document.getElementById('nav-' + pageId);
     if(activeBtn) {
-        activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-bca-500 dark:text-white shadow-sm";
+        activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm";
     }
     
-    // 3. Highlight/Aktifkan button navigasi versi Mobile jika ada
+    // Highlight button navigasi Mobile
     const activeMobBtn = document.getElementById('nav-mob-' + pageId);
     if(activeMobBtn) {
-        activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-bca-500 dark:text-white font-bold";
+        activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-blue-600 dark:text-white font-bold";
     }
 
     renderDashboard();
@@ -199,7 +199,7 @@ function renderDashboardPage(balances, selectedMonth) {
                         <span class="font-bold text-slate-900 dark:text-white">${formatRupiah(amt)} <span class="text-[10px] text-slate-400 font-normal">(${pct}%)</span></span>
                     </div>
                     <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div class="bg-bca-500 h-full rounded-full" style="width: ${pct}%"></div>
+                        <div class="bg-blue-600 h-full rounded-full" style="width: ${pct}%"></div>
                     </div>
                 </div>`;
         }).join('');
@@ -247,7 +247,7 @@ function renderTransactionsPage() {
         let displayAccount = t.account;
 
         if (t.isTransfer) {
-            colorClass = 'text-bca-500 dark:text-bca-100 font-bold';
+            colorClass = 'text-blue-600 dark:text-blue-400 font-bold';
             amt = t.credit || t.debit;
             displayCategory = 'Transfer Dana';
             displayAccount = `${t.account} ➔ ${t.targetAccount}`;
@@ -265,7 +265,7 @@ function renderTransactionsPage() {
                 <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${displayAccount}</span></td>
                 <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${t.notes || ''}">${t.notes || '-'}</td>
                 <td class="py-2.5 px-4 text-center space-x-2 whitespace-nowrap">
-                    <button onclick="editTransaction('${t.id}')" class="text-slate-400 hover:text-bca-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="editTransaction('${t.id}')" class="text-slate-400 hover:text-blue-600 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
                     <button onclick="duplicateTransaction('${t.id}')" class="text-slate-400 hover:text-indigo-500 inline-block"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
                     <button onclick="triggerDeleteConfirm('${t.id}', 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </td>
@@ -352,7 +352,7 @@ function renderReportsPage() {
 
     if (chartCatInstance) chartCatInstance.destroy();
     const catDatasets = [];
-    const colors = ['#f59e0b', '#a855f7', '#3b82f6', '#ec4899', '#64748b', '#06b6d4'];
+    const colors = ['#f59e0b', '#a855f7', '#2563eb', '#ec4899', '#64748b', '#06b6d4'];
     let colorIdx = 0;
     uniqueCategories.forEach(c => {
         catDatasets.push({ label: c, data: categoryDatasetsInfo[c], borderColor: colors[colorIdx % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.2 });
@@ -388,7 +388,7 @@ function renderSetupPage() {
                 <td class="py-2.5 px-4 text-slate-500"><span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${a.type}</span></td>
                 <td class="py-2.5 px-4 font-medium">${formatRupiah(a.initial)}</td>
                 <td class="py-2.5 px-4 text-center space-x-2.5 whitespace-nowrap">
-                    <button onclick="editSetupAccount('${a.name}')" class="text-slate-400 hover:text-bca-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="editSetupAccount('${a.name}')" class="text-slate-400 hover:text-blue-600 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
                     <button onclick="triggerDeleteConfirm('${a.name}', 'account')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </td>
             </tr>`;
@@ -448,7 +448,7 @@ function editSetupAccount(name) {
     const acc = userAccounts.find(a => a.name === name);
     if(!acc) return;
 
-    document.getElementById('setupFormTitle').innerHTML = `<i data-lucide="edit-2" class="w-4 h-4 text-bca-500"></i> Edit Akun Keuangan`;
+    document.getElementById('setupFormTitle').innerHTML = `<i data-lucide="edit-2" class="w-4 h-4 text-blue-600"></i> Edit Akun Keuangan`;
     document.getElementById('setup-acc-edit-id').value = acc.name;
     document.getElementById('setup-acc-name').value = acc.name;
     document.getElementById('setup-acc-type').value = acc.type;
@@ -530,9 +530,9 @@ function handleTransactionSubmit(e) {
 
 function editTransaction(id) {
     const t = transactions.find(tx => tx.id === id);
-    if (!tx) return;
+    if (!t) return; // Fixed: Perbaikan variabel dari '!tx' menjadi '!t'
 
-    document.getElementById('modalTitle').innerHTML = `<i data-lucide="edit-2" class="text-bca-500 w-4 h-4"></i> Edit Transaksi`;
+    document.getElementById('modalTitle').innerHTML = `<i data-lucide="edit-2" class="text-blue-600 w-4 h-4"></i> Edit Transaksi`;
     document.getElementById('form-edit-id').value = t.id;
     document.getElementById('form-date').value = t.date;
     
@@ -565,7 +565,7 @@ function duplicateTransaction(id) {
 }
 
 function openModal() {
-    document.getElementById('modalTitle').innerHTML = `<i data-lucide="plus-circle" class="text-bca-500 w-4 h-4"></i> Tambah Transaksi`;
+    document.getElementById('modalTitle').innerHTML = `<i data-lucide="plus-circle" class="text-blue-600 w-4 h-4"></i> Tambah Transaksi`;
     document.getElementById('form-edit-id').value = '';
     document.getElementById('form-name').value = '';
     document.getElementById('form-amount').value = '';
@@ -611,22 +611,13 @@ function executeDelete() {
     triggerCloudPush();
 }
 
-// ==========================================
-// FUNGSI BARU UNTUK MENGOSONGKAN SEMUA DATA WIPE SYSTEM
-// ==========================================
 function executeWipeAllData() {
-    // Kosongkan state data di memory run-time
     userAccounts = [];
     transactions = [];
-
-    // Bersihkan data di local storage browser
     localStorage.removeItem('userAccounts');
     localStorage.removeItem('transactions');
-
-    // Perbarui pilihan dropdown form input agar sinkron dengan array kosong
     populateFormDropdowns();
 
-    // Tutup tampilan modal wipe konfirmasi
     if(typeof closeWipeModal === 'function') {
         closeWipeModal();
     } else {
@@ -634,7 +625,6 @@ function executeWipeAllData() {
         if(modal) modal.classList.add('hidden');
     }
 
-    // Jika terhubung ke mode Google Sheets, kirim payload kosong untuk meriset server spreadsheet
     const mode = localStorage.getItem('dbMode');
     const url = localStorage.getItem('sheetsUrl');
     if (mode === 'sheets' && url) {
@@ -660,7 +650,6 @@ function executeWipeAllData() {
             renderDashboard();
         });
     } else {
-        // Jika mode lokal offline, langsung re-render dashboard dengan workspace kosong
         renderDashboard();
     }
 }
