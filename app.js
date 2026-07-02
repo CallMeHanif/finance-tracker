@@ -83,7 +83,6 @@ function switchPage(pageId) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
     document.getElementById('page-' + pageId).classList.remove('hidden');
     
-    // Perbaikan Selektor: Memisahkan pembersihan styling tombol Desktop dan Mobile secara spesifik
     document.querySelectorAll('#page-dashboard, header nav button').forEach(btn => {
         if(btn.tagName === 'BUTTON') {
             btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900";
@@ -94,13 +93,11 @@ function switchPage(pageId) {
         btn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300";
     });
     
-    // Highlight button navigasi Desktop
     const activeBtn = document.getElementById('nav-' + pageId);
     if(activeBtn) {
         activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-blueSystem-500 dark:text-white shadow-sm";
     }
     
-    // Highlight button navigasi Mobile
     const activeMobBtn = document.getElementById('nav-mob-' + pageId);
     if(activeMobBtn) {
         activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-blueSystem-500 dark:text-white font-bold";
@@ -358,7 +355,7 @@ function renderReportsPage() {
 
     if (chartCatInstance) chartCatInstance.destroy();
     const catDatasets = [];
-    const colors = ['#f59e0b', '#a855f7', '#0056a3', '#ec4899', '#64748b', '#06b6d4']; // Dikembalikan ke warna biru utama asli #0056a3
+    const colors = ['#f59e0b', '#a855f7', '#0056a3', '#ec4899', '#64748b', '#06b6d4'];
     let colorIdx = 0;
     uniqueCategories.forEach(c => {
         catDatasets.push({ label: c, data: categoryDatasetsInfo[c], borderColor: colors[colorIdx % colors.length], backgroundColor: 'transparent', borderWidth: 2, tension: 0.2 });
@@ -536,7 +533,7 @@ function handleTransactionSubmit(e) {
 
 function editTransaction(id) {
     const t = transactions.find(tx => tx.id === id);
-    if (!t) return; // FIXED: Perbaikan bug typo 'tx' menjadi 't' yang membuat button edit macet
+    if (!t) return;
 
     document.getElementById('modalTitle').innerHTML = `<i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i> Edit Transaksi`;
     document.getElementById('form-edit-id').value = t.id;
@@ -557,7 +554,10 @@ function editTransaction(id) {
     else document.getElementById('form-category').value = t.category || '';
     
     document.getElementById('form-notes').value = t.notes || '';
-    document.getElementById('transactionModal').classList.remove('hidden');
+    
+    const modal = document.getElementById('transactionModal');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     lucide.createIcons();
 }
 
@@ -588,11 +588,16 @@ function openModal() {
     
     adjustFormInputs();
     
-    // Pastikan class 'hidden' dihapus
     modal.classList.remove('hidden'); 
+    modal.style.display = 'flex'; // Paksa tampil
     lucide.createIcons();
 }
-function closeModal() { document.getElementById('transactionModal').classList.add('hidden'); }
+
+function closeModal() { 
+    const modal = document.getElementById('transactionModal');
+    modal.classList.add('hidden');
+    modal.style.display = ''; // Reset display statenya
+}
 
 function triggerDeleteConfirm(id, type) {
     deleteTargetId = id;

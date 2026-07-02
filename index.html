@@ -58,10 +58,6 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <button onclick="openModal()" class="hidden sm:flex bg-blueSystem-500 hover:bg-blueSystem-600 dark:bg-blueSystem-600 dark:hover:bg-blueSystem-500 text-white font-semibold py-1.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    <span>Tambah Transaksi</span>
-                </button>
                 <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
                     <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
@@ -82,11 +78,7 @@
                     <button onclick="switchPageMobile('reports')" id="nav-mob-reports" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Laporan</button>
                     <button onclick="switchPageMobile('setup')" id="nav-mob-setup" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Setup Akun</button>
                 </nav>
-                <button onclick="openModalMobile()" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    <span>Tambah Transaksi</span>
-                </button>
-            </div>
+                </div>
         </div>
     </header>
 
@@ -149,6 +141,13 @@
         </div>
 
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <div class="lg:col-span-12 flex justify-end">
+                <button onclick="openModal()" class="w-full sm:w-auto bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-3 sm:py-2 px-6 rounded-xl text-sm sm:text-xs transition-all shadow-sm flex items-center justify-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 sm:w-4 sm:h-4"></i>
+                    <span>Tambah Transaksi Baru</span>
+                </button>
+            </div>
             <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 <div class="bg-slate-950 text-white rounded-2xl p-4 shadow-md">
                     <div class="grid grid-cols-2 gap-2 text-center divide-x divide-slate-800">
@@ -453,13 +452,11 @@
         <p>&copy; 2026 Personal Finance System Ecosystem.</p>
     </footer>
 
-    <!-- HELPER SCRIPT UNTUK INTERAKSI MENU MOBILE -->
     <script>
     function toggleMobileMenu() {
         const menu = document.getElementById('mobileMenu');
         const icon = document.querySelector('#burgerBtn i');
         menu.classList.toggle('hidden');
-        // Update ikon
         icon.setAttribute('data-lucide', menu.classList.contains('hidden') ? 'menu' : 'x');
         lucide.createIcons();
     }
@@ -475,14 +472,13 @@
         closeMobileMenu();
     }
 
-    function openModalMobile() {
-        closeMobileMenu();
-        // Beri waktu browser untuk menutup menu burger sebelum membuka modal
-        setTimeout(() => {
-            openModal();
-        }, 300);
+    function openWipeModal() {
+        document.getElementById('wipeDataModal').classList.remove('hidden');
     }
-</script>
+    function closeWipeModal() {
+        document.getElementById('wipeDataModal').classList.add('hidden');
+    }
+    </script>
 
     <script src="app.js"></script>
 </body>
