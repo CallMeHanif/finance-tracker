@@ -11,8 +11,9 @@ let userAccounts = [
 ];
 
 let userCategories = {
-    income: ['Gaji', 'Hadiah', 'Profit', 'Hutang'],
-    expense: ['Makan', 'Kebutuhan', 'Belanja', 'Langganan', 'Donasi', 'Otomotif', 'Piutang']
+    income: ['Gaji', 'Hadiah', 'Profit'],
+    expense: ['Makan', 'Kebutuhan', 'Belanja', 'Langganan', 'Donasi', 'Otomotif',],
+    neutral: ['Hutang', 'Piutang', 'Lainnya']
 };
 
 let transactions = [
@@ -28,6 +29,19 @@ let chartIncExpInstance = null;
 let chartCatInstance = null;
 let chartSaldoInstance = null;
 let isBalanceObscured = false;
+let isInitialLoading = false;
+let cloudSyncTimer = null;
+let cloudSyncInFlight = false;
+let cloudSyncQueued = false;
+let cloudFetchInFlight = false;
+let localMutationVersion = 0;
+
+const CLOUD_SYNC_DELAY = 650;
+const STORAGE_KEYS = {
+    accounts: 'userAccounts',
+    categories: 'userCategories',
+    transactions: 'transactions'
+};
 
 const emptyStateHTML = `<div class="p-6 flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 w-full col-span-full">
     <i data-lucide="inbox" class="w-10 h-10 mb-2 stroke-[1.5]"></i>
@@ -36,33 +50,259 @@ const emptyStateHTML = `<div class="p-6 flex flex-col items-center justify-cente
 
 const emptyTableRowHTML = (colspan) => `<tr><td colspan="${colspan}" class="py-8 text-center text-xs text-slate-400 italic"><i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 stroke-[1.5] text-slate-300 dark:text-slate-700"></i>Data Tidak Tersedia</td></tr>`;
 
-window.addEventListener('DOMContentLoaded', () => {
-    if(localStorage.getItem('userAccounts')) userAccounts = JSON.parse(localStorage.getItem('userAccounts'));
-    if(localStorage.getItem('userCategories')) userCategories = JSON.parse(localStorage.getItem('userCategories'));
-    if(localStorage.getItem('transactions')) transactions = JSON.parse(localStorage.getItem('transactions'));
-    if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
-    if(localStorage.getItem('isBalanceObscured') === 'true') isBalanceObscured = true;
+
+function safeJsonParse(value, fallback) {
+    if (value === null || value === undefined || value === '') return fallback;
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        console.warn('Data lokal rusak dan diabaikan:', error);
+        return fallback;
+    }
+}
+
+function normalizeMoney(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeText(value) {
+    return value === null || value === undefined ? '' : String(value).trim();
+}
+
+function normalizeDateValue(value) {
+    const raw = normalizeText(value);
+    if (!raw) return '';
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+}
+
+function createTransactionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function simpleHash(value) {
+    let hash = 2166136261;
+    const text = String(value);
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+function normalizeAccounts(input) {
+    if (!Array.isArray(input)) return [];
+    const seen = new Set();
+    const result = [];
+
+    input.forEach(account => {
+        const name = normalizeText(account && account.name);
+        if (!name) return;
+        const key = name.toLocaleLowerCase('id-ID');
+        if (seen.has(key)) return;
+        seen.add(key);
+        result.push({
+            name,
+            type: normalizeText(account.type) || 'Cash',
+            initial: normalizeMoney(account.initial)
+        });
+    });
+
+    return result;
+}
+
+function normalizeCategories(input) {
+    const source = input && typeof input === 'object' ? input : {};
+    const normalizeList = list => {
+        if (!Array.isArray(list)) return [];
+        const seen = new Set();
+        return list.map(normalizeText).filter(name => {
+            const key = name.toLocaleLowerCase('id-ID');
+            if (!name || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    };
+
+    const result = {
+        income: normalizeList(source.income),
+        expense: normalizeList(source.expense),
+        neutral: normalizeList(source.neutral)
+    };
+
+    const globalSeen = new Set();
+    ['income', 'expense', 'neutral'].forEach(type => {
+        result[type] = result[type].filter(name => {
+            const key = name.toLocaleLowerCase('id-ID');
+            if (globalSeen.has(key)) return false;
+            globalSeen.add(key);
+            return true;
+        });
+    });
+
+    return result;
+}
+
+function normalizeTransactions(input) {
+    if (!Array.isArray(input)) return [];
+    const byId = new Map();
+
+    input.forEach((transaction, index) => {
+        if (!transaction || typeof transaction !== 'object') return;
+        const normalized = {
+            id: normalizeText(transaction.id),
+            date: normalizeDateValue(transaction.date),
+            name: normalizeText(transaction.name),
+            credit: Math.max(0, normalizeMoney(transaction.credit)),
+            debit: Math.max(0, normalizeMoney(transaction.debit)),
+            category: normalizeText(transaction.category),
+            account: normalizeText(transaction.account),
+            targetAccount: normalizeText(transaction.targetAccount),
+            notes: normalizeText(transaction.notes),
+            isTransfer: Boolean(transaction.isTransfer || normalizeText(transaction.targetAccount))
+        };
+
+        if (!normalized.id) {
+            const legacySignature = JSON.stringify([
+                normalized.date, normalized.name, normalized.credit, normalized.debit,
+                normalized.category, normalized.account, normalized.targetAccount,
+                normalized.notes, index
+            ]);
+            normalized.id = `legacy-${simpleHash(legacySignature)}`;
+        }
+
+        if (normalized.isTransfer) {
+            normalized.category = '';
+            const amount = normalized.credit || normalized.debit;
+            normalized.credit = amount;
+            normalized.debit = 0;
+        }
+
+        // ID yang sama dianggap transaksi yang sama; versi terakhir dipakai.
+        byId.set(normalized.id, normalized);
+    });
+
+    return Array.from(byId.values());
+}
+
+function loadLocalData() {
+    const storedAccounts = safeJsonParse(localStorage.getItem(STORAGE_KEYS.accounts), null);
+    const storedCategories = safeJsonParse(localStorage.getItem(STORAGE_KEYS.categories), null);
+    const storedTransactions = safeJsonParse(localStorage.getItem(STORAGE_KEYS.transactions), null);
+
+    userAccounts = normalizeAccounts(storedAccounts === null ? userAccounts : storedAccounts);
+    userCategories = normalizeCategories(storedCategories === null ? userCategories : storedCategories);
+    transactions = normalizeTransactions(storedTransactions === null ? transactions : storedTransactions);
+}
+
+function persistLocalData() {
+    localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(userAccounts));
+    localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(userCategories));
+    localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+}
+
+function hasWorkspaceData() {
+    return userAccounts.length > 0 || transactions.length > 0 ||
+        userCategories.income.length > 0 || userCategories.expense.length > 0 || userCategories.neutral.length > 0;
+}
+
+function commitDataChange({ sync = true, render = true } = {}) {
+    userAccounts = normalizeAccounts(userAccounts);
+    userCategories = normalizeCategories(userCategories);
+    transactions = normalizeTransactions(transactions);
+    localMutationVersion += 1;
+    persistLocalData();
+    populateFormDropdowns();
+    if (render) renderDashboard();
+    if (sync) triggerCloudPush();
+}
+
+function setSyncStatus(message) {
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) statusEl.innerText = message;
+}
+
+function getCloudConfig() {
+    return {
+        mode: localStorage.getItem('dbMode') || 'local',
+        url: (localStorage.getItem('sheetsUrl') || '').trim()
+    };
+}
+
+function buildCloudPayload() {
+    return {
+        action: 'syncAll',
+        userAccounts: normalizeAccounts(userAccounts),
+        userCategories: normalizeCategories(userCategories),
+        transactions: normalizeTransactions(transactions),
+        clientUpdatedAt: new Date().toISOString()
+    };
+}
+
+function getWorkspaceSignature(data = null) {
+    const source = data || {
+        userAccounts,
+        userCategories,
+        transactions
+    };
+    return simpleHash(JSON.stringify({
+        userAccounts: normalizeAccounts(source.userAccounts || []),
+        userCategories: normalizeCategories(source.userCategories || {}),
+        transactions: normalizeTransactions(source.transactions || [])
+    }));
+}
+
+function parseNominal(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    let raw = normalizeText(value).replace(/\s/g, '');
+    if (!raw) return 0;
+
+    // Format Indonesia seperti 1.250.000 atau 1.250.000,50.
+    if (raw.includes(',') && raw.includes('.')) {
+        raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (raw.includes(',')) {
+        raw = raw.replace(',', '.');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
+        raw = raw.replace(/\./g, '');
+    }
+
+    raw = raw.replace(/[^0-9.-]/g, '');
+    const number = Number(raw);
+    return Number.isFinite(number) ? number : 0;
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    loadLocalData();
+
+    if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    if (localStorage.getItem('isBalanceObscured') === 'true') isBalanceObscured = true;
 
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
     document.getElementById('dashboardMonthFilter').value = currentYearMonth;
     document.getElementById('txMonthFilter').value = currentYearMonth;
 
     document.getElementById('dbMode').value = localStorage.getItem('dbMode') || 'local';
     document.getElementById('sheetsUrl').value = localStorage.getItem('sheetsUrl') || '';
-    
+
     changeDbMode();
     updateHeaderCloudIndicator();
     updateObscureUI();
+    populateFormDropdowns();
+    switchPage('dashboard');
 
-    if (localStorage.getItem('dbMode') === 'sheets') {
-        fetchFromGoogleSheets();
-    } else {
-        switchPage('dashboard');
-        populateFormDropdowns();
-        renderDashboard();
+    const { mode, url } = getCloudConfig();
+    if (mode === 'sheets' && url) {
+        await fetchFromGoogleSheets({ allowInitialUpload: true });
     }
+
     lucide.createIcons();
 });
 
@@ -114,18 +354,75 @@ function switchPage(pageId) {
     renderDashboard();
 }
 
-function populateFormDropdowns() {
-    const accountHtml = userAccounts.length > 0 
-        ? userAccounts.map(a => `<option value="${a.name}">${a.name}</option>`).join('')
-        : `<option value="">-- Buat Akun Dulu --</option>`;
-        
-    document.getElementById('form-account').innerHTML = accountHtml;
-    document.getElementById('form-target-account').innerHTML = accountHtml;
-    document.getElementById('txFilterAccount').innerHTML = `<option value="">Semua Akun</option>` + accountHtml;
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
-    const allCategories = [...userCategories.income, ...userCategories.expense];
-    document.getElementById('txFilterCategory').innerHTML = `<option value="">Semua Kategori</option>` + 
-        [...new Set(allCategories)].map(c => `<option value="${c}">${c}</option>`).join('');
+function encodeActionValue(value) {
+    return btoa(unescape(encodeURIComponent(String(value))));
+}
+
+function decodeActionValue(value) {
+    return decodeURIComponent(escape(atob(value)));
+}
+
+function populateFormDropdowns() {
+    userAccounts = normalizeAccounts(userAccounts);
+    userCategories = normalizeCategories(userCategories);
+
+    const accountHtml = userAccounts.length > 0
+        ? userAccounts.map(a => `<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}</option>`).join('')
+        : `<option value="">-- Buat Akun Dulu --</option>`;
+
+    const accountSelect = document.getElementById('form-account');
+    const targetAccountSelect = document.getElementById('form-target-account');
+    const filterAccountSelect = document.getElementById('txFilterAccount');
+    if (accountSelect) accountSelect.innerHTML = accountHtml;
+    if (targetAccountSelect) targetAccountSelect.innerHTML = accountHtml;
+    if (filterAccountSelect) filterAccountSelect.innerHTML = `<option value="">Semua Akun</option>` + accountHtml;
+
+    const allCategories = [
+        ...userCategories.income,
+        ...userCategories.expense,
+        ...userCategories.neutral
+    ];
+    const filterCategorySelect = document.getElementById('txFilterCategory');
+    if (filterCategorySelect) {
+        filterCategorySelect.innerHTML = `<option value="">Semua Kategori</option>` +
+            [...new Set(allCategories)].map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+}
+
+function updateCategoryDropdown(selectedValue = '') {
+    const catSelect = document.getElementById('form-category');
+    const typeSelect = document.getElementById('form-type');
+    if (!catSelect || !typeSelect) return;
+
+    const type = typeSelect.value;
+    let availableCategories = [];
+    if (type === 'Credit') {
+        availableCategories = [...userCategories.expense, ...userCategories.neutral];
+    } else if (type === 'Debit') {
+        availableCategories = [...userCategories.income, ...userCategories.neutral];
+    }
+
+    catSelect.innerHTML = '<option value="" disabled>Pilih Kategori...</option>' +
+        [...new Set(availableCategories)].map(cat =>
+            `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+        ).join('');
+
+    if (selectedValue && availableCategories.includes(selectedValue)) {
+        catSelect.value = selectedValue;
+    } else if (availableCategories.length > 0) {
+        catSelect.value = availableCategories[0];
+    } else {
+        catSelect.value = '';
+    }
 }
 
 function formatRupiah(amount, forceShow = false) {
@@ -158,10 +455,10 @@ function calculateBalancesUntil(selectedMonthIso = null) {
 }
 
 function isCategoryCalculatedToIncomeExpense(categoryName) {
-    if(!categoryName) return false;
-    const catL = categoryName.toLowerCase();
-    if (catL === 'hutang' || catL === 'piutang') return false;
-    return true;
+    const category = normalizeText(categoryName);
+    if (!category) return false;
+    const neutralCategories = userCategories.neutral || [];
+    return !neutralCategories.some(item => item.toLocaleLowerCase('id-ID') === category.toLocaleLowerCase('id-ID'));
 }
 
 function renderDashboard() {
@@ -180,7 +477,7 @@ function renderDashboardPage(selectedMonth) {
     let netWorth = 0, totalBank = 0, totalWallet = 0, totalCash = 0, totalSaving = 0;
     
     userAccounts.forEach(a => {
-        const bal = balances[a.name] || 0;
+        const bal = balances[a.name] ?? 0;
         netWorth += bal;
         if (a.type === 'Bank') totalBank += bal;
         else if (a.type === 'E Wallet') totalWallet += bal;
@@ -303,11 +600,11 @@ function renderDashboardPage(selectedMonth) {
             tableBody.innerHTML += `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
                     <td class="py-3 px-4 whitespace-nowrap text-slate-500">${formatTanggalIndo(t.date)}</td>
-                    <td class="py-3 px-4 font-semibold text-slate-900 dark:text-white">${t.name}</td>
-                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${bgPill}">${t.category || 'Transfer'}</span></td>
+                    <td class="py-3 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${bgPill}">${escapeHtml(t.category || 'Transfer')}</span></td>
                     <td class="py-3 px-4 ${jenisColor} font-bold">${amtStr}</td>
-                    <td class="py-3 px-4 text-slate-500">${t.isTransfer ? `${t.account} ➔ ${t.targetAccount}` : t.account}</td>
-                    <td class="py-3 px-4 text-slate-400 truncate max-w-[120px]" title="${t.notes||''}">${t.notes || '-'}</td>
+                    <td class="py-3 px-4 text-slate-500">${escapeHtml(t.isTransfer ? `${t.account} ➔ ${t.targetAccount}` : t.account)}</td>
+                    <td class="py-3 px-4 text-slate-400 truncate max-w-[120px]" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
                 </tr>`;
         });
     }
@@ -375,14 +672,14 @@ function renderTransactionsPage(selectedMonth) {
             tableBody.innerHTML += `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
                     <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${formatTanggalIndo(t.date)}</td>
-                    <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${t.name}</td>
+                    <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
                     <td class="py-2.5 px-4 ${colorClass}">${formatRupiah(amt, true)}</td>
-                    <td class="py-2.5 px-4 text-slate-500">${displayCategory}</td>
-                    <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${displayAccount}</span></td>
-                    <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${t.notes || ''}">${t.notes || '-'}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${escapeHtml(displayCategory)}</td>
+                    <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${escapeHtml(displayAccount)}</span></td>
+                    <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
                     <td class="py-2.5 px-4 text-center space-x-2 whitespace-nowrap">
-                        <button onclick="editTransaction('${t.id}')" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                        <button onclick="triggerDeleteConfirm('${t.id}', 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(t.id)}'), 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                     </td>
                 </tr>`;
         });
@@ -461,7 +758,7 @@ function renderReportsPage() {
             labels: chartLabels,
             datasets: [
                 // Ubah backgroundColor dari 'transparent' menjadi '#10b981'
-                { label: 'Total Pemasukan', data: incomeDataset, borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 3, tension: 0.2 },
+                { label: 'Total Pendapatan', data: incomeDataset, borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 3, tension: 0.2 },
                 // Ubah backgroundColor dari 'transparent' menjadi '#ef4444'
                 { label: 'Total Pengeluaran', data: expenseDataset, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3, tension: 0.2 }
             ]
@@ -529,11 +826,11 @@ function renderSettingsPage() {
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 draggable-row transition-colors" 
                 draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${index})">
                 <td class="py-2.5 px-3 text-slate-300 dark:text-slate-600 font-bold select-none text-center cursor-grab">⋮⋮</td>
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${a.name}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${a.type}</span></td>
+                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(a.name)}</td>
+                <td class="py-2.5 px-3 text-slate-500"><span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${escapeHtml(a.type)}</span></td>
                 <td class="py-2.5 px-3 text-center space-x-2.5 whitespace-nowrap">
-                    <button onclick="editSetupAccount('${a.name}')" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                    <button onclick="triggerDeleteConfirm('${a.name}', 'account')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="editSetupAccount(decodeActionValue('${encodeActionValue(a.name)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(a.name)}'), 'account')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </td>
             </tr>`).join('');
     }
@@ -542,27 +839,36 @@ function renderSettingsPage() {
     let catHtml = '';
     
     userCategories.income.forEach(cat => {
-        let isSystem = (cat.toLowerCase() === 'hutang');
         catHtml += `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${cat}</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
                 <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Masuk</span></td>
                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    ${isSystem ? `<span class="text-[10px] text-slate-400 italic">Sistem</span>` : `<button onclick="triggerDeleteConfirm('${cat}', 'category_in')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`}
+                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_in')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </td>
             </tr>`;
     });
     
     userCategories.expense.forEach(cat => {
-        let isSystem = (cat.toLowerCase() === 'piutang');
         catHtml += `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${cat}</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
                 <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Keluar</span></td>
                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    ${isSystem ? `<span class="text-[10px] text-slate-400 italic">Sistem</span>` : `<button onclick="triggerDeleteConfirm('${cat}', 'category_out')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`}
+                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_out')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </td>
             </tr>`;
+    });
+
+    userCategories.neutral.forEach(cat => {
+    catHtml += `
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+            <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
+            <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Netral</span></td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_neutral')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </td>
+        </tr>`;
     });
 
     catBody.innerHTML = catHtml === '' ? emptyTableRowHTML(3) : catHtml;
@@ -576,14 +882,12 @@ function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
 function handleDrop(e, targetIndex) {
     e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
-    if(dragSourceIndex === null || dragSourceIndex === targetIndex) return;
+    if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
 
     const movedItem = userAccounts.splice(dragSourceIndex, 1)[0];
     userAccounts.splice(targetIndex, 0, movedItem);
-    
-    localStorage.setItem('userAccounts', JSON.stringify(userAccounts));
-    populateFormDropdowns();
-    triggerCloudPush();
+    dragSourceIndex = null;
+    commitDataChange();
 }
 
 function openSettingsModal(type) {
@@ -615,31 +919,42 @@ function closeSettingsModal(type) {
 
 function saveSetupAccount(e) {
     e.preventDefault();
-    const editId = document.getElementById('setup-acc-edit-id').value;
-    const name = document.getElementById('setup-acc-name').value.trim();
-    const type = document.getElementById('setup-acc-type').value;
-    const initBal = Number(document.getElementById('setup-acc-balance').value);
+    const editId = normalizeText(document.getElementById('setup-acc-edit-id').value);
+    const name = normalizeText(document.getElementById('setup-acc-name').value);
+    const type = normalizeText(document.getElementById('setup-acc-type').value);
+    const initBal = normalizeMoney(document.getElementById('setup-acc-balance').value);
 
-    if (!editId && userAccounts.some(a => a.name.toLowerCase() === name.toLowerCase())) {
-        alert('Nama akun ini sudah terdaftar.'); return;
+    if (!name) {
+        alert('Nama akun wajib diisi.');
+        return;
+    }
+
+    const duplicate = userAccounts.some(a =>
+        a.name.toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID') && a.name !== editId
+    );
+    if (duplicate) {
+        alert('Nama akun ini sudah terdaftar.');
+        return;
     }
 
     if (editId) {
-        transactions.forEach(t => {
-            if(t.account === editId) t.account = name;
-            if(t.targetAccount === editId) t.targetAccount = name;
-        });
-        localStorage.setItem('transactions', JSON.stringify(transactions));
-        const idx = userAccounts.findIndex(a => a.name === editId);
-        if(idx !== -1) userAccounts[idx] = { name, type, initial: initBal };
+        const index = userAccounts.findIndex(a => a.name === editId);
+        if (index === -1) {
+            alert('Akun yang diedit tidak ditemukan.');
+            return;
+        }
+        userAccounts[index] = { name, type, initial: initBal };
+        transactions = transactions.map(t => ({
+            ...t,
+            account: t.account === editId ? name : t.account,
+            targetAccount: t.targetAccount === editId ? name : t.targetAccount
+        }));
     } else {
         userAccounts.push({ name, type, initial: initBal });
     }
 
-    localStorage.setItem('userAccounts', JSON.stringify(userAccounts));
     closeSettingsModal('account');
-    populateFormDropdowns();
-    triggerCloudPush();
+    commitDataChange();
 }
 
 function editSetupAccount(name) {
@@ -658,25 +973,36 @@ function editSetupAccount(name) {
 
 function saveSetupCategory(e) {
     e.preventDefault();
-    const name = document.getElementById('setup-cat-name').value.trim();
+    const name = normalizeText(document.getElementById('setup-cat-name').value);
     const type = document.getElementById('setup-cat-type').value;
 
-    if (userCategories.income.includes(name) || userCategories.expense.includes(name)) {
-        alert('Kategori ini sudah terdaftar.'); return;
+    if (!name) {
+        alert('Nama kategori wajib diisi.');
+        return;
     }
 
-    if (type === 'income') userCategories.income.push(name);
-    else userCategories.expense.push(name);
+    const allCategories = [
+        ...userCategories.income,
+        ...userCategories.expense,
+        ...userCategories.neutral
+    ];
+    if (allCategories.some(category => category.toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID'))) {
+        alert('Kategori ini sudah terdaftar.');
+        return;
+    }
 
-    localStorage.setItem('userCategories', JSON.stringify(userCategories));
+    if (!['income', 'expense', 'neutral'].includes(type)) {
+        alert('Tipe kategori tidak valid.');
+        return;
+    }
+
+    userCategories[type].push(name);
     closeSettingsModal('category');
-    populateFormDropdowns();
-    triggerCloudPush();
+    commitDataChange();
 }
 
 function adjustFormInputs() {
     const flowType = document.getElementById('form-type').value;
-    const catSelect = document.getElementById('form-category');
     const catContainer = document.getElementById('categoryContainer');
     const targetAccContainer = document.getElementById('targetAccountContainer');
     const accLabel = document.getElementById('accountLabel');
@@ -684,16 +1010,11 @@ function adjustFormInputs() {
     if (flowType === 'Transfer') {
         catContainer.classList.add('hidden');
         targetAccContainer.classList.remove('hidden');
-        accLabel.innerText = "Akun Asal";
-        catSelect.innerHTML = ""; 
+        accLabel.innerText = 'Akun Asal';
     } else {
         catContainer.classList.remove('hidden');
         targetAccContainer.classList.add('hidden');
-        accLabel.innerText = "Akun Keuangan";
-
-        const allAvailableCategories = [...userCategories.income, ...userCategories.expense];
-        catSelect.innerHTML = [...new Set(allAvailableCategories)]
-            .map(c => `<option value="${c}">${c}</option>`).join('');
+        accLabel.innerText = 'Akun Keuangan';
     }
 }
 
@@ -702,6 +1023,7 @@ function openTransactionModal() {
         openNoAccountModal();
         return;
     }
+
     const modal = document.getElementById('transactionModal');
     document.getElementById('modalTxTitle').innerHTML = `<i data-lucide="plus-circle" class="text-blueSystem-500 w-4 h-4"></i> Tambah Transaksi`;
     document.getElementById('form-edit-id').value = '';
@@ -709,11 +1031,15 @@ function openTransactionModal() {
     document.getElementById('form-amount').value = '';
     document.getElementById('form-notes').value = '';
     document.getElementById('form-type').value = 'Credit';
-    
-    document.getElementById('form-date').value = new Date().toISOString().split('T')[0];
-    
+
+    const now = new Date();
+    document.getElementById('form-date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    populateFormDropdowns();
     adjustFormInputs();
-    modal.classList.remove('hidden'); modal.style.display = 'flex';
+    updateCategoryDropdown();
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     lucide.createIcons();
 }
 
@@ -724,66 +1050,96 @@ function closeTransactionModal() {
 
 function handleTransactionSubmit(e) {
     e.preventDefault();
-    const editId = document.getElementById('form-edit-id').value;
+    const editId = normalizeText(document.getElementById('form-edit-id').value);
     const flowType = document.getElementById('form-type').value;
-    
-    const rawAmount = document.getElementById('form-amount').value.replace(/\./g, '');
-    const amt = Number(rawAmount);
-    
-    const srcAcc = document.getElementById('form-account').value;
+    const amount = parseNominal(document.getElementById('form-amount').value);
+    const sourceAccount = normalizeText(document.getElementById('form-account').value);
+    const targetAccount = normalizeText(document.getElementById('form-target-account').value);
+    const category = normalizeText(document.getElementById('form-category').value);
+    const name = normalizeText(document.getElementById('form-name').value);
+    const date = normalizeDateValue(document.getElementById('form-date').value);
 
-    if (flowType === 'Transfer' && srcAcc === document.getElementById('form-target-account').value) {
-        alert('Akun asal dan tujuan tidak boleh sama.'); return;
+    if (!date || !name || !sourceAccount) {
+        alert('Tanggal, deskripsi, dan akun wajib diisi.');
+        return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+        alert('Nominal harus lebih besar dari 0.');
+        return;
+    }
+    if (!userAccounts.some(account => account.name === sourceAccount)) {
+        alert('Akun keuangan tidak valid.');
+        return;
+    }
+    if (flowType === 'Transfer') {
+        if (!targetAccount || !userAccounts.some(account => account.name === targetAccount)) {
+            alert('Akun tujuan wajib dipilih.');
+            return;
+        }
+        if (sourceAccount === targetAccount) {
+            alert('Akun asal dan tujuan tidak boleh sama.');
+            return;
+        }
+    } else if (!category) {
+        alert('Kategori wajib dipilih.');
+        return;
     }
 
     const payload = {
-        date: document.getElementById('form-date').value,
-        name: document.getElementById('form-name').value,
-        notes: document.getElementById('form-notes').value,
-        account: srcAcc,
+        date,
+        name,
+        notes: normalizeText(document.getElementById('form-notes').value),
+        account: sourceAccount,
         isTransfer: flowType === 'Transfer',
-        credit: flowType === 'Debit' ? 0 : amt,
-        debit: flowType === 'Debit' ? amt : 0,
-        category: flowType === 'Transfer' ? "" : document.getElementById('form-category').value,
-        targetAccount: flowType === 'Transfer' ? document.getElementById('form-target-account').value : ""
+        credit: flowType === 'Debit' ? 0 : amount,
+        debit: flowType === 'Debit' ? amount : 0,
+        category: flowType === 'Transfer' ? '' : category,
+        targetAccount: flowType === 'Transfer' ? targetAccount : ''
     };
 
     if (editId) {
-        const idx = transactions.findIndex(t => t.id === editId);
-        if (idx !== -1) transactions[idx] = { ...transactions[idx], ...payload };
+        const index = transactions.findIndex(transaction => transaction.id === editId);
+        if (index === -1) {
+            alert('Transaksi yang diedit tidak ditemukan.');
+            return;
+        }
+        transactions[index] = { ...transactions[index], ...payload, id: editId };
     } else {
-        payload.id = Date.now().toString();
-        transactions.push(payload);
+        transactions.push({ ...payload, id: createTransactionId() });
     }
 
-    localStorage.setItem('transactions', JSON.stringify(transactions));
     closeTransactionModal();
-    triggerCloudPush();
+    commitDataChange();
 }
 
 function editTransaction(id) {
-    const t = transactions.find(tx => tx.id === id);
-    if (!t) return;
-    document.getElementById('modalTxTitle').innerHTML = `<i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i> Edit Transaksi`;
-    document.getElementById('form-edit-id').value = t.id;
-    document.getElementById('form-date').value = t.date;
-    
-    let flowValue = 'Credit';
-    if (t.isTransfer) flowValue = 'Transfer';
-    else if (t.debit > 0) flowValue = 'Debit';
+    const transaction = transactions.find(item => item.id === String(id));
+    if (!transaction) return;
 
+    document.getElementById('modalTxTitle').innerHTML = `<i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i> Edit Transaksi`;
+    document.getElementById('form-edit-id').value = transaction.id;
+    document.getElementById('form-date').value = transaction.date;
+
+    let flowValue = 'Credit';
+    if (transaction.isTransfer) flowValue = 'Transfer';
+    else if (transaction.debit > 0) flowValue = 'Debit';
+
+    populateFormDropdowns();
     document.getElementById('form-type').value = flowValue;
     adjustFormInputs();
+    updateCategoryDropdown(transaction.category || '');
 
-    document.getElementById('form-name').value = t.name;
-    document.getElementById('form-amount').value = new Intl.NumberFormat('id-ID').format(t.debit > 0 ? t.debit : t.credit);
-    document.getElementById('form-account').value = t.account;
-    if (t.isTransfer) document.getElementById('form-target-account').value = t.targetAccount;
-    else document.getElementById('form-category').value = t.category || '';
-    document.getElementById('form-notes').value = t.notes || '';
-    
+    document.getElementById('form-name').value = transaction.name;
+    document.getElementById('form-amount').value = new Intl.NumberFormat('id-ID').format(transaction.debit > 0 ? transaction.debit : transaction.credit);
+    document.getElementById('form-account').value = transaction.account;
+    if (transaction.isTransfer) {
+        document.getElementById('form-target-account').value = transaction.targetAccount;
+    }
+    document.getElementById('form-notes').value = transaction.notes || '';
+
     const modal = document.getElementById('transactionModal');
-    modal.classList.remove('hidden'); modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
     lucide.createIcons();
 }
 
@@ -801,59 +1157,55 @@ function triggerDeleteConfirm(id, type) {
 function closeDeleteModal() {
     document.getElementById('deleteConfirmModal').classList.add('hidden');
     deleteTargetId = null;
+    deleteTypeContext = 'transaction';
 }
 document.getElementById('confirmDeleteBtn').onclick = () => {
     if (!deleteTargetId) return;
 
     if (deleteTypeContext === 'account') {
-        userAccounts = userAccounts.filter(a => a.name !== deleteTargetId);
-        localStorage.setItem('userAccounts', JSON.stringify(userAccounts));
-        populateFormDropdowns();
-    } else if (deleteTypeContext === 'category_in') {
-        userCategories.income = userCategories.income.filter(c => c !== deleteTargetId);
-        localStorage.setItem('userCategories', JSON.stringify(userCategories));
-        populateFormDropdowns();
-    } else if (deleteTypeContext === 'category_out') {
-        userCategories.expense = userCategories.expense.filter(c => c !== deleteTargetId);
-        localStorage.setItem('userCategories', JSON.stringify(userCategories));
-        populateFormDropdowns();
+        const isUsed = transactions.some(transaction =>
+            transaction.account === deleteTargetId || transaction.targetAccount === deleteTargetId
+        );
+        if (isUsed) {
+            alert('Akun ini masih digunakan oleh transaksi. Hapus atau pindahkan transaksi tersebut terlebih dahulu.');
+            return;
+        }
+        userAccounts = userAccounts.filter(account => account.name !== deleteTargetId);
+    } else if (deleteTypeContext.startsWith('category_')) {
+        const typeMap = {
+            category_in: 'income',
+            category_out: 'expense',
+            category_neutral: 'neutral'
+        };
+        const categoryType = typeMap[deleteTypeContext];
+        if (!categoryType) return;
+
+        const isUsed = transactions.some(transaction => transaction.category === deleteTargetId);
+        if (isUsed) {
+            alert('Kategori ini masih digunakan oleh transaksi. Ubah atau hapus transaksi tersebut terlebih dahulu.');
+            return;
+        }
+        userCategories[categoryType] = userCategories[categoryType].filter(category => category !== deleteTargetId);
     } else {
-        transactions = transactions.filter(t => t.id !== deleteTargetId);
-        localStorage.setItem('transactions', JSON.stringify(transactions));
+        transactions = transactions.filter(transaction => transaction.id !== String(deleteTargetId));
     }
+
     closeDeleteModal();
-    triggerCloudPush();
+    commitDataChange();
 };
 
 function executeWipeAllData() {
     userAccounts = [];
     transactions = [];
-    userCategories = {
-        income: ['Gaji', 'Hadiah', 'Profit', 'Hutang'],
-        expense: ['Makan', 'Kebutuhan', 'Belanja', 'Langganan', 'Donasi', 'Otomotif', 'Piutang']
-    };
-    
-    localStorage.removeItem('userAccounts');
-    localStorage.removeItem('transactions');
-    localStorage.removeItem('userCategories');
-    populateFormDropdowns();
+    userCategories = { income: [], expense: [], neutral: [] };
+
     closeWipeModal();
+    commitDataChange({ sync: false, render: true });
 
-    const mode = localStorage.getItem('dbMode');
-    const url = localStorage.getItem('sheetsUrl');
+    const { mode, url } = getCloudConfig();
     if (mode === 'sheets' && url) {
-        const statusEl = document.getElementById('syncStatus');
-        if(statusEl) statusEl.innerText = "🔄 Mengosongkan cloud...";
-
-        fetch(url, {
-            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: "syncAll", userAccounts: [], transactions: [] })
-        }).then(() => {
-            if(statusEl) statusEl.innerText = "🗑️ Cloud dikosongkan.";
-            renderDashboard();
-        }).catch(() => { renderDashboard(); });
-    } else {
-        renderDashboard();
+        setSyncStatus('🔄 Mengosongkan cloud...');
+        triggerCloudPush({ immediate: true });
     }
 }
 
@@ -861,12 +1213,28 @@ function toggleSettingsModal() { document.getElementById('cloudModal').classList
 function changeDbMode() { document.getElementById('urlInputContainer').classList.toggle('hidden', document.getElementById('dbMode').value !== 'sheets'); }
 
 function saveSettings() {
-    localStorage.setItem('dbMode', document.getElementById('dbMode').value);
-    localStorage.setItem('sheetsUrl', document.getElementById('sheetsUrl').value);
+    const mode = document.getElementById('dbMode').value;
+    const url = document.getElementById('sheetsUrl').value.trim();
+
+    if (mode === 'sheets' && !url) {
+        alert('Masukkan URL Web App Google Apps Script terlebih dahulu.');
+        return;
+    }
+
+    localStorage.setItem('dbMode', mode);
+    localStorage.setItem('sheetsUrl', url);
+
     updateHeaderCloudIndicator();
     toggleSettingsModal();
-    if(localStorage.getItem('dbMode') === 'sheets') triggerCloudPush();
-    else renderDashboard();
+
+    if (mode === 'sheets') {
+        // Saat menghubungkan, ambil database cloud terlebih dahulu.
+        // Jangan langsung menimpa cloud dengan data lokal.
+        fetchFromGoogleSheets();
+    } else {
+        populateFormDropdowns();
+        renderDashboard();
+    }
 }
 
 function updateHeaderCloudIndicator() {
@@ -885,56 +1253,324 @@ function updateHeaderCloudIndicator() {
 }
 
 function triggerCloudPush() {
-    renderDashboard();
     const mode = localStorage.getItem('dbMode');
     const url = localStorage.getItem('sheetsUrl');
+
     if (mode !== 'sheets' || !url) return;
 
     const statusEl = document.getElementById('syncStatus');
-    if(statusEl) statusEl.innerText = "🔄 Menyimpan data ke Google Sheets...";
+
+    if (statusEl) {
+        statusEl.innerText = "⬆️ Menyinkronkan...";
+    }
+
+    const payload = {
+        action: "syncAll",
+        userAccounts: Array.isArray(userAccounts)
+            ? userAccounts
+            : [],
+
+        userCategories: {
+            income: Array.isArray(userCategories?.income)
+                ? userCategories.income
+                : [],
+
+            expense: Array.isArray(userCategories?.expense)
+                ? userCategories.expense
+                : [],
+
+            neutral: Array.isArray(userCategories?.neutral)
+                ? userCategories.neutral
+                : []
+        },
+
+        transactions: Array.isArray(transactions)
+            ? transactions
+            : []
+    };
 
     fetch(url, {
-        method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: "syncAll", userAccounts, transactions })
-    }).then(() => { if(statusEl) statusEl.innerText = "✅ Berhasil disimpan."; })
-      .catch(err => { if(statusEl) statusEl.innerText = "❌ Gagal: " + err.toString(); });
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(() => {
+        if (statusEl) {
+            statusEl.innerText = "✅ Data berhasil dikirim ke cloud.";
+        }
+    })
+    .catch(error => {
+        console.error('Sinkronisasi cloud gagal:', error);
+
+        if (statusEl) {
+            statusEl.innerText = "⚠️ Sinkronisasi cloud gagal.";
+        }
+    });
+}
+
+
+async function flushCloudPush() {
+    const { mode, url } = getCloudConfig();
+    if (mode !== 'sheets' || !url || isInitialLoading) return;
+
+    if (cloudSyncInFlight) {
+        cloudSyncQueued = true;
+        return;
+    }
+
+    cloudSyncInFlight = true;
+    cloudSyncQueued = false;
+    const mutationVersionAtStart = localMutationVersion;
+    const payload = buildCloudPayload();
+    const expectedSignature = getWorkspaceSignature(payload);
+    setSyncStatus('⬆️ Menyinkronkan...');
+
+    try {
+        await fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+
+        const verified = await verifyCloudSnapshot(url, expectedSignature);
+        if (verified) {
+            setSyncStatus('✅ Tersinkron.');
+        } else {
+            setSyncStatus('⚠️ Data terkirim, tetapi verifikasi cloud belum cocok.');
+        }
+    } catch (error) {
+        console.error('Gagal menyinkronkan data:', error);
+        setSyncStatus('⚠️ Sinkronisasi tertunda.');
+        cloudSyncQueued = true;
+    } finally {
+        cloudSyncInFlight = false;
+        if (mutationVersionAtStart !== localMutationVersion) cloudSyncQueued = true;
+        if (cloudSyncQueued) triggerCloudPush({ immediate: true });
+    }
+}
+
+async function verifyCloudSnapshot(url, expectedSignature) {
+    try {
+        const separator = url.includes('?') ? '&' : '?';
+        const response = await fetch(`${url}${separator}_=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return false;
+        const cloudData = await response.json();
+        if (!cloudData || cloudData.status !== 'success') return false;
+
+        const signature = getWorkspaceSignature({
+            userAccounts: cloudData.userAccounts || [],
+            userCategories: cloudData.userCategories || userCategories,
+            transactions: cloudData.transactions || []
+        });
+        return signature === expectedSignature;
+    } catch (error) {
+        console.warn('Verifikasi cloud gagal:', error);
+        return false;
+    }
 }
 
 function fetchFromGoogleSheets() {
-    const url = localStorage.getItem('sheetsUrl');
-    if (!url) return;
-    const statusEl = document.getElementById('syncStatus');
-    if(statusEl) statusEl.innerText = "🔄 Memuat cloud database...";
+    isInitialLoading = true;
 
-    fetch(url).then(res => res.json()).then(resData => {
-        if (resData && resData.status === "success") {
-            if(resData.userAccounts) { userAccounts = resData.userAccounts; localStorage.setItem('userAccounts', JSON.stringify(userAccounts)); }
-            if(resData.transactions) { transactions = resData.transactions; localStorage.setItem('transactions', JSON.stringify(transactions)); }
-            if(statusEl) statusEl.innerText = "✅ Cloud database dimuat.";
+    const url = localStorage.getItem('sheetsUrl');
+
+    if (!url) {
+        isInitialLoading = false;
+        return;
+    }
+
+    showLoader();
+
+    const statusEl = document.getElementById('syncStatus');
+
+    if (statusEl) {
+        statusEl.innerText = "🔄 Memuat cloud database...";
+    }
+
+    fetch(url, {
+        method: 'GET',
+        cache: 'no-store'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(
+                `HTTP error ${response.status}`
+            );
         }
-        switchPage('dashboard'); populateFormDropdowns(); renderDashboard();
-    }).catch(err => {
-        if(statusEl) statusEl.innerText = "⚠️ Gagal tersinkron.";
-        switchPage('dashboard'); populateFormDropdowns(); renderDashboard();
+
+        return response.json();
+    })
+    .then(resData => {
+        if (
+            !resData ||
+            resData.status !== 'success'
+        ) {
+            throw new Error(
+                resData?.message ||
+                'Respons cloud tidak valid.'
+            );
+        }
+
+        /*
+         * Kalau cloud benar-benar baru dan belum pernah
+         * diinisialisasi, pertahankan data lokal lalu upload.
+         */
+        if (resData.initialized === false) {
+            if (statusEl) {
+                statusEl.innerText =
+                    "⬆️ Menyiapkan database cloud...";
+            }
+
+            triggerCloudPush();
+            return;
+        }
+
+        /*
+         * TRANSAKSI
+         */
+        transactions = Array.isArray(resData.transactions)
+            ? resData.transactions.map((transaction, index) => ({
+                ...transaction,
+                id: String(
+                    transaction.id ||
+                    `${Date.now()}-${index}`
+                ),
+                credit:
+                    Number(transaction.credit) || 0,
+                debit:
+                    Number(transaction.debit) || 0,
+                isTransfer:
+                    Boolean(
+                        transaction.isTransfer ||
+                        transaction.targetAccount
+                    ),
+                targetAccount:
+                    transaction.targetAccount || '',
+                notes:
+                    transaction.notes || ''
+            }))
+            : [];
+
+        /*
+         * AKUN
+         */
+        userAccounts = Array.isArray(resData.userAccounts)
+            ? resData.userAccounts.map(account => ({
+                name:
+                    String(account.name || '').trim(),
+                type:
+                    String(account.type || '').trim(),
+                initial:
+                    Number(account.initial) || 0
+            }))
+            : [];
+
+        /*
+         * KATEGORI
+         *
+         * Inilah bagian yang tidak ada pada kode lamamu.
+         */
+        if (
+            resData.userCategories &&
+            typeof resData.userCategories === 'object'
+        ) {
+            userCategories = {
+                income: Array.isArray(
+                    resData.userCategories.income
+                )
+                    ? resData.userCategories.income
+                        .map(category =>
+                            String(category).trim()
+                        )
+                        .filter(Boolean)
+                    : [],
+
+                expense: Array.isArray(
+                    resData.userCategories.expense
+                )
+                    ? resData.userCategories.expense
+                        .map(category =>
+                            String(category).trim()
+                        )
+                        .filter(Boolean)
+                    : [],
+
+                neutral: Array.isArray(
+                    resData.userCategories.neutral
+                )
+                    ? resData.userCategories.neutral
+                        .map(category =>
+                            String(category).trim()
+                        )
+                        .filter(Boolean)
+                    : []
+            };
+        }
+
+        /*
+         * Simpan seluruh database cloud ke browser.
+         */
+        localStorage.setItem(
+            'transactions',
+            JSON.stringify(transactions)
+        );
+
+        localStorage.setItem(
+            'userAccounts',
+            JSON.stringify(userAccounts)
+        );
+
+        localStorage.setItem(
+            'userCategories',
+            JSON.stringify(userCategories)
+        );
+
+        populateFormDropdowns();
+
+        if (statusEl) {
+            statusEl.innerText =
+                "✅ Cloud database dimuat.";
+        }
+    })
+    .catch(error => {
+        console.error(
+            'Gagal memuat cloud database:',
+            error
+        );
+
+        if (statusEl) {
+            statusEl.innerText =
+                "⚠️ Gagal memuat cloud. Data lokal tetap digunakan.";
+        }
+    })
+    .finally(() => {
+        isInitialLoading = false;
+
+        hideLoader();
+
+        switchPage('dashboard');
+        populateFormDropdowns();
+        renderDashboard();
     });
 }
 
 function formatTanggalIndo(stringIso) {
-    if (!stringIso) return "-";
-    if (stringIso.includes('T') || stringIso.includes('-')) {
-        const date = new Date(stringIso);
-        return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-    }
-    return stringIso;
+    const value = normalizeDateValue(stringIso);
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return value || '-';
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function getLocalMonth(dateStr) {
-    if (!dateStr) return "";
-    if (dateStr.includes('T')) {
-        const d = new Date(dateStr);
-        if (!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
-    return dateStr.substring(0, 7);
+    const value = normalizeDateValue(dateStr);
+    const match = value.match(/^(\d{4})-(\d{2})/);
+    return match ? `${match[1]}-${match[2]}` : '';
 }
 
 function openNoAccountModal() {
@@ -966,29 +1602,462 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
     reader.readAsText(file);
 });
 
-function processCSV(csvText) {
-    const lines = csvText.split('\n');
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        const cols = line.split(',');
-        const newTx = {
-            id: Date.now().toString() + i,
-            date: cols[0],
-            name: cols[1],
-            credit: Number(cols[2]) || 0,
-            debit: Number(cols[3]) || 0,
-            category: cols[4] || '',
-            account: cols[5] || '',
-            notes: cols[6] || '',
-            isTransfer: false
-        };
-        transactions.push(newTx);
+
+function detectCSVDelimiter(firstLine) {
+    const delimiters = [',', ';', '\t'];
+    let best = ',';
+    let bestCount = -1;
+    delimiters.forEach(delimiter => {
+        const count = (firstLine.match(new RegExp(delimiter === '\t' ? '\\t' : `\\${delimiter}`, 'g')) || []).length;
+        if (count > bestCount) {
+            bestCount = count;
+            best = delimiter;
+        }
+    });
+    return best;
+}
+
+function parseCSVRows(csvText) {
+    const normalized = String(csvText || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    const firstLine = normalized.split('\n').find(line => line.trim()) || '';
+    const delimiter = detectCSVDelimiter(firstLine);
+    const rows = [];
+    let row = [];
+    let field = '';
+    let quoted = false;
+
+    for (let i = 0; i < normalized.length; i += 1) {
+        const char = normalized[i];
+        const next = normalized[i + 1];
+
+        if (char === '"') {
+            if (quoted && next === '"') {
+                field += '"';
+                i += 1;
+            } else {
+                quoted = !quoted;
+            }
+        } else if (char === delimiter && !quoted) {
+            row.push(field);
+            field = '';
+        } else if (char === '\n' && !quoted) {
+            row.push(field);
+            if (row.some(value => normalizeText(value))) rows.push(row);
+            row = [];
+            field = '';
+        } else {
+            field += char;
+        }
     }
-    
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    alert("Berhasil mengimpor data transaksi!");
-    triggerCloudPush();
-    renderDashboard();
+
+    row.push(field);
+    if (row.some(value => normalizeText(value))) rows.push(row);
+    return rows;
+}
+
+function getTransactionContentSignature(transaction) {
+    return simpleHash(JSON.stringify([
+        normalizeDateValue(transaction.date),
+        normalizeText(transaction.name).toLocaleLowerCase('id-ID'),
+        normalizeMoney(transaction.credit),
+        normalizeMoney(transaction.debit),
+        normalizeText(transaction.category).toLocaleLowerCase('id-ID'),
+        normalizeText(transaction.account).toLocaleLowerCase('id-ID'),
+        normalizeText(transaction.targetAccount).toLocaleLowerCase('id-ID'),
+        normalizeText(transaction.notes).toLocaleLowerCase('id-ID'),
+        Boolean(transaction.isTransfer)
+    ]));
+}
+
+function detectCSVDelimiter(csvText) {
+    const firstLine = csvText
+        .split(/\r?\n/)
+        .find(line => line.trim() !== '') || '';
+
+    let commaCount = 0;
+    let semicolonCount = 0;
+    let insideQuotes = false;
+
+    for (let i = 0; i < firstLine.length; i++) {
+        const char = firstLine[i];
+
+        if (char === '"') {
+            if (insideQuotes && firstLine[i + 1] === '"') {
+                i++;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+        } else if (!insideQuotes) {
+            if (char === ',') commaCount++;
+            if (char === ';') semicolonCount++;
+        }
+    }
+
+    return semicolonCount > commaCount ? ';' : ',';
+}
+
+function parseCSVRows(csvText, delimiter) {
+    const rows = [];
+    let row = [];
+    let value = '';
+    let insideQuotes = false;
+
+    for (let i = 0; i < csvText.length; i++) {
+        const char = csvText[i];
+        const nextChar = csvText[i + 1];
+
+        if (char === '"') {
+            if (insideQuotes && nextChar === '"') {
+                value += '"';
+                i++;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+
+            continue;
+        }
+
+        if (char === delimiter && !insideQuotes) {
+            row.push(value.trim());
+            value = '';
+            continue;
+        }
+
+        if ((char === '\n' || char === '\r') && !insideQuotes) {
+            if (char === '\r' && nextChar === '\n') {
+                i++;
+            }
+
+            row.push(value.trim());
+
+            if (row.some(cell => cell !== '')) {
+                rows.push(row);
+            }
+
+            row = [];
+            value = '';
+            continue;
+        }
+
+        value += char;
+    }
+
+    row.push(value.trim());
+
+    if (row.some(cell => cell !== '')) {
+        rows.push(row);
+    }
+
+    return rows;
+}
+
+function normalizeCSVHeader(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^\uFEFF/, '')
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function parseCSVAmount(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+
+    let text = String(value)
+        .trim()
+        .replace(/\s/g, '')
+        .replace(/rp/gi, '')
+        .replace(/[^\d,.\-]/g, '');
+
+    if (!text || text === '-') {
+        return 0;
+    }
+
+    const lastComma = text.lastIndexOf(',');
+    const lastDot = text.lastIndexOf('.');
+
+    if (lastComma !== -1 && lastDot !== -1) {
+        // Separator paling akhir dianggap sebagai pemisah desimal.
+        if (lastComma > lastDot) {
+            text = text.replace(/\./g, '').replace(',', '.');
+        } else {
+            text = text.replace(/,/g, '');
+        }
+    } else if (lastComma !== -1) {
+        const decimalLength = text.length - lastComma - 1;
+
+        if (decimalLength === 1 || decimalLength === 2) {
+            text = text.replace(/\./g, '').replace(',', '.');
+        } else {
+            text = text.replace(/,/g, '');
+        }
+    } else if (lastDot !== -1) {
+        const dotParts = text.split('.');
+        const decimalLength = text.length - lastDot - 1;
+
+        if (dotParts.length > 2 || decimalLength === 3) {
+            text = text.replace(/\./g, '');
+        }
+    }
+
+    const amount = Number.parseFloat(text);
+
+    return Number.isFinite(amount) ? amount : 0;
+}
+
+function createTransactionId(index = 0) {
+    if (
+        typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID === 'function'
+    ) {
+        return crypto.randomUUID();
+    }
+
+    return [
+        Date.now(),
+        index,
+        Math.random().toString(36).slice(2, 10)
+    ].join('-');
+}
+
+function processCSV(csvText) {
+    try {
+        const delimiter = detectCSVDelimiter(csvText);
+        const rows = parseCSVRows(csvText, delimiter);
+
+        if (rows.length === 0) {
+            alert('File CSV kosong atau tidak dapat dibaca.');
+            return;
+        }
+
+        const normalizedFirstRow = rows[0].map(normalizeCSVHeader);
+
+        const hasHeader = normalizedFirstRow.some(header =>
+            [
+                'tanggal',
+                'date',
+                'nama',
+                'name',
+                'credit',
+                'kredit',
+                'debit',
+                'kategori',
+                'category',
+                'akun',
+                'account',
+                'targetakun',
+                'akuntujuan',
+                'catatan',
+                'notes'
+            ].includes(header)
+        );
+
+        let columnMap = {
+            date: 0,
+            name: 1,
+            credit: 2,
+            debit: 3,
+            category: 4,
+            account: 5,
+            targetAccount: 6,
+            notes: 7
+        };
+
+        let startIndex = 0;
+
+        if (hasHeader) {
+            startIndex = 1;
+
+            const findColumn = aliases => {
+                return normalizedFirstRow.findIndex(header =>
+                    aliases.includes(header)
+                );
+            };
+
+            columnMap = {
+                date: findColumn([
+                    'tanggal',
+                    'date',
+                    'tgl'
+                ]),
+                name: findColumn([
+                    'nama',
+                    'name',
+                    'deskripsi',
+                    'description',
+                    'item'
+                ]),
+                credit: findColumn([
+                    'credit',
+                    'kredit',
+                    'uangkeluar',
+                    'pengeluaran',
+                    'keluar'
+                ]),
+                debit: findColumn([
+                    'debit',
+                    'uangmasuk',
+                    'pendapatan',
+                    'masuk'
+                ]),
+                category: findColumn([
+                    'kategori',
+                    'category'
+                ]),
+                account: findColumn([
+                    'akun',
+                    'account',
+                    'akunasal'
+                ]),
+                targetAccount: findColumn([
+                    'targetakun',
+                    'targetaccount',
+                    'akuntujuan',
+                    'tujuanakun'
+                ]),
+                notes: findColumn([
+                    'catatan',
+                    'notes',
+                    'note',
+                    'keterangan'
+                ])
+            };
+        }
+
+        const getColumnValue = (row, index) => {
+            if (index === -1 || index === undefined) return '';
+            return String(row[index] || '').trim();
+        };
+
+        const importedTransactions = [];
+        let skippedRows = 0;
+
+        for (let i = startIndex; i < rows.length; i++) {
+            const row = rows[i];
+
+            let localMap = { ...columnMap };
+
+            if (!hasHeader && row.length === 7) {
+                const sourceAccount = normalizeText(row[5]);
+                const lastColumnValue = normalizeText(row[6]);
+
+                const targetAccountExists = userAccounts.some(account =>
+                    normalizeText(account.name).toLocaleLowerCase('id-ID') ===
+                    lastColumnValue.toLocaleLowerCase('id-ID')
+                );
+
+                const isDifferentAccount =
+                    sourceAccount.toLocaleLowerCase('id-ID') !==
+                    lastColumnValue.toLocaleLowerCase('id-ID');
+
+                if (
+                    lastColumnValue &&
+                    targetAccountExists &&
+                    isDifferentAccount
+                ) {
+                    localMap.targetAccount = 6;
+                    localMap.notes = -1;
+                } else {
+                    localMap.targetAccount = -1;
+                    localMap.notes = 6;
+                }
+            }
+            const date = getColumnValue(row, localMap.date);
+            const name = getColumnValue(row, localMap.name);
+            const credit = parseCSVAmount(
+                getColumnValue(row, localMap.credit)
+            );
+            const debit = parseCSVAmount(
+                getColumnValue(row, localMap.debit)
+            );
+            const category = getColumnValue(row, localMap.category);
+            const account = getColumnValue(row, localMap.account);
+            const targetAccount = getColumnValue(
+                row,
+                localMap.targetAccount
+            );
+            const notes = getColumnValue(row, localMap.notes);
+
+            if (!date || !name) {
+                skippedRows++;
+                continue;
+            }
+
+            const isTransfer =
+                targetAccount !== '' &&
+                account !== '' &&
+                targetAccount !== account;
+
+            importedTransactions.push({
+                id: createTransactionId(i),
+                date: date,
+                name: name,
+                credit: credit,
+                debit: debit,
+                category: isTransfer ? '' : category,
+                account: account,
+                targetAccount: isTransfer ? targetAccount : '',
+                notes: notes,
+                isTransfer: isTransfer
+            });
+        }
+
+        if (importedTransactions.length === 0) {
+            alert(
+                'Tidak ada transaksi valid yang ditemukan di dalam file CSV.'
+            );
+            return;
+        }
+
+        transactions.push(...importedTransactions);
+
+        localStorage.setItem(
+            'transactions',
+            JSON.stringify(transactions)
+        );
+
+        document.getElementById('csvFileInput').value = '';
+
+        let successMessage =
+            `${importedTransactions.length} transaksi berhasil diimpor.`;
+
+        if (skippedRows > 0) {
+            successMessage +=
+                ` ${skippedRows} baris dilewati karena tidak memiliki tanggal atau nama.`;
+        }
+
+        openSuccessModal(successMessage);
+
+        renderDashboard();
+        triggerCloudPush();
+    } catch (error) {
+        console.error('Gagal mengimpor CSV:', error);
+
+        alert(
+            'CSV gagal diimpor. Pastikan format kolom dan isi file sudah benar.'
+        );
+    }
+}
+
+// ================= FUNGSI LOADING & MODAL SUKSES =================
+function showLoader() {
+    const loader = document.getElementById('globalLoader');
+    if (loader) loader.classList.remove('hidden');
+}
+function hideLoader() {
+    const loader = document.getElementById('globalLoader');
+    if (loader) loader.classList.add('hidden');
+}
+
+function openSuccessModal(message) {
+    document.getElementById('successModalMessage').innerText = message;
+    document.getElementById('successModal').classList.remove('hidden');
+    document.getElementById('successModal').style.display = 'flex';
+    lucide.createIcons();
+}
+function closeSuccessModal() {
+    const modal = document.getElementById('successModal');
+    modal.classList.add('hidden');
+    modal.style.display = '';
 }

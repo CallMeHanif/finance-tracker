@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker - Hanif Alkhairi</title>
+    <title>Finance Tracker by Hanif Alkhairi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -95,7 +95,7 @@
                     <button onclick="toggleObscure()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blueSystem-500 transition-colors bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
                         <i data-lucide="eye" id="obscureIconBtn" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline" id="obscureTextBtn"></span>
                     </button>
-                    <input type="month" id="dashboardMonthFilter" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none">
+                    <input type="month" id="dashboardMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none cursor-pointer">
                 </div>
             </div>
 
@@ -110,14 +110,14 @@
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
                     <div class="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-2xl text-emerald-500"><i data-lucide="trending-up" class="w-7 h-7"></i></div>
                     <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Pendapatan Bulan Ini</span>
+                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Pendapatan</span>
                         <span class="text-xl font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5" id="dash-inc-month">Rp 0,00</span>
                     </div>
                 </div>
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
                     <div class="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-2xl text-rose-500"><i data-lucide="trending-down" class="w-7 h-7"></i></div>
                     <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Pengeluaran Bulan Ini</span>
+                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Pengeluaran</span>
                         <span class="text-xl font-bold text-rose-600 dark:text-rose-400 block mt-0.5" id="dash-exp-month">Rp 0,00</span>
                     </div>
                 </div>
@@ -172,17 +172,17 @@
             <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
                 <div class="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-blueSystem-200 dark:border-blueSystem-900/50 shadow-sm shadow-blueSystem-100 dark:shadow-none">
-                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none">
+                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none cursor-pointer">
                 </div>
 
                 <div class="bg-slate-950 text-white rounded-2xl p-4 shadow-md">
                     <div class="grid grid-cols-2 gap-2 text-center divide-x divide-slate-800">
                         <div>
-                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Pemasukan (Bulan Ini)</span>
+                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Pendapatan</span>
                             <span class="text-sm font-bold text-emerald-400 mt-0.5 block" id="tx-summary-Income">Rp 0,00</span>
                         </div>
                         <div>
-                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Pengeluaran (Bulan Ini)</span>
+                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Pengeluaran</span>
                             <span class="text-sm font-bold text-rose-400 mt-0.5 block" id="tx-summary-Expenses">Rp 0,00</span>
                         </div>
                     </div>
@@ -190,7 +190,7 @@
                 
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <i data-lucide="credit-card" class="w-3.5 h-3.5 text-blueSystem-500"></i> Akumulasi Saldo Akhir Bulan
+                        <i data-lucide="credit-card" class="w-3.5 h-3.5 text-blueSystem-500"></i> Rincian Saldo
                     </h3>
                     <div id="txAccountBalancesContainer" class="grid grid-cols-1 gap-1.5 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar"></div>
                 </div>
@@ -237,7 +237,7 @@
         <div id="page-reports" class="page-content hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="line-chart" class="text-blueSystem-500 w-4 h-4"></i> Tren Pemasukan & Pengeluaran</h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="line-chart" class="text-blueSystem-500 w-4 h-4"></i> Tren Pendapatan & Pengeluaran</h3>
                     <div class="w-full h-72"><canvas id="chartIncomeExpense"></canvas></div>
                 </div>
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
@@ -255,7 +255,7 @@
                         <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                             <tr>
                                 <th class="py-3 px-4">Bulan / Periode</th>
-                                <th class="py-3 px-4 text-emerald-600 dark:text-emerald-400">Total Pemasukan</th>
+                                <th class="py-3 px-4 text-emerald-600 dark:text-emerald-400">Total Pendapatan</th>
                                 <th class="py-3 px-4 text-rose-600 dark:text-rose-400">Total Pengeluaran</th>
                                 <th class="py-3 px-4">Net Perubahan Saldo</th>
                             </tr>
@@ -320,7 +320,7 @@
                     </label>
                     <input type="file" id="csvFileInput" accept=".csv" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blueSystem-50 file:text-blueSystem-700 hover:file:bg-blueSystem-100 mb-3">
                     <p class="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <strong>Format CSV:</strong> Tanggal (YYYY-MM-DD), Nama, Kredit, Debit, Kategori, Akun, Catatan.
+                        <strong>Format CSV:</strong> Tanggal (YYYY-MM-DD), Nama, Kredit, Debit, Kategori, Akun, Akun Tujuan, Catatan.
                     </p>
                 </div>
 
@@ -385,7 +385,8 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Aliran</label>
-                        <select id="form-type" onchange="adjustFormInputs()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold">
+                        <!-- Cukup tambahkan ;updateCategoryDropdown() di dalam onchange seperti di bawah ini -->
+                        <select id="form-type" onchange="adjustFormInputs(); updateCategoryDropdown();" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold">
                             <option value="Credit">Credit (Uang Keluar)</option>
                             <option value="Debit">Debit (Uang Masuk)</option>
                             <option value="Transfer">Transfer (Pindahan Dana)</option>
@@ -439,7 +440,7 @@
                 <input type="hidden" id="setup-acc-edit-id">
                 <div class="space-y-1">
                     <label class="text-[10px] font-bold text-slate-400 uppercase">Nama Akun Finansial</label>
-                    <input type="text" id="setup-acc-name" placeholder="Contoh: BCA Hanif" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none">
+                    <input type="text" id="setup-acc-name" placeholder="Contoh: BCA" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
@@ -481,8 +482,9 @@
                 <div class="space-y-1">
                     <label class="text-[10px] font-bold text-slate-400 uppercase">Tipe Arus Dana</label>
                     <select id="setup-cat-type" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
-                        <option value="income">Uang Masuk (Pendapatan/Hutang)</option>
-                        <option value="expense">Uang Keluar (Pengeluaran/Piutang)</option>
+                        <option value="income">Uang Masuk</option>
+                        <option value="expense">Uang Keluar</option>
+                        <option value="neutral">Netral (Tanpa Arus Dana)</option>
                     </select>
                 </div>
                 <div class="pt-2 flex gap-2">
@@ -543,6 +545,30 @@
     <footer class="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-4 text-center text-xs text-slate-400 mt-auto">
         <p>&copy; 2026 Personal Finance System Ecosystem.</p>
     </footer>
+
+    <div id="globalLoader" class="hidden fixed inset-0 z-[100] bg-white dark:bg-slate-950 flex flex-col items-center justify-center">
+        <div class="relative w-16 h-16">
+            <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-blueSystem-500 border-t-transparent animate-spin"></div>
+        </div>
+        <p class="mt-4 text-sm font-bold text-slate-700 dark:text-slate-300">Memuat Database...</p>
+        <p class="text-[10px] text-slate-400 mt-1">Mengambil data terbaru dari Cloud</p>
+    </div>
+
+    <div id="successModal" class="hidden fixed inset-0 z-[90] bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <div class="mx-auto w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <i data-lucide="check-circle" class="w-7 h-7"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h4 class="font-bold text-base text-slate-900 dark:text-white">Berhasil!</h4>
+                <p id="successModalMessage" class="text-xs text-slate-400 leading-relaxed">Tindakan berhasil dilakukan.</p>
+            </div>
+            <div class="pt-2">
+                <button onclick="closeSuccessModal()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm">Tutup</button>
+            </div>
+        </div>
+    </div>
 
     <script>
     function toggleMobileMenu() {
