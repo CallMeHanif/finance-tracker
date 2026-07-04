@@ -381,7 +381,13 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Tanggal</label>
-                        <input type="date" id="form-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white">
+                        <input
+                            type="date"
+                            id="form-date"
+                            required
+                            onclick="if (this.showPicker) this.showPicker()"
+                            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white cursor-pointer"
+                        >
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Aliran</label>
@@ -400,7 +406,16 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Nominal</label>
-                        <input type="text" id="form-amount" required oninput="formatInputNominal(this)" placeholder="1.000.000" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none">
+                        <input
+                            type="text"
+                            id="form-amount"
+                            required
+                            inputmode="decimal"
+                            autocomplete="off"
+                            oninput="formatInputNominal(this)"
+                            placeholder="Contoh: 1.099,94"
+                            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none"
+                        >
                     </div>
                     <div class="space-y-1" id="accountContainer">
                         <label class="text-[10px] font-bold text-slate-400 uppercase" id="accountLabel">Akun Keuangan</label>

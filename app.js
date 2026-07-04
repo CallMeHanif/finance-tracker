@@ -432,9 +432,45 @@ function formatRupiah(amount, forceShow = false) {
 }
 
 function formatInputNominal(input) {
-    let value = input.value.replace(/[^0-9]/g, '');
-    if (value === "") { input.value = ""; return; }
-    input.value = new Intl.NumberFormat('id-ID').format(value);
+
+    let value = String(input.value || '')
+        .replace(/\s/g, '')
+        .replace(/[^0-9,]/g, '');
+
+    if (!value) {
+        input.value = '';
+        return;
+    }
+
+    const commaIndex = value.indexOf(',');
+
+    let integerPart;
+    let decimalPart = null;
+
+    if (commaIndex >= 0) {
+        integerPart = value.slice(0, commaIndex);
+
+        decimalPart = value
+            .slice(commaIndex + 1)
+            .replace(/,/g, '')
+            .slice(0, 2);
+    } else {
+        integerPart = value;
+    }
+
+    integerPart = integerPart.replace(/^0+(?=\d)/, '');
+
+    if (integerPart === '') {
+        integerPart = '0';
+    }
+
+    const formattedInteger = new Intl.NumberFormat('id-ID', {
+        maximumFractionDigits: 0
+    }).format(Number(integerPart));
+
+    input.value = decimalPart === null
+        ? formattedInteger
+        : `${formattedInteger},${decimalPart}`;
 }
 
 function calculateBalancesUntil(selectedMonthIso = null) {
@@ -1113,33 +1149,66 @@ function handleTransactionSubmit(e) {
 }
 
 function editTransaction(id) {
-    const transaction = transactions.find(item => item.id === String(id));
+    const transaction = transactions.find(
+        item => item.id === String(id)
+    );
+
     if (!transaction) return;
 
-    document.getElementById('modalTxTitle').innerHTML = `<i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i> Edit Transaksi`;
+    document.getElementById('modalTxTitle').innerHTML = `
+        <i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i>
+        Edit Transaksi
+    `;
+
     document.getElementById('form-edit-id').value = transaction.id;
     document.getElementById('form-date').value = transaction.date;
 
     let flowValue = 'Credit';
-    if (transaction.isTransfer) flowValue = 'Transfer';
-    else if (transaction.debit > 0) flowValue = 'Debit';
+
+    if (transaction.isTransfer) {
+        flowValue = 'Transfer';
+    } else if (Number(transaction.debit) > 0) {
+        flowValue = 'Debit';
+    }
 
     populateFormDropdowns();
+
     document.getElementById('form-type').value = flowValue;
+
     adjustFormInputs();
     updateCategoryDropdown(transaction.category || '');
 
-    document.getElementById('form-name').value = transaction.name;
-    document.getElementById('form-amount').value = new Intl.NumberFormat('id-ID').format(transaction.debit > 0 ? transaction.debit : transaction.credit);
-    document.getElementById('form-account').value = transaction.account;
+    document.getElementById('form-name').value =
+        transaction.name || '';
+
+    const transactionAmount =
+        Number(transaction.debit) > 0
+            ? Number(transaction.debit)
+            : Number(transaction.credit) || 0;
+
+    document.getElementById('form-amount').value =
+        new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits:
+                Number.isInteger(transactionAmount) ? 0 : 2,
+            maximumFractionDigits: 2
+        }).format(transactionAmount);
+
+    document.getElementById('form-account').value =
+        transaction.account || '';
+
     if (transaction.isTransfer) {
-        document.getElementById('form-target-account').value = transaction.targetAccount;
+        document.getElementById('form-target-account').value =
+            transaction.targetAccount || '';
     }
-    document.getElementById('form-notes').value = transaction.notes || '';
+
+    document.getElementById('form-notes').value =
+        transaction.notes || '';
 
     const modal = document.getElementById('transactionModal');
+
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
+
     lucide.createIcons();
 }
 
