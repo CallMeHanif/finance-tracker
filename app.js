@@ -1,5 +1,4 @@
 // ==========================================
-// app.js - Logika Finansial, Grafik, & Cloud
 // Developed by Hanif Alkhairi
 // ==========================================
 
@@ -25,6 +24,7 @@ let transactions = [
 let activePage = 'dashboard';
 let deleteTargetId = null;
 let deleteTypeContext = 'transaction';
+let detailTransactionId = null;
 let chartIncExpInstance = null;
 let chartCatInstance = null;
 let chartSaldoInstance = null;
@@ -185,7 +185,6 @@ function normalizeTransactions(input) {
             normalized.debit = 0;
         }
 
-        // ID yang sama dianggap transaksi yang sama; versi terakhir dipakai.
         byId.set(normalized.id, normalized);
     });
 
@@ -264,7 +263,6 @@ function parseNominal(value) {
     let raw = normalizeText(value).replace(/\s/g, '');
     if (!raw) return 0;
 
-    // Format Indonesia seperti 1.250.000 atau 1.250.000,50.
     if (raw.includes(',') && raw.includes('.')) {
         raw = raw.replace(/\./g, '').replace(',', '.');
     } else if (raw.includes(',')) {
@@ -297,6 +295,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateObscureUI();
     populateFormDropdowns();
     switchPage('dashboard');
+    initializeFloatingTransactionButton();
 
     const { mode, url } = getCloudConfig();
     if (mode === 'sheets' && url) {
@@ -311,6 +310,10 @@ function toggleObscure() {
     localStorage.setItem('isBalanceObscured', isBalanceObscured);
     updateObscureUI();
     renderDashboard();
+
+    requestAnimationFrame(
+    updateFloatingTransactionButton
+);
 }
 
 function updateObscureUI() {
@@ -611,7 +614,8 @@ function renderDashboardPage(selectedMonth) {
         }).join('');
     }
 
-    const recentTx = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    const recentTx = sortTransactionsNewestFirst(transactions)
+    .slice(0, 5);
     const tableBody = document.getElementById('dashRecentTxTable');
     
     if (recentTx.length === 0) {
@@ -689,7 +693,7 @@ function renderTransactionsPage(selectedMonth) {
     if(filtered.length === 0) {
         tableBody.innerHTML = emptyTableRowHTML(7);
     } else {
-        filtered.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(t => {
+        sortTransactionsNewestFirst(filtered).forEach(t => {
             let colorClass = 'text-rose-600 dark:text-rose-400 font-bold';
             let amt = t.credit;
             let displayCategory = t.category || '-';
@@ -706,7 +710,30 @@ function renderTransactionsPage(selectedMonth) {
             }
 
             tableBody.innerHTML += `
-                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                <tr
+    onclick="openTransactionDetailModal(
+        decodeActionValue('${encodeActionValue(t.id)}')
+    )"
+    onkeydown="
+        if (
+            event.target === event.currentTarget &&
+            (event.key === 'Enter' || event.key === ' ')
+        ) {
+            event.preventDefault();
+
+            openTransactionDetailModal(
+                decodeActionValue('${encodeActionValue(t.id)}')
+            );
+        }
+    "
+    tabindex="0"
+    title="Klik untuk melihat detail transaksi"
+    class="cursor-pointer
+           hover:bg-slate-50 dark:hover:bg-slate-900/60
+           focus:bg-slate-50 dark:focus:bg-slate-900/60
+           focus:outline-none
+           transition-colors"
+>
                     <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${formatTanggalIndo(t.date)}</td>
                     <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
                     <td class="py-2.5 px-4 ${colorClass}">${formatRupiah(amt, true)}</td>
@@ -714,12 +741,23 @@ function renderTransactionsPage(selectedMonth) {
                     <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${escapeHtml(displayAccount)}</span></td>
                     <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
                     <td class="py-2.5 px-4 text-center space-x-2 whitespace-nowrap">
-                        <button onclick="editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                        <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(t.id)}'), 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="event.stopPropagation(); editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="event.stopPropagation(); triggerDeleteConfirm(decodeActionValue('${encodeActionValue(t.id)}'), 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                     </td>
                 </tr>`;
         });
     }
+}
+
+function handleReportCategoryFilterChange(value) {
+    const selectedValue = value || 'all';
+
+    localStorage.setItem(
+        'reportCategoryFilter',
+        selectedValue
+    );
+
+    renderReportsPage();
 }
 
 function renderReportsPage() {
@@ -743,6 +781,48 @@ function renderReportsPage() {
             monthlyCategories[month][t.category] = (monthlyCategories[month][t.category] || 0) + Number(t.credit);
         }
     });
+
+    const availableCategories = Array.from(uniqueCategories)
+    .sort((a, b) =>
+        a.localeCompare(b, 'id-ID')
+    );
+
+    const categoryFilter =
+        document.getElementById('reportCategoryFilter');
+
+    let selectedCategory =
+        localStorage.getItem('reportCategoryFilter') ||
+        'all';
+
+    /*
+    * Jika kategori yang sebelumnya dipilih sudah dihapus,
+    * otomatis kembali ke Semua Kategori.
+    */
+    if (
+        selectedCategory !== 'all' &&
+        !availableCategories.includes(selectedCategory)
+    ) {
+        selectedCategory = 'all';
+
+        localStorage.setItem(
+            'reportCategoryFilter',
+            'all'
+        );
+    }
+
+    if (categoryFilter) {
+        categoryFilter.innerHTML =
+            `<option value="all">Semua Kategori</option>` +
+            availableCategories
+                .map(category => `
+                    <option value="${escapeHtml(category)}">
+                        ${escapeHtml(category)}
+                    </option>
+                `)
+                .join('');
+
+        categoryFilter.value = selectedCategory;
+    }
 
     const sortedMonths = Object.keys(monthlyTotals).sort();
     const tableBody = document.getElementById('reportsTableBody');
@@ -793,9 +873,7 @@ function renderReportsPage() {
         data: {
             labels: chartLabels,
             datasets: [
-                // Ubah backgroundColor dari 'transparent' menjadi '#10b981'
                 { label: 'Total Pendapatan', data: incomeDataset, borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 3, tension: 0.2 },
-                // Ubah backgroundColor dari 'transparent' menjadi '#ef4444'
                 { label: 'Total Pengeluaran', data: expenseDataset, borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3, tension: 0.2 }
             ]
         },
@@ -807,8 +885,8 @@ function renderReportsPage() {
                     labels: { 
                         color: textColor, 
                         usePointStyle: true, 
-                        boxWidth: 6,   // <-- Perkecil nilainya (misal 5 atau 6)
-                        boxHeight: 6   // <-- Tambahkan boxHeight agar bulat sempurna
+                        boxWidth: 6,
+                        boxHeight: 6
                     } 
                 } 
             }, 
@@ -816,41 +894,139 @@ function renderReportsPage() {
         }
     });
 
-    if (chartCatInstance) chartCatInstance.destroy();
+    if (chartCatInstance) {
+    chartCatInstance.destroy();
+    }
+
     const catDatasets = [];
-    const colors = ['#f59e0b', '#a855f7', '#0056a3', '#ec4899', '#64748b', '#06b6d4'];
-    let colorIdx = 0;
-    uniqueCategories.forEach(c => {
-        catDatasets.push({ 
-            label: c, 
-            data: categoryDatasetsInfo[c], 
-            borderColor: colors[colorIdx % colors.length], 
-            backgroundColor: colors[colorIdx % colors.length], // <-- Ubah 'transparent' jadi ini
-            borderWidth: 2, 
-            tension: 0.2 
+
+    const colors = [
+        '#f59e0b',
+        '#a855f7',
+        '#0056a3',
+        '#ec4899',
+        '#64748b',
+        '#06b6d4',
+        '#14b8a6',
+        '#f43f5e',
+        '#84cc16',
+        '#6366f1',
+        '#0ea5e9',
+        '#d946ef'
+    ];
+
+    const displayedCategories =
+        selectedCategory === 'all'
+            ? availableCategories
+            : [selectedCategory];
+
+    displayedCategories.forEach(category => {
+        const originalCategoryIndex =
+            availableCategories.indexOf(category);
+
+        const color =
+            colors[
+                originalCategoryIndex % colors.length
+            ];
+
+        catDatasets.push({
+            label: category,
+            data: categoryDatasetsInfo[category] || [],
+            borderColor: color,
+            backgroundColor: color,
+            borderWidth: 2.5,
+            tension: 0.25,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            fill: false,
+            spanGaps: true
         });
-        colorIdx++;
     });
 
-    chartCatInstance = new Chart(document.getElementById('chartCategoriesTrend').getContext('2d'), {
+    chartCatInstance = new Chart(
+    document
+        .getElementById('chartCategoriesTrend')
+        .getContext('2d'),
+    {
         type: 'line',
-        data: { labels: chartLabels, datasets: catDatasets },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
-                legend: { 
-                    labels: { 
-                        color: textColor, 
-                        usePointStyle: true, 
-                        boxWidth: 6,   // <-- Samakan nilainya
-                        boxHeight: 6   // <-- Samakan nilainya
-                    } 
-                } 
-            }, 
-            scales: { x: { grid: { color: gridColor } }, y: { grid: { color: gridColor } } } 
+
+        data: {
+            labels: chartLabels,
+            datasets: catDatasets
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            },
+
+            plugins: {
+                legend: {
+                    display: catDatasets.length > 0,
+
+                    labels: {
+                        color: textColor,
+                        usePointStyle: true,
+                        boxWidth: 6,
+                        boxHeight: 6
+                    }
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            return (
+                                `${context.dataset.label}: ` +
+                                formatRupiah(
+                                    context.parsed.y,
+                                    true
+                                )
+                            );
+                        }
+                    }
+                }
+            },
+
+            scales: {
+                x: {
+                    grid: {
+                        color: gridColor
+                    },
+
+                    ticks: {
+                        color: textColor
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+
+                    grid: {
+                        color: gridColor
+                    },
+
+                    ticks: {
+                        color: textColor,
+
+                        callback(value) {
+                            return new Intl.NumberFormat(
+                                'id-ID',
+                                {
+                                    notation: 'compact',
+                                    maximumFractionDigits: 1
+                                }
+                            ).format(value);
+                        }
+                    }
+                }
+            }
         }
-    });
+    }
+);
 }
 
 function renderSettingsPage() {
@@ -1148,6 +1324,231 @@ function handleTransactionSubmit(e) {
     commitDataChange();
 }
 
+function openTransactionDetailModal(id) {
+    const transaction = transactions.find(
+        item => item.id === String(id)
+    );
+
+    if (!transaction) {
+        console.warn('Transaksi tidak ditemukan:', id);
+        return;
+    }
+
+    detailTransactionId = transaction.id;
+
+    const isTransfer = Boolean(transaction.isTransfer);
+    const isIncome =
+        !isTransfer &&
+        Number(transaction.debit) > 0;
+
+    const amount = isTransfer
+        ? Number(transaction.credit || transaction.debit) || 0
+        : isIncome
+            ? Number(transaction.debit) || 0
+            : Number(transaction.credit) || 0;
+
+    let typeLabel;
+    let amountPrefix;
+    let iconName;
+    let iconContainerClass;
+    let badgeClass;
+    let amountClass;
+
+    if (isTransfer) {
+        typeLabel = 'Transfer Dana';
+        amountPrefix = '';
+        iconName = 'arrow-right-left';
+
+        iconContainerClass =
+            'w-12 h-12 rounded-2xl flex items-center justify-center ' +
+            'bg-blue-50 dark:bg-blue-950/40 ' +
+            'text-blueSystem-500';
+
+        badgeClass =
+            'inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ' +
+            'bg-blue-100 text-blue-700 ' +
+            'dark:bg-blue-900/30 dark:text-blue-300';
+
+        amountClass =
+            'mt-0.5 text-xl font-bold ' +
+            'text-blueSystem-500 dark:text-blue-300';
+    } else if (isIncome) {
+        typeLabel = 'Pendapatan';
+        amountPrefix = '+';
+        iconName = 'trending-up';
+
+        iconContainerClass =
+            'w-12 h-12 rounded-2xl flex items-center justify-center ' +
+            'bg-emerald-50 dark:bg-emerald-950/40 ' +
+            'text-emerald-600 dark:text-emerald-400';
+
+        badgeClass =
+            'inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ' +
+            'bg-emerald-100 text-emerald-700 ' +
+            'dark:bg-emerald-900/30 dark:text-emerald-400';
+
+        amountClass =
+            'mt-0.5 text-xl font-bold ' +
+            'text-emerald-600 dark:text-emerald-400';
+    } else {
+        typeLabel = 'Pengeluaran';
+        amountPrefix = '-';
+        iconName = 'trending-down';
+
+        iconContainerClass =
+            'w-12 h-12 rounded-2xl flex items-center justify-center ' +
+            'bg-rose-50 dark:bg-rose-950/40 ' +
+            'text-rose-600 dark:text-rose-400';
+
+        badgeClass =
+            'inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ' +
+            'bg-rose-100 text-rose-700 ' +
+            'dark:bg-rose-900/30 dark:text-rose-400';
+
+        amountClass =
+            'mt-0.5 text-xl font-bold ' +
+            'text-rose-600 dark:text-rose-400';
+    }
+
+    const iconContainer = document.getElementById(
+        'detailTransactionIconContainer'
+    );
+
+    const icon = document.getElementById(
+        'detailTransactionIcon'
+    );
+
+    const typeElement = document.getElementById(
+        'detailTransactionType'
+    );
+
+    const amountElement = document.getElementById(
+        'detailTransactionAmount'
+    );
+
+    iconContainer.className = iconContainerClass;
+    icon.setAttribute('data-lucide', iconName);
+
+    typeElement.className = badgeClass;
+    typeElement.textContent = typeLabel;
+
+    amountElement.className = amountClass;
+    amountElement.textContent =
+        `${amountPrefix}${formatRupiah(amount, true)}`;
+
+    document.getElementById(
+        'detailTransactionName'
+    ).textContent = transaction.name || '-';
+
+    document.getElementById(
+        'detailTransactionDate'
+    ).textContent = formatTanggalIndo(transaction.date);
+
+    document.getElementById(
+        'detailTransactionCategory'
+    ).textContent = isTransfer
+        ? 'Transfer Dana'
+        : transaction.category || '-';
+
+    document.getElementById(
+        'detailTransactionAccountLabel'
+    ).textContent = isTransfer
+        ? 'Akun Asal'
+        : 'Akun';
+
+    document.getElementById(
+        'detailTransactionAccount'
+    ).textContent = transaction.account || '-';
+
+    const targetRow = document.getElementById(
+        'detailTransactionTargetRow'
+    );
+
+    if (isTransfer) {
+        targetRow.classList.remove('hidden');
+
+        document.getElementById(
+            'detailTransactionTargetAccount'
+        ).textContent = transaction.targetAccount || '-';
+    } else {
+        targetRow.classList.add('hidden');
+
+        document.getElementById(
+            'detailTransactionTargetAccount'
+        ).textContent = '-';
+    }
+
+    document.getElementById(
+        'detailTransactionNotes'
+    ).textContent = transaction.notes || '-';
+
+    const editButton = document.getElementById(
+        'detailEditTransactionBtn'
+    );
+
+    editButton.onclick = function () {
+        const transactionId = detailTransactionId;
+
+        closeTransactionDetailModal();
+
+        if (transactionId) {
+            editTransaction(transactionId);
+        }
+    };
+
+    const deleteButton = document.getElementById(
+    'detailDeleteTransactionBtn'
+    );
+
+    deleteButton.onclick = function () {
+        const transactionId = detailTransactionId;
+
+        closeTransactionDetailModal();
+
+        if (transactionId) {
+            triggerDeleteConfirm(
+                transactionId,
+                'transaction'
+            );
+        }
+    };
+
+    const modal = document.getElementById(
+        'transactionDetailModal'
+    );
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    document.body.classList.add('overflow-hidden');
+
+    lucide.createIcons();
+}
+
+function closeTransactionDetailModal() {
+    const modal = document.getElementById(
+        'transactionDetailModal'
+    );
+
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+
+    detailTransactionId = null;
+
+    document.body.classList.remove('overflow-hidden');
+}
+
+function handleTransactionDetailBackdrop(event) {
+    if (
+        event.target &&
+        event.target.id === 'transactionDetailModal'
+    ) {
+        closeTransactionDetailModal();
+    }
+}
+
 function editTransaction(id) {
     const transaction = transactions.find(
         item => item.id === String(id)
@@ -1297,8 +1698,6 @@ function saveSettings() {
     toggleSettingsModal();
 
     if (mode === 'sheets') {
-        // Saat menghubungkan, ambil database cloud terlebih dahulu.
-        // Jangan langsung menimpa cloud dengan data lokal.
         fetchFromGoogleSheets();
     } else {
         populateFormDropdowns();
@@ -1642,6 +2041,28 @@ function getLocalMonth(dateStr) {
     return match ? `${match[1]}-${match[2]}` : '';
 }
 
+function sortTransactionsNewestFirst(transactionList) {
+    return transactionList
+        .map((transaction, index) => ({
+            transaction,
+            index
+        }))
+        .sort((a, b) => {
+            const dateComparison =
+                String(b.transaction.date || '')
+                    .localeCompare(
+                        String(a.transaction.date || '')
+                    );
+
+            if (dateComparison !== 0) {
+                return dateComparison;
+            }
+
+            return b.index - a.index;
+        })
+        .map(item => item.transaction);
+}
+
 function openNoAccountModal() {
     document.getElementById('noAccountModal').classList.remove('hidden');
     document.getElementById('noAccountModal').style.display = 'flex';
@@ -1659,17 +2080,23 @@ function goToSettingsFromModal() {
     switchPage('settings');
 }
 
+/* ================= DEV ONLY: IMPORT CSV =================
+
 document.getElementById('csvFileInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
+
     reader.onload = function(event) {
         const text = event.target.result;
         processCSV(text);
     };
+
     reader.readAsText(file);
 });
+
+================= END DEV ONLY ================= */
 
 
 function detectCSVDelimiter(firstLine) {
@@ -1847,7 +2274,6 @@ function parseCSVAmount(value) {
     const lastDot = text.lastIndexOf('.');
 
     if (lastComma !== -1 && lastDot !== -1) {
-        // Separator paling akhir dianggap sebagai pemisah desimal.
         if (lastComma > lastDot) {
             text = text.replace(/\./g, '').replace(',', '.');
         } else {
@@ -2109,7 +2535,7 @@ function processCSV(csvText) {
     }
 }
 
-// ================= FUNGSI LOADING & MODAL SUKSES =================
+// ================= LOADING & SUCCESS MODAL =================
 function showLoader() {
     const loader = document.getElementById('globalLoader');
     if (loader) loader.classList.remove('hidden');
@@ -2130,3 +2556,116 @@ function closeSuccessModal() {
     modal.classList.add('hidden');
     modal.style.display = '';
 }
+
+let inlineAddTransactionButtonVisible = true;
+
+function updateFloatingTransactionButton() {
+    const floatingButton = document.getElementById(
+        'floatingAddTransactionBtn'
+    );
+
+    if (!floatingButton) return;
+
+    const isDesktop = window.matchMedia(
+        '(min-width: 1024px)'
+    ).matches;
+
+    const shouldShow =
+        activePage === 'transactions' &&
+        isDesktop &&
+        !inlineAddTransactionButtonVisible;
+
+    if (shouldShow) {
+        floatingButton.classList.remove(
+            'opacity-0',
+            'translate-y-3',
+            'scale-95',
+            'pointer-events-none'
+        );
+
+        floatingButton.classList.add(
+            'opacity-100',
+            'translate-y-0',
+            'scale-100',
+            'pointer-events-auto'
+        );
+
+        floatingButton.setAttribute(
+            'aria-hidden',
+            'false'
+        );
+
+        floatingButton.tabIndex = 0;
+    } else {
+        floatingButton.classList.remove(
+            'opacity-100',
+            'translate-y-0',
+            'scale-100',
+            'pointer-events-auto'
+        );
+
+        floatingButton.classList.add(
+            'opacity-0',
+            'translate-y-3',
+            'scale-95',
+            'pointer-events-none'
+        );
+
+        floatingButton.setAttribute(
+            'aria-hidden',
+            'true'
+        );
+
+        floatingButton.tabIndex = -1;
+    }
+}
+
+function initializeFloatingTransactionButton() {
+    const inlineButton =
+        document.getElementById(
+            'inlineAddTransactionBtn'
+        );
+
+    if (!inlineButton) return;
+
+    if (!('IntersectionObserver' in window)) {
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        entries => {
+            const entry = entries[0];
+
+            inlineAddTransactionButtonVisible =
+                entry.isIntersecting;
+
+            updateFloatingTransactionButton();
+        },
+        {
+            root: null,
+            threshold: 0.15
+        }
+    );
+
+    observer.observe(inlineButton);
+
+    window.addEventListener(
+        'resize',
+        updateFloatingTransactionButton
+    );
+}
+
+document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+
+    const modal = document.getElementById(
+        'transactionDetailModal'
+    );
+
+    if (
+        modal &&
+        !modal.classList.contains('hidden')
+    ) {
+        closeTransactionDetailModal();
+    }
+});

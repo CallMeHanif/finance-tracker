@@ -205,7 +205,7 @@
                     <div class="flex flex-wrap w-full lg:w-auto gap-2 items-center justify-end">
                         <select id="txFilterAccount" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
                         <select id="txFilterCategory" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
-                        <button onclick="openTransactionModal()" class="fixed bottom-6 right-6 z-[60] lg:static lg:z-auto bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold p-4 lg:py-1.5 lg:px-4 rounded-full lg:rounded-xl transition-all shadow-xl shadow-blueSystem-500/40 lg:shadow-sm flex items-center justify-center gap-1.5 hover:scale-105 active:scale-95 lg:hover:scale-100 lg:active:scale-100">
+                        <button onclick="openTransactionModal()" id="inlineAddTransactionBtn" class="fixed bottom-6 right-6 z-[60] lg:static lg:z-auto bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold p-4 lg:py-1.5 lg:px-4 rounded-full lg:rounded-xl transition-all shadow-xl shadow-blueSystem-500/40 lg:shadow-sm flex items-center justify-center gap-1.5 hover:scale-105 active:scale-95 lg:hover:scale-100 lg:active:scale-100">
                             <i data-lucide="plus-circle" class="w-7 h-7 lg:w-4 lg:h-4"></i>
                             <span class="hidden lg:inline text-xs">Tambah Transaksi</span>
                         </button>
@@ -231,6 +231,44 @@
                     </div>
                 </div>
             </div>
+
+            <button
+                id="floatingAddTransactionBtn"
+                onclick="openTransactionModal()"
+                title="Tambah Transaksi"
+                aria-label="Tambah Transaksi"
+                aria-hidden="true"
+                tabindex="-1"
+                class="
+                    fixed bottom-6 right-6 z-[60]
+                    flex items-center justify-center gap-2
+                    bg-blueSystem-500 hover:bg-blueSystem-600
+                    text-white font-semibold
+                    py-3 px-4
+                    rounded-xl
+                    shadow-xl shadow-blueSystem-500/40
+
+                    opacity-0
+                    translate-y-3
+                    scale-95
+                    pointer-events-none
+
+                    transition-all
+                    duration-300
+                    ease-out
+                    will-change-transform
+
+                    hover:scale-105
+                    active:scale-95
+                "
+            >
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+
+                <span class="text-xs">
+                    Tambah Transaksi
+                </span>
+            </button>
+
         </div>
 
         <!-- ================= PAGE 3: REPORTS ================= -->
@@ -241,9 +279,25 @@
                     <div class="w-full h-72"><canvas id="chartIncomeExpense"></canvas></div>
                 </div>
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="trending-up" class="text-purple-500 w-4 h-4"></i> Tren Pengeluaran Kategori</h3>
-                    <div class="w-full h-72"><canvas id="chartCategoriesTrend"></canvas></div>
-                </div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+            <i data-lucide="trending-up" class="text-purple-500 w-4 h-4"></i>
+            Tren Pengeluaran Kategori
+        </h3>
+
+        <select
+            id="reportCategoryFilter"
+            onchange="handleReportCategoryFilterChange(this.value)"
+            class="w-full sm:w-auto bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+        >
+            <option value="all">Semua Kategori</option>
+        </select>
+    </div>
+
+    <div class="w-full h-72">
+        <canvas id="chartCategoriesTrend"></canvas>
+    </div>
+</div>
             </div>
 
             <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
@@ -312,17 +366,30 @@
                 </div>
             </div>
 
-            <!-- Import CSV & Danger Zone -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- CSV & Danger Zone -->
+            <div class="grid grid-cols-1 gap-6">
+                <!-- ================= DEV ONLY: IMPORT CSV =================
+
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
                     <label class="block text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-1.5">
-                        <i data-lucide="upload" class="w-4 h-4 text-blueSystem-500"></i> Import Transaksi (CSV)
+                        <i data-lucide="upload" class="w-4 h-4 text-blueSystem-500"></i>
+                        Import Transaksi (CSV)
                     </label>
-                    <input type="file" id="csvFileInput" accept=".csv" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blueSystem-50 file:text-blueSystem-700 hover:file:bg-blueSystem-100 mb-3">
+
+                    <input
+                        type="file"
+                        id="csvFileInput"
+                        accept=".csv"
+                        class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blueSystem-50 file:text-blueSystem-700 hover:file:bg-blueSystem-100 mb-3"
+                    >
+
                     <p class="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <strong>Format CSV:</strong> Tanggal (YYYY-MM-DD), Nama, Kredit, Debit, Kategori, Akun, Akun Tujuan, Catatan.
+                        <strong>Format CSV:</strong>
+                        Tanggal (YYYY-MM-DD), Nama, Kredit, Debit, Kategori, Akun, Akun Tujuan, Catatan.
                     </p>
                 </div>
+
+                ================= END DEV ONLY ================= -->
 
                 <div class="bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/20 rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4">
                     <div>
@@ -391,7 +458,6 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Aliran</label>
-                        <!-- Cukup tambahkan ;updateCategoryDropdown() di dalam onchange seperti di bawah ini -->
                         <select id="form-type" onchange="adjustFormInputs(); updateCategoryDropdown();" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold">
                             <option value="Credit">Credit (Uang Keluar)</option>
                             <option value="Debit">Debit (Uang Masuk)</option>
@@ -509,6 +575,196 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal Detail Transaksi -->
+<div
+    id="transactionDetailModal"
+    onclick="handleTransactionDetailBackdrop(event)"
+    class="hidden fixed inset-0 z-[80]
+           bg-slate-900/40 dark:bg-black/60
+           backdrop-blur-sm
+           flex items-center justify-center
+           p-4"
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="bg-white dark:bg-slate-950
+               border border-slate-200 dark:border-slate-800
+               rounded-2xl shadow-xl
+               max-w-md w-full
+               overflow-hidden"
+    >
+        <!-- Header -->
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <i
+                    data-lucide="receipt-text"
+                    class="text-blueSystem-500 w-4 h-4"
+                ></i>
+
+                Detail Transaksi
+            </h3>
+
+            <button
+                type="button"
+                onclick="closeTransactionDetailModal()"
+                aria-label="Tutup detail transaksi"
+                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            >
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-5 space-y-5">
+
+            <!-- Ringkasan nominal -->
+            <div class="flex items-center gap-4">
+                <div
+                    id="detailTransactionIconContainer"
+                    class="w-12 h-12 rounded-2xl flex items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-500"
+                >
+                    <i
+                        id="detailTransactionIcon"
+                        data-lucide="circle-dollar-sign"
+                        class="w-6 h-6"
+                    ></i>
+                </div>
+
+                <div class="min-w-0 flex-1">
+                    <span
+                        id="detailTransactionType"
+                        class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    >
+                        Transaksi
+                    </span>
+
+                    <h4
+                        id="detailTransactionName"
+                        class="mt-1 text-base font-bold text-slate-900 dark:text-white truncate"
+                    >
+                        -
+                    </h4>
+
+                    <p
+                        id="detailTransactionAmount"
+                        class="mt-0.5 text-xl font-bold"
+                    >
+                        Rp 0,00
+                    </p>
+                </div>
+            </div>
+
+            <!-- Informasi transaksi -->
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+
+                <div class="flex justify-between gap-4 p-3">
+                    <span class="text-[11px] font-semibold text-slate-400">
+                        Tanggal
+                    </span>
+
+                    <span
+                        id="detailTransactionDate"
+                        class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-right"
+                    >
+                        -
+                    </span>
+                </div>
+
+                <div class="flex justify-between gap-4 p-3">
+                    <span class="text-[11px] font-semibold text-slate-400">
+                        Kategori
+                    </span>
+
+                    <span
+                        id="detailTransactionCategory"
+                        class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-right"
+                    >
+                        -
+                    </span>
+                </div>
+
+                <div class="flex justify-between gap-4 p-3">
+                    <span
+                        id="detailTransactionAccountLabel"
+                        class="text-[11px] font-semibold text-slate-400"
+                    >
+                        Akun
+                    </span>
+
+                    <span
+                        id="detailTransactionAccount"
+                        class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-right"
+                    >
+                        -
+                    </span>
+                </div>
+
+                <div
+                    id="detailTransactionTargetRow"
+                    class="hidden flex justify-between gap-4 p-3"
+                >
+                    <span class="text-[11px] font-semibold text-slate-400">
+                        Akun Tujuan
+                    </span>
+
+                    <span
+                        id="detailTransactionTargetAccount"
+                        class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-right"
+                    >
+                        -
+                    </span>
+                </div>
+
+                <div class="p-3">
+                    <span class="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                        Catatan
+                    </span>
+
+                    <p
+                        id="detailTransactionNotes"
+                        class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words"
+                    >
+                        -
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div class="flex gap-2">
+                <button
+        type="button"
+        id="detailDeleteTransactionBtn"
+        class="flex-1
+               bg-rose-50 hover:bg-rose-100
+               dark:bg-rose-950/30 dark:hover:bg-rose-950/50
+               border border-rose-200 dark:border-rose-900/50
+               text-rose-600 dark:text-rose-400
+               py-2.5 px-4 rounded-xl
+               text-xs font-semibold
+               transition-colors
+               flex items-center justify-center gap-1.5"
+    >
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        Hapus
+    </button>
+                <button
+                    type="button"
+                    id="detailEditTransactionBtn"
+                    class="flex-1 bg-blueSystem-500 hover:bg-blueSystem-600
+                           text-white
+                           py-2.5 px-4 rounded-xl
+                           text-xs font-semibold
+                           transition-colors
+                           flex items-center justify-center gap-1.5"
+                >
+                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                    Edit Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Confirm Delete Modal -->
     <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
