@@ -35,31 +35,15 @@ let cloudSyncInFlight = false;
 let cloudSyncQueued = false;
 let cloudFetchInFlight = false;
 let localMutationVersion = 0;
+let transactionSearchTimer = null;
 
 const CLOUD_SYNC_DELAY = 650;
-const STORAGE_KEYS = {
-    accounts: 'userAccounts',
-    categories: 'userCategories',
-    transactions: 'transactions'
-};
-
 const emptyStateHTML = `<div class="p-6 flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 w-full col-span-full">
     <i data-lucide="inbox" class="w-10 h-10 mb-2 stroke-[1.5]"></i>
     <span class="text-xs text-slate-400 italic">Data Tidak Tersedia</span>
 </div>`;
 
 const emptyTableRowHTML = (colspan) => `<tr><td colspan="${colspan}" class="py-8 text-center text-xs text-slate-400 italic"><i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 stroke-[1.5] text-slate-300 dark:text-slate-700"></i>Data Tidak Tersedia</td></tr>`;
-
-
-function safeJsonParse(value, fallback) {
-    if (value === null || value === undefined || value === '') return fallback;
-    try {
-        return JSON.parse(value);
-    } catch (error) {
-        console.warn('Data lokal rusak dan diabaikan:', error);
-        return fallback;
-    }
-}
 
 function normalizeMoney(value) {
     const number = Number(value);
@@ -191,36 +175,25 @@ function normalizeTransactions(input) {
     return Array.from(byId.values());
 }
 
-function loadLocalData() {
-    const storedAccounts = safeJsonParse(localStorage.getItem(STORAGE_KEYS.accounts), null);
-    const storedCategories = safeJsonParse(localStorage.getItem(STORAGE_KEYS.categories), null);
-    const storedTransactions = safeJsonParse(localStorage.getItem(STORAGE_KEYS.transactions), null);
-
-    userAccounts = normalizeAccounts(storedAccounts === null ? userAccounts : storedAccounts);
-    userCategories = normalizeCategories(storedCategories === null ? userCategories : storedCategories);
-    transactions = normalizeTransactions(storedTransactions === null ? transactions : storedTransactions);
-}
-
-function persistLocalData() {
-    localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(userAccounts));
-    localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(userCategories));
-    localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
-}
-
-function hasWorkspaceData() {
-    return userAccounts.length > 0 || transactions.length > 0 ||
-        userCategories.income.length > 0 || userCategories.expense.length > 0 || userCategories.neutral.length > 0;
-}
-
-function commitDataChange({ sync = true, render = true } = {}) {
+function commitDataChange({
+    sync = true,
+    render = true
+} = {}) {
     userAccounts = normalizeAccounts(userAccounts);
     userCategories = normalizeCategories(userCategories);
     transactions = normalizeTransactions(transactions);
+
     localMutationVersion += 1;
-    persistLocalData();
+
     populateFormDropdowns();
-    if (render) renderDashboard();
-    if (sync) triggerCloudPush();
+
+    if (render) {
+        renderDashboard();
+    }
+
+    if (sync) {
+        triggerCloudPush();
+    }
 }
 
 function setSyncStatus(message) {
@@ -230,7 +203,7 @@ function setSyncStatus(message) {
 
 function getCloudConfig() {
     return {
-        mode: localStorage.getItem('dbMode') || 'local',
+        mode: localStorage.getItem('dbMode') || 'sheets',
         url: (localStorage.getItem('sheetsUrl') || '').trim()
     };
 }
@@ -277,7 +250,6 @@ function parseNominal(value) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    loadLocalData();
 
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
     if (localStorage.getItem('isBalanceObscured') === 'true') isBalanceObscured = true;
@@ -287,7 +259,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('dashboardMonthFilter').value = currentYearMonth;
     document.getElementById('txMonthFilter').value = currentYearMonth;
 
-    document.getElementById('dbMode').value = localStorage.getItem('dbMode') || 'local';
+    document.getElementById('dbMode').value = 'sheets';
+    localStorage.setItem(
+        'dbMode',
+        'sheets'
+    );
     document.getElementById('sheetsUrl').value = localStorage.getItem('sheetsUrl') || '';
 
     changeDbMode();
@@ -299,7 +275,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const { mode, url } = getCloudConfig();
     if (mode === 'sheets' && url) {
-        await fetchFromGoogleSheets({ allowInitialUpload: true });
+        await fetchFromGoogleSheets();
     }
 
     lucide.createIcons();
@@ -604,7 +580,7 @@ function renderDashboardPage(selectedMonth) {
             return `
                 <div class="space-y-1.5 py-2">
                     <div class="flex justify-between text-[11px]">
-                        <span class="font-medium text-slate-600 dark:text-slate-300">${cat}</span>
+                        <span class="font-medium text-slate-600 dark:text-slate-300">${escapeHtml(cat)}</span>
                         <span class="font-bold text-slate-900 dark:text-white">${formatRupiah(amt, true)} <span class="text-[10px] text-slate-400 font-normal">(${pct}%)</span></span>
                     </div>
                     <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -639,7 +615,7 @@ function renderDashboardPage(selectedMonth) {
 
             tableBody.innerHTML += `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                    <td class="py-3 px-4 whitespace-nowrap text-slate-500">${formatTanggalIndo(t.date)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap text-slate-500">${escapeHtml(formatTanggalIndo(t.date))}</td>
                     <td class="py-3 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
                     <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${bgPill}">${escapeHtml(t.category || 'Transfer')}</span></td>
                     <td class="py-3 px-4 ${jenisColor} font-bold">${amtStr}</td>
@@ -650,6 +626,19 @@ function renderDashboardPage(selectedMonth) {
     }
 }
 
+function scheduleTransactionSearch() {
+    clearTimeout(
+        transactionSearchTimer
+    );
+
+    transactionSearchTimer = setTimeout(
+        () => {
+            renderDashboard();
+        },
+        200
+    );
+}
+
 function renderTransactionsPage(selectedMonth) {
     const liveBalances = calculateBalancesUntil(selectedMonth);
     
@@ -658,7 +647,7 @@ function renderTransactionsPage(selectedMonth) {
     else {
         balContainer.innerHTML = userAccounts.map(a => `
             <div class="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
-                <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400">${a.name}</span>
+                <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400">${escapeHtml(a.name)}</span>
                 <span class="text-[11px] font-bold text-slate-900 dark:text-slate-200">${formatRupiah(liveBalances[a.name] || 0)}</span>
             </div>`).join('');
     }
@@ -734,7 +723,7 @@ function renderTransactionsPage(selectedMonth) {
            focus:outline-none
            transition-colors"
 >
-                    <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${formatTanggalIndo(t.date)}</td>
+                    <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${escapeHtml(formatTanggalIndo(t.date))}</td>
                     <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
                     <td class="py-2.5 px-4 ${colorClass}">${formatRupiah(amt, true)}</td>
                     <td class="py-2.5 px-4 text-slate-500">${escapeHtml(displayCategory)}</td>
@@ -1682,27 +1671,135 @@ function executeWipeAllData() {
 function toggleSettingsModal() { document.getElementById('cloudModal').classList.toggle('hidden'); }
 function changeDbMode() { document.getElementById('urlInputContainer').classList.toggle('hidden', document.getElementById('dbMode').value !== 'sheets'); }
 
-function saveSettings() {
-    const mode = document.getElementById('dbMode').value;
-    const url = document.getElementById('sheetsUrl').value.trim();
+function normalizeAppsScriptUrl(rawValue) {
+    const value = normalizeText(rawValue);
 
-    if (mode === 'sheets' && !url) {
-        alert('Masukkan URL Web App Google Apps Script terlebih dahulu.');
+    if (!value) {
+        throw new Error(
+            'Masukkan URL Web App Google Apps Script.'
+        );
+    }
+
+    let parsedUrl;
+
+    try {
+        parsedUrl = new URL(value);
+    } catch {
+        throw new Error(
+            'Format URL tidak valid.'
+        );
+    }
+
+    const validProtocol =
+        parsedUrl.protocol === 'https:';
+
+    const validHostname =
+        parsedUrl.hostname === 'script.google.com';
+
+    const validPath =
+        /^\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?$/
+            .test(parsedUrl.pathname);
+
+    if (
+        !validProtocol ||
+        !validHostname ||
+        !validPath
+    ) {
+        throw new Error(
+            'Gunakan URL Web App Apps Script yang ' +
+            'berasal dari script.google.com dan ' +
+            'berakhir dengan /exec.'
+        );
+    }
+
+    parsedUrl.search = '';
+    parsedUrl.hash = '';
+
+    return parsedUrl
+        .toString()
+        .replace(/\/$/, '');
+}
+
+async function testAppsScriptConnection(url) {
+    const separator =
+        url.includes('?') ? '&' : '?';
+
+    const response = await fetch(
+        `${url}${separator}_=${Date.now()}`,
+        {
+            method: 'GET',
+            cache: 'no-store'
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(
+            `Apps Script merespons dengan HTTP ${response.status}.`
+        );
+    }
+
+    const result = await response.json();
+
+    if (
+        !result ||
+        result.status !== 'success' ||
+        !Array.isArray(result.userAccounts) ||
+        !Array.isArray(result.transactions)
+    ) {
+        throw new Error(
+            result?.message ||
+            'URL tersebut bukan database ARAH yang valid.'
+        );
+    }
+
+    return result;
+}
+
+async function saveSettings() {
+    const mode =
+        document.getElementById('dbMode').value;
+
+    let url =
+        document.getElementById('sheetsUrl')
+            .value
+            .trim();
+
+    try {
+        url = normalizeAppsScriptUrl(url);
+
+        setSyncStatus(
+            '🔍 Memeriksa koneksi Apps Script...'
+        );
+
+        await testAppsScriptConnection(url);
+    } catch (error) {
+        console.error(
+            'Pemeriksaan koneksi gagal:',
+            error
+        );
+
+        setSyncStatus(
+            '⚠️ URL tidak dapat digunakan.'
+        );
+
+        alert(
+            error.message ||
+            'Koneksi Apps Script gagal.'
+        );
+
         return;
     }
 
-    localStorage.setItem('dbMode', mode);
+    localStorage.setItem('dbMode', 'sheets');
     localStorage.setItem('sheetsUrl', url);
+
+    document.getElementById('sheetsUrl').value =
+        url;
+
+    await fetchFromGoogleSheets();
 
     updateHeaderCloudIndicator();
     toggleSettingsModal();
-
-    if (mode === 'sheets') {
-        fetchFromGoogleSheets();
-    } else {
-        populateFormDropdowns();
-        renderDashboard();
-    }
 }
 
 function updateHeaderCloudIndicator() {
@@ -1720,63 +1817,34 @@ function updateHeaderCloudIndicator() {
     }
 }
 
-function triggerCloudPush() {
-    const mode = localStorage.getItem('dbMode');
-    const url = localStorage.getItem('sheetsUrl');
+function triggerCloudPush({
+    immediate = false
+} = {}) {
+    const { mode, url } = getCloudConfig();
 
-    if (mode !== 'sheets' || !url) return;
-
-    const statusEl = document.getElementById('syncStatus');
-
-    if (statusEl) {
-        statusEl.innerText = "⬆️ Menyinkronkan...";
+    if (
+    mode !== 'sheets' ||
+    !url ||
+    isInitialLoading ||
+    cloudSyncBlocked
+    ) {
+        return;
     }
 
-    const payload = {
-        action: "syncAll",
-        userAccounts: Array.isArray(userAccounts)
-            ? userAccounts
-            : [],
+    clearTimeout(cloudSyncTimer);
 
-        userCategories: {
-            income: Array.isArray(userCategories?.income)
-                ? userCategories.income
-                : [],
+    if (immediate) {
+        cloudSyncTimer = null;
 
-            expense: Array.isArray(userCategories?.expense)
-                ? userCategories.expense
-                : [],
+        void flushCloudPush();
+        return;
+    }
 
-            neutral: Array.isArray(userCategories?.neutral)
-                ? userCategories.neutral
-                : []
-        },
+    cloudSyncTimer = setTimeout(() => {
+        cloudSyncTimer = null;
 
-        transactions: Array.isArray(transactions)
-            ? transactions
-            : []
-    };
-
-    fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(() => {
-        if (statusEl) {
-            statusEl.innerText = "✅ Data berhasil dikirim ke cloud.";
-        }
-    })
-    .catch(error => {
-        console.error('Sinkronisasi cloud gagal:', error);
-
-        if (statusEl) {
-            statusEl.innerText = "⚠️ Sinkronisasi cloud gagal.";
-        }
-    });
+        void flushCloudPush();
+    }, CLOUD_SYNC_DELAY);
 }
 
 
@@ -1812,13 +1880,27 @@ async function flushCloudPush() {
             setSyncStatus('⚠️ Data terkirim, tetapi verifikasi cloud belum cocok.');
         }
     } catch (error) {
-        console.error('Gagal menyinkronkan data:', error);
-        setSyncStatus('⚠️ Sinkronisasi tertunda.');
-        cloudSyncQueued = true;
+    console.error(
+        'Gagal menyinkronkan data:',
+        error
+    );
+
+    setSyncStatus(
+        '⚠️ Sinkronisasi gagal. Hubungkan ulang sebelum menutup halaman.'
+    );
     } finally {
-        cloudSyncInFlight = false;
-        if (mutationVersionAtStart !== localMutationVersion) cloudSyncQueued = true;
-        if (cloudSyncQueued) triggerCloudPush({ immediate: true });
+    cloudSyncInFlight = false;
+
+    const hasNewerChanges =
+        cloudSyncQueued ||
+        mutationVersionAtStart !==
+            localMutationVersion;
+
+    cloudSyncQueued = false;
+
+    if (hasNewerChanges) {
+        triggerCloudPush();
+        }
     }
 }
 
@@ -1844,6 +1926,7 @@ async function verifyCloudSnapshot(url, expectedSignature) {
 
 function fetchFromGoogleSheets() {
     isInitialLoading = true;
+    cloudSyncBlocked = true;
 
     const url = localStorage.getItem('sheetsUrl');
 
@@ -1860,9 +1943,9 @@ function fetchFromGoogleSheets() {
         statusEl.innerText = "🔄 Memuat cloud database...";
     }
 
-    fetch(url, {
-        method: 'GET',
-        cache: 'no-store'
+    return fetch(url, {
+    method: 'GET',
+    cache: 'no-store'
     })
     .then(response => {
         if (!response.ok) {
@@ -1884,23 +1967,24 @@ function fetchFromGoogleSheets() {
             );
         }
 
-        /*
-         * Kalau cloud benar-benar baru dan belum pernah
-         * diinisialisasi, pertahankan data lokal lalu upload.
-         */
         if (resData.initialized === false) {
             if (statusEl) {
-                statusEl.innerText =
-                    "⬆️ Menyiapkan database cloud...";
+        statusEl.innerText =
+            '⬆️ Menyiapkan database cloud...';
             }
 
-            triggerCloudPush();
+            cloudSyncBlocked = false;
+            isInitialLoading = false;
+
+            triggerCloudPush({
+                immediate: true
+            });
+
             return;
         }
 
-        /*
-         * TRANSAKSI
-         */
+        cloudSyncBlocked = false;
+
         transactions = Array.isArray(resData.transactions)
             ? resData.transactions.map((transaction, index) => ({
                 ...transaction,
@@ -1924,9 +2008,6 @@ function fetchFromGoogleSheets() {
             }))
             : [];
 
-        /*
-         * AKUN
-         */
         userAccounts = Array.isArray(resData.userAccounts)
             ? resData.userAccounts.map(account => ({
                 name:
@@ -1938,11 +2019,6 @@ function fetchFromGoogleSheets() {
             }))
             : [];
 
-        /*
-         * KATEGORI
-         *
-         * Inilah bagian yang tidak ada pada kode lamamu.
-         */
         if (
             resData.userCategories &&
             typeof resData.userCategories === 'object'
@@ -1980,24 +2056,6 @@ function fetchFromGoogleSheets() {
             };
         }
 
-        /*
-         * Simpan seluruh database cloud ke browser.
-         */
-        localStorage.setItem(
-            'transactions',
-            JSON.stringify(transactions)
-        );
-
-        localStorage.setItem(
-            'userAccounts',
-            JSON.stringify(userAccounts)
-        );
-
-        localStorage.setItem(
-            'userCategories',
-            JSON.stringify(userCategories)
-        );
-
         populateFormDropdowns();
 
         if (statusEl) {
@@ -2011,9 +2069,23 @@ function fetchFromGoogleSheets() {
             error
         );
 
+        cloudSyncBlocked = true;
+
+        userAccounts = [];
+
+        userCategories = {
+            income: [],
+            expense: [],
+            neutral: []
+        };
+
+        transactions = [];
+
+        populateFormDropdowns();
+
         if (statusEl) {
             statusEl.innerText =
-                "⚠️ Gagal memuat cloud. Data lokal tetap digunakan.";
+                '⚠️ Database cloud gagal dimuat. Data tidak dapat diubah sampai koneksi berhasil.';
         }
     })
     .finally(() => {
@@ -2097,59 +2169,6 @@ document.getElementById('csvFileInput').addEventListener('change', function(e) {
 });
 
 ================= END DEV ONLY ================= */
-
-
-function detectCSVDelimiter(firstLine) {
-    const delimiters = [',', ';', '\t'];
-    let best = ',';
-    let bestCount = -1;
-    delimiters.forEach(delimiter => {
-        const count = (firstLine.match(new RegExp(delimiter === '\t' ? '\\t' : `\\${delimiter}`, 'g')) || []).length;
-        if (count > bestCount) {
-            bestCount = count;
-            best = delimiter;
-        }
-    });
-    return best;
-}
-
-function parseCSVRows(csvText) {
-    const normalized = String(csvText || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
-    const firstLine = normalized.split('\n').find(line => line.trim()) || '';
-    const delimiter = detectCSVDelimiter(firstLine);
-    const rows = [];
-    let row = [];
-    let field = '';
-    let quoted = false;
-
-    for (let i = 0; i < normalized.length; i += 1) {
-        const char = normalized[i];
-        const next = normalized[i + 1];
-
-        if (char === '"') {
-            if (quoted && next === '"') {
-                field += '"';
-                i += 1;
-            } else {
-                quoted = !quoted;
-            }
-        } else if (char === delimiter && !quoted) {
-            row.push(field);
-            field = '';
-        } else if (char === '\n' && !quoted) {
-            row.push(field);
-            if (row.some(value => normalizeText(value))) rows.push(row);
-            row = [];
-            field = '';
-        } else {
-            field += char;
-        }
-    }
-
-    row.push(field);
-    if (row.some(value => normalizeText(value))) rows.push(row);
-    return rows;
-}
 
 function getTransactionContentSignature(transaction) {
     return simpleHash(JSON.stringify([
@@ -2299,21 +2318,6 @@ function parseCSVAmount(value) {
     const amount = Number.parseFloat(text);
 
     return Number.isFinite(amount) ? amount : 0;
-}
-
-function createTransactionId(index = 0) {
-    if (
-        typeof crypto !== 'undefined' &&
-        typeof crypto.randomUUID === 'function'
-    ) {
-        return crypto.randomUUID();
-    }
-
-    return [
-        Date.now(),
-        index,
-        Math.random().toString(36).slice(2, 10)
-    ].join('-');
 }
 
 function processCSV(csvText) {
@@ -2507,11 +2511,6 @@ function processCSV(csvText) {
 
         transactions.push(...importedTransactions);
 
-        localStorage.setItem(
-            'transactions',
-            JSON.stringify(transactions)
-        );
-
         document.getElementById('csvFileInput').value = '';
 
         let successMessage =
@@ -2524,8 +2523,7 @@ function processCSV(csvText) {
 
         openSuccessModal(successMessage);
 
-        renderDashboard();
-        triggerCloudPush();
+        commitDataChange();
     } catch (error) {
         console.error('Gagal mengimpor CSV:', error);
 
