@@ -295,8 +295,16 @@
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
-                <div class="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-blueSystem-200 dark:border-blueSystem-900/50 shadow-sm shadow-blueSystem-100 dark:shadow-none">
-                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none cursor-pointer">
+                <div class="min-w-0 overflow-hidden bg-white dark:bg-slate-950 p-4 rounded-2xl border border-blueSystem-200 dark:border-blueSystem-900/50 shadow-sm shadow-blueSystem-100 dark:shadow-none">
+                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="
+                        block w-full min-w-0 max-w-full
+                        bg-slate-50 dark:bg-slate-900
+                        border border-slate-200 dark:border-slate-800
+                        rounded-xl px-3 py-2
+                        text-xs font-semibold
+                        focus:outline-none cursor-pointer
+                        box-border
+                    ">
                 </div>
 
                 <div class="bg-slate-950 text-white rounded-2xl p-4 shadow-md">
@@ -594,7 +602,7 @@
             </div>
             <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="p-5 space-y-3.5">
                 <input type="hidden" id="form-edit-id">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Tanggal</label>
                         <input
@@ -607,7 +615,14 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Aliran</label>
-                        <select id="form-type" onchange="adjustFormInputs(); updateCategoryDropdown();" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold">
+                        <select id="form-type" onchange="adjustFormInputs(); updateCategoryDropdown();" class="
+                            block w-full min-w-0 max-w-full
+                            bg-slate-50 dark:bg-slate-900
+                            border border-slate-200 dark:border-slate-800
+                            rounded-xl px-3 py-2
+                            text-sm text-slate-800 dark:text-white
+                            focus:outline-none box-border
+                        ">
                             <option value="Credit">Credit (Uang Keluar)</option>
                             <option value="Debit">Debit (Uang Masuk)</option>
                             <option value="Transfer">Transfer (Pindahan Dana)</option>
