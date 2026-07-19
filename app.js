@@ -328,8 +328,10 @@ function updateObscureUI() {
     const textBtn = document.getElementById('obscureTextBtn');
     if (isBalanceObscured) {
         iconBtn.setAttribute('data-lucide', 'eye-off');
+        textBtn.innerText = "Tampilkan Saldo";
     } else {
         iconBtn.setAttribute('data-lucide', 'eye');
+        textBtn.innerText = "Sembunyikan Saldo";
     }
     lucide.createIcons();
 }
