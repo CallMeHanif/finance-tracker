@@ -278,6 +278,21 @@ window.addEventListener('DOMContentLoaded', async () => {
         await fetchFromGoogleSheets();
     }
 
+    setInterval(() => {
+    const { mode, url } = getCloudConfig();
+
+        if (
+            mode === 'sheets' &&
+            url &&
+            !cloudFetchInFlight &&
+            !cloudSyncInFlight
+        ) {
+            fetchFromGoogleSheets({
+                silent: true
+            });
+        }
+    }, 30000);
+
     lucide.createIcons();
 });
 
@@ -1932,7 +1947,9 @@ async function verifyCloudSnapshot(url, expectedSignature) {
     }
 }
 
-function fetchFromGoogleSheets() {
+function fetchFromGoogleSheets({
+    silent = false
+} = {}) {
     isInitialLoading = true;
     cloudSyncBlocked = true;
 
@@ -1943,12 +1960,15 @@ function fetchFromGoogleSheets() {
         return;
     }
 
+    if (!silent) {
     showLoader();
+    }
 
     const statusEl = document.getElementById('syncStatus');
 
-    if (statusEl) {
-        statusEl.innerText = "🔄 Memuat cloud database...";
+    if (statusEl && !silent) {
+    statusEl.innerText =
+        '🔄 Memuat cloud database...';
     }
 
     return fetch(url, {
@@ -2099,9 +2119,10 @@ function fetchFromGoogleSheets() {
     .finally(() => {
         isInitialLoading = false;
 
+        if (!silent) {
         hideLoader();
+        }
 
-        switchPage('dashboard');
         populateFormDropdowns();
         renderDashboard();
     });
