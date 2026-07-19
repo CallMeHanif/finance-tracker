@@ -542,7 +542,6 @@ function renderDashboardPage(selectedMonth) {
     }
 
     const legendData = [
-        { label: 'Total Saldo', amount: netWorth, color: 'bg-blueSystem-500' },
         { label: 'Dana di Bank', amount: totalBank, color: 'bg-blue-500' },
         { label: 'Dana Tabungan', amount: totalSaving, color: 'bg-emerald-500' },
         { label: 'Dana Cash', amount: totalCash, color: 'bg-rose-500' },
@@ -578,7 +577,7 @@ function renderDashboardPage(selectedMonth) {
             const amt = categorySums[cat];
             const pct = overallExpense > 0 ? Math.round((amt / overallExpense) * 100) : 0;
             return `
-                <div class="space-y-1.5 py-2">
+                <div class="space-y-1.5 py-2 shrink-0">
                     <div class="flex justify-between text-[11px]">
                         <span class="font-medium text-slate-600 dark:text-slate-300">${escapeHtml(cat)}</span>
                         <span class="font-bold text-slate-900 dark:text-white">${formatRupiah(amt, true)} <span class="text-[10px] text-slate-400 font-normal">(${pct}%)</span></span>
