@@ -71,6 +71,34 @@
     color: #ffffff;
     background: #0f172a;
 }
+
+input[type="date"],
+input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+@supports (-webkit-touch-callout: none) {
+    input[type="date"],
+    input[type="month"] {
+        width: -webkit-fill-available;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+    min-width: 0;
+}
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
@@ -112,12 +140,6 @@
                     </div>
                 </a>
 
-                <!-- <div class="flex items-center gap-2.5">
-                    <div class="bg-blueSystem-500 text-white p-2 rounded-xl shadow-md shadow-blueSystem-500/20">
-                        <i data-lucide="wallet" class="w-5 h-5"></i>
-                    </div>
-                    <h1 class="text-base font-bold tracking-tight text-blueSystem-500 dark:text-blueSystem-100">Finance Tracker</h1>
-                </div> -->
                 <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold">
                     <button onclick="switchPage('dashboard')" id="nav-dashboard" class="px-4 py-1.5 rounded-lg transition-all">Dashboard</button>
                     <button onclick="switchPage('transactions')" id="nav-transactions" class="px-4 py-1.5 rounded-lg transition-all">Transaksi</button>
@@ -219,7 +241,7 @@
                     <button onclick="toggleObscure()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blueSystem-500 transition-colors bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
                         <i data-lucide="eye" id="obscureIconBtn" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline" id="obscureTextBtn"></span>
                     </button>
-                    <input type="month" id="dashboardMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none cursor-pointer">
+                    <input type="month" id="dashboardMonthFilter" onchange="renderDashboard()" onclick="openPickerSafely(this)" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none cursor-pointer">
                 </div>
             </div>
 
@@ -296,7 +318,7 @@
             <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
                 <div class="min-w-0 overflow-hidden bg-white dark:bg-slate-950 p-4 rounded-2xl border border-blueSystem-200 dark:border-blueSystem-900/50 shadow-sm shadow-blueSystem-100 dark:shadow-none">
-                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="this.showPicker()" class="
+                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="openPickerSafely(this)" class="
                         block w-full min-w-0 max-w-full
                         bg-slate-50 dark:bg-slate-900
                         border border-slate-200 dark:border-slate-800
@@ -332,7 +354,7 @@
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm flex flex-col lg:flex-row gap-3 items-center justify-between">
                     <div class="relative w-full lg:w-64">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-lucide="search" class="w-3.5 h-3.5"></i></span>
-                        <input type="text" id="txSearchBar" oninput="scheduleTransactionSearch()()" placeholder="Cari transaksi bulan ini..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none">
+                        <input type="text" id="txSearchBar" oninput="scheduleTransactionSearch()" placeholder="Cari transaksi bulan ini..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none">
                     </div>
                     <div class="flex flex-wrap w-full lg:w-auto gap-2 items-center justify-end">
                         <select id="txFilterAccount" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
@@ -603,14 +625,24 @@
             <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="p-5 space-y-3.5">
                 <input type="hidden" id="form-edit-id">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Tanggal</label>
+                    <div class="min-w-0 overflow-hidden space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">
+                            Tanggal
+                        </label>
+
                         <input
                             type="date"
                             id="form-date"
                             required
-                            onclick="if (this.showPicker) this.showPicker()"
-                            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white cursor-pointer"
+                            onclick="openPickerSafely(this)"
+                            class="
+                                block w-full min-w-0 max-w-full
+                                bg-slate-50 dark:bg-slate-900
+                                border border-slate-200 dark:border-slate-800
+                                rounded-xl px-3 py-2
+                                text-xs text-slate-800 dark:text-white
+                                cursor-pointer box-border overflow-hidden
+                            "
                         >
                     </div>
                     <div class="space-y-1">
@@ -620,7 +652,7 @@
                             bg-slate-50 dark:bg-slate-900
                             border border-slate-200 dark:border-slate-800
                             rounded-xl px-3 py-2
-                            text-sm text-slate-800 dark:text-white
+                            text-xs text-slate-800 dark:text-white
                             focus:outline-none box-border
                         ">
                             <option value="Credit">Credit (Uang Keluar)</option>

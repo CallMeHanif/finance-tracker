@@ -54,6 +54,22 @@ function normalizeText(value) {
     return value === null || value === undefined ? '' : String(value).trim();
 }
 
+function openPickerSafely(input) {
+    const isTouchDevice =
+        window.matchMedia('(pointer: coarse)').matches;
+
+    if (isTouchDevice) {
+        return;
+    }
+
+    if (typeof input.showPicker === 'function') {
+        try {
+            input.showPicker();
+        } catch (error) {
+        }
+    }
+}
+
 function normalizeDateValue(value) {
     const raw = normalizeText(value);
     if (!raw) return '';
@@ -312,10 +328,8 @@ function updateObscureUI() {
     const textBtn = document.getElementById('obscureTextBtn');
     if (isBalanceObscured) {
         iconBtn.setAttribute('data-lucide', 'eye-off');
-        textBtn.innerText = "Tampilkan Saldo";
     } else {
         iconBtn.setAttribute('data-lucide', 'eye');
-        textBtn.innerText = "Sembunyikan Saldo";
     }
     lucide.createIcons();
 }
