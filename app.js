@@ -320,15 +320,24 @@ function switchPage(pageId) {
     document.querySelectorAll('header nav button').forEach(btn => {
         btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900";
     });
-    document.querySelectorAll('#mobileMenu nav button').forEach(btn => {
-        btn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300";
-    });
     
     const activeBtn = document.getElementById('nav-' + pageId);
     if(activeBtn) activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-blueSystem-500 dark:text-white shadow-sm";
     
-    const activeMobBtn = document.getElementById('nav-mob-' + pageId);
-    if(activeMobBtn) activeMobBtn.className = "w-full text-left px-4 py-2.5 rounded-xl transition-all bg-slate-100 dark:bg-slate-900 text-blueSystem-500 dark:text-white font-bold";
+    document
+    .querySelectorAll('#bottomMobileNav .bottom-nav-item')
+    .forEach(button => {
+        button.classList.remove('is-active');
+    });
+
+const activeBottomBtn =
+    document.getElementById(
+        'nav-bottom-' + pageId
+    );
+
+if (activeBottomBtn) {
+    activeBottomBtn.classList.add('is-active');
+}
 
     renderDashboard();
 }

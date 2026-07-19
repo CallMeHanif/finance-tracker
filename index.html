@@ -40,6 +40,37 @@
         .draggable-row:active { cursor: grabbing; background-color: #f1f5f9; }
         .dark .draggable-row:active { background-color: #1e293b; }
         .drag-over { border-top: 2px solid #0056a3 !important; }
+        .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 3rem;
+    border-radius: 0.9rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #94a3b8;
+    transition: all 0.2s ease;
+}
+
+.bottom-nav-item svg {
+    stroke-width: 2;
+}
+
+.bottom-nav-item.is-active {
+    color: #0056a3;
+    background: #f0f4ff;
+}
+
+.dark .bottom-nav-item {
+    color: #64748b;
+}
+
+.dark .bottom-nav-item.is-active {
+    color: #ffffff;
+    background: #0f172a;
+}
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
@@ -104,23 +135,78 @@
                     <i data-lucide="cloud" class="w-4 h-4"></i>
                     <span id="cloudIndicatorDot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400"></span>
                 </button>
-                <button onclick="toggleMobileMenu()" class="md:hidden p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors" id="burgerBtn">
-                    <i data-lucide="menu" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <div id="mobileMenu" class="hidden absolute top-16 left-0 w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-3 shadow-md md:hidden z-50">
-                <nav class="flex flex-col gap-1 text-xs font-semibold">
-                    <button onclick="switchPageMobile('dashboard')" id="nav-mob-dashboard" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Dashboard</button>
-                    <button onclick="switchPageMobile('transactions')" id="nav-mob-transactions" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Transaksi</button>
-                    <button onclick="switchPageMobile('reports')" id="nav-mob-reports" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Laporan</button>
-                    <button onclick="switchPageMobile('settings')" id="nav-mob-settings" class="w-full text-left px-4 py-2.5 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-900">Pengaturan</button>
-                </nav>
             </div>
         </div>
     </header>
 
-    <main class="max-w-[1600px] mx-auto w-full px-6 py-6 flex-1">
+    <nav
+    id="bottomMobileNav"
+    class="
+        md:hidden fixed bottom-0 left-0 right-0 z-50
+        bg-white/95 dark:bg-slate-950/95
+        backdrop-blur
+        border-t border-slate-200 dark:border-slate-800
+        px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]
+        shadow-[0_-10px_30px_rgba(15,23,42,0.12)]
+    "
+>
+    <div class="grid grid-cols-5 items-center gap-1">
+        <button
+            onclick="switchPage('dashboard')"
+            id="nav-bottom-dashboard"
+            class="bottom-nav-item"
+        >
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Dashboard</span>
+        </button>
+
+        <button
+            onclick="switchPage('transactions')"
+            id="nav-bottom-transactions"
+            class="bottom-nav-item"
+        >
+            <i data-lucide="list" class="w-5 h-5"></i>
+            <span>Transaksi</span>
+        </button>
+
+        <button
+            onclick="openTransactionModal()"
+            class="
+                mx-auto -mt-7
+                w-14 h-14 rounded-full
+                bg-blueSystem-500 hover:bg-blueSystem-600
+                text-white
+                flex items-center justify-center
+                shadow-xl shadow-blueSystem-500/40
+                active:scale-95 transition-all
+            "
+            aria-label="Tambah Transaksi"
+            title="Tambah Transaksi"
+        >
+            <i data-lucide="plus" class="w-7 h-7"></i>
+        </button>
+
+        <button
+            onclick="switchPage('reports')"
+            id="nav-bottom-reports"
+            class="bottom-nav-item"
+        >
+            <i data-lucide="line-chart" class="w-5 h-5"></i>
+            <span>Laporan</span>
+        </button>
+
+        <button
+            onclick="switchPage('settings')"
+            id="nav-bottom-settings"
+            class="bottom-nav-item"
+        >
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span>Pengaturan</span>
+        </button>
+    </div>
+</nav>
+
+    <main class="max-w-[1600px] mx-auto w-full px-6 py-6 pb-28 md:pb-6 flex-1">
         <!-- ================= PAGE 1: DASHBOARD ================= -->
         <div id="page-dashboard" class="page-content hidden space-y-6">
             
@@ -243,7 +329,18 @@
                     <div class="flex flex-wrap w-full lg:w-auto gap-2 items-center justify-end">
                         <select id="txFilterAccount" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
                         <select id="txFilterCategory" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
-                        <button onclick="openTransactionModal()" id="inlineAddTransactionBtn" class="fixed bottom-6 right-6 z-[60] lg:static lg:z-auto bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold p-4 lg:py-1.5 lg:px-4 rounded-full lg:rounded-xl transition-all shadow-xl shadow-blueSystem-500/40 lg:shadow-sm flex items-center justify-center gap-1.5 hover:scale-105 active:scale-95 lg:hover:scale-100 lg:active:scale-100">
+                        <button
+                            onclick="openTransactionModal()"
+                            id="inlineAddTransactionBtn"
+                            class="
+                                hidden lg:flex
+                                bg-blueSystem-500 hover:bg-blueSystem-600
+                                text-white font-semibold
+                                lg:py-1.5 lg:px-4
+                                rounded-xl transition-all shadow-sm
+                                items-center justify-center gap-1.5
+                            "
+                        >
                             <i data-lucide="plus-circle" class="w-7 h-7 lg:w-4 lg:h-4"></i>
                             <span class="hidden lg:inline text-xs">Tambah Transaksi</span>
                         </button>
@@ -278,6 +375,7 @@
                 aria-hidden="true"
                 tabindex="-1"
                 class="
+                    hidden lg:flex
                     fixed bottom-6 right-6 z-[60]
                     flex items-center justify-center gap-2
                     bg-blueSystem-500 hover:bg-blueSystem-600
@@ -893,21 +991,10 @@
     </div>
 
     <script>
-    function toggleMobileMenu() {
-        const menu = document.getElementById('mobileMenu');
-        const icon = document.querySelector('#burgerBtn i');
-        menu.classList.toggle('hidden');
-        icon.setAttribute('data-lucide', menu.classList.contains('hidden') ? 'menu' : 'x');
-        lucide.createIcons();
-    }
     function closeMobileMenu() {
         document.getElementById('mobileMenu').classList.add('hidden');
         document.querySelector('#burgerBtn i').setAttribute('data-lucide', 'menu');
         lucide.createIcons();
-    }
-    function switchPageMobile(pageId) {
-        switchPage(pageId);
-        closeMobileMenu();
     }
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
