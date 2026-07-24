@@ -161,18 +161,6 @@ input[type="month"]::-webkit-date-and-time-value {
         </div>
     </header>
 
-    <!-- <nav
-    id="bottomMobileNav"
-    class="
-        md:hidden fixed bottom-0 left-0 right-0 z-50
-        bg-white/95 dark:bg-slate-950/95
-        backdrop-blur
-        border-t border-slate-200 dark:border-slate-800
-        px-3 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]
-        shadow-[0_-10px_30px_rgba(15,23,42,0.12)]
-    "
-> -->
-
 <nav
     id="bottomMobileNav"
     class="
@@ -262,48 +250,210 @@ input[type="month"]::-webkit-date-and-time-value {
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Periode Laporan</span>
                 </div>
                 <div class="flex items-center gap-3 shrink-0">
-                    <button
-                        onclick="toggleObscure()"
-                        class="
-                            flex items-center gap-1.5
-                            shrink-0 whitespace-nowrap
-                            text-xs font-semibold
-                            text-slate-500 hover:text-blueSystem-500
-                            transition-colors
-                            bg-slate-100 dark:bg-slate-900
-                            px-3 py-1.5 rounded-xl
-                            border border-slate-200 dark:border-slate-800
-                        "
-                    >
-                        <i data-lucide="eye" id="obscureIconBtn" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline whitespace-nowrap" id="obscureTextBtn"></span>
-                    </button>
                     <input type="month" id="dashboardMonthFilter" onchange="renderDashboard()" onclick="openPickerSafely(this)" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none cursor-pointer">
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div class="bg-blueSystem-50 dark:bg-blueSystem-900/30 p-3 rounded-2xl text-blueSystem-500"><i data-lucide="wallet" class="w-7 h-7"></i></div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Saldo</span>
-                        <span class="text-xl font-bold text-slate-900 dark:text-white block mt-0.5" id="dash-net-worth">Rp 0,00</span>
-                    </div>
-                </div>
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div class="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-2xl text-emerald-500"><i data-lucide="trending-up" class="w-7 h-7"></i></div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Pendapatan</span>
-                        <span class="text-xl font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5" id="dash-inc-month">Rp 0,00</span>
-                    </div>
-                </div>
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                    <div class="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-2xl text-rose-500"><i data-lucide="trending-down" class="w-7 h-7"></i></div>
-                    <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Total Pengeluaran</span>
-                        <span class="text-xl font-bold text-rose-600 dark:text-rose-400 block mt-0.5" id="dash-exp-month">Rp 0,00</span>
-                    </div>
-                </div>
-            </div>
+            <div
+    class="
+        grid grid-cols-2 md:grid-cols-3
+        gap-0 md:gap-4
+
+        bg-white dark:bg-slate-950
+        md:bg-transparent md:dark:bg-transparent
+
+        border border-slate-200 dark:border-slate-800
+        md:border-0
+
+        rounded-2xl md:rounded-none
+        shadow-sm md:shadow-none
+
+        overflow-hidden md:overflow-visible
+    "
+>
+    <!-- Total Saldo -->
+<div
+    class="
+        col-span-2 md:col-span-1
+        p-5
+        flex items-center justify-between gap-3
+
+        border-b border-slate-200 dark:border-slate-800
+        md:border md:border-slate-200 md:dark:border-slate-800
+
+        md:bg-white md:dark:bg-slate-950
+        md:rounded-2xl
+        md:shadow-sm
+    "
+>
+    <!-- Informasi saldo -->
+    <div class="flex items-center gap-4 min-w-0">
+        <div
+            class="
+                bg-blueSystem-50 dark:bg-blueSystem-900/30
+                p-3 rounded-2xl
+                text-blueSystem-500
+                shrink-0
+            "
+        >
+            <i data-lucide="wallet" class="w-7 h-7"></i>
+        </div>
+
+        <div class="min-w-0">
+            <span
+                class="
+                    text-[10px] text-slate-400
+                    uppercase font-bold tracking-wider block
+                "
+            >
+                Total Saldo
+            </span>
+
+            <span
+                id="dash-net-worth"
+                class="
+                    text-xl font-bold
+                    text-slate-900 dark:text-white
+                    block mt-0.5
+                    whitespace-nowrap
+                "
+            >
+                Rp 0,00
+            </span>
+        </div>
+    </div>
+
+    <button
+        type="button"
+        onclick="toggleObscure()"
+        class="
+            shrink-0
+            inline-flex items-center justify-center
+            w-9 h-9 p-0
+            rounded-xl
+            bg-slate-100 dark:bg-slate-900
+            border border-slate-200 dark:border-slate-800
+            text-slate-500 dark:text-slate-400
+            hover:text-blueSystem-500
+            transition-colors
+        "
+        aria-label="Sembunyikan atau tampilkan saldo"
+        title="Sembunyikan atau tampilkan saldo"
+    >
+        <i
+            data-lucide="eye"
+            id="obscureIconBtn"
+            class="w-3.5 h-3.5"
+        ></i>
+    </button>
+</div>
+
+    <!-- Total Pendapatan -->
+    <div
+        class="
+            min-w-0
+            p-4 md:p-5
+            flex items-center gap-3 md:gap-4
+
+            border-r border-slate-200 dark:border-slate-800
+            md:border md:border-slate-200 md:dark:border-slate-800
+
+            md:bg-white md:dark:bg-slate-950
+            md:rounded-2xl
+            md:shadow-sm
+        "
+    >
+        <div
+            class="
+                hidden md:block
+                bg-emerald-50 dark:bg-emerald-900/30
+                p-3 rounded-2xl
+                text-emerald-500
+                shrink-0
+            "
+        >
+            <i data-lucide="trending-up" class="w-7 h-7"></i>
+        </div>
+
+        <div class="min-w-0">
+            <span
+                class="
+                    text-[9px] md:text-[10px]
+                    text-slate-400
+                    uppercase font-bold tracking-wider
+                    block whitespace-nowrap
+                "
+            >
+                Total Pendapatan
+            </span>
+
+            <span
+                id="dash-inc-month"
+                class="
+                    text-sm sm:text-base md:text-xl
+                    font-bold
+                    text-emerald-600 dark:text-emerald-400
+                    block mt-1 md:mt-0.5
+                    whitespace-nowrap
+                "
+            >
+                Rp 0,00
+            </span>
+        </div>
+    </div>
+
+    <!-- Total Pengeluaran -->
+    <div
+        class="
+            min-w-0
+            p-4 md:p-5
+            flex items-center gap-3 md:gap-4
+
+            md:border md:border-slate-200 md:dark:border-slate-800
+            md:bg-white md:dark:bg-slate-950
+            md:rounded-2xl
+            md:shadow-sm
+        "
+    >
+        <div
+            class="
+                hidden md:block
+                bg-rose-50 dark:bg-rose-900/30
+                p-3 rounded-2xl
+                text-rose-500
+                shrink-0
+            "
+        >
+            <i data-lucide="trending-down" class="w-7 h-7"></i>
+        </div>
+
+        <div class="min-w-0">
+            <span
+                class="
+                    text-[9px] md:text-[10px]
+                    text-slate-400
+                    uppercase font-bold tracking-wider
+                    block whitespace-nowrap
+                "
+            >
+                Total Pengeluaran
+            </span>
+
+            <span
+                id="dash-exp-month"
+                class="
+                    text-sm sm:text-base md:text-xl
+                    font-bold
+                    text-rose-600 dark:text-rose-400
+                    block mt-1 md:mt-0.5
+                    whitespace-nowrap
+                "
+            >
+                Rp 0,00
+            </span>
+        </div>
+    </div>
+</div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">

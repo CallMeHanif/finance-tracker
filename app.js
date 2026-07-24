@@ -325,14 +325,25 @@ function toggleObscure() {
 
 function updateObscureUI() {
     const iconBtn = document.getElementById('obscureIconBtn');
-    const textBtn = document.getElementById('obscureTextBtn');
-    if (isBalanceObscured) {
-        iconBtn.setAttribute('data-lucide', 'eye-off');
-        textBtn.innerText = "Tampilkan Saldo";
-    } else {
-        iconBtn.setAttribute('data-lucide', 'eye');
-        textBtn.innerText = "Sembunyikan Saldo";
+
+    if (!iconBtn) return;
+
+    const label = isBalanceObscured
+        ? 'Tampilkan saldo'
+        : 'Sembunyikan saldo';
+
+    iconBtn.setAttribute(
+        'data-lucide',
+        isBalanceObscured ? 'eye-off' : 'eye'
+    );
+
+    const button = iconBtn.closest('button');
+
+    if (button) {
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
     }
+
     lucide.createIcons();
 }
 
