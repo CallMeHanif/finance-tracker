@@ -28,6 +28,8 @@ let detailTransactionId = null;
 let chartIncExpInstance = null;
 let chartCatInstance = null;
 let chartSaldoInstance = null;
+let dashboardChartAnimationPending = false;
+let dashboardChartAnimationPlayed = false;
 let isBalanceObscured = false;
 let isInitialLoading = false;
 let cloudSyncTimer = null;
@@ -574,23 +576,128 @@ function renderDashboardPage(selectedMonth) {
     document.getElementById('dash-exp-month').innerText = formatRupiah(overallExpense);
 
     const ctx = document.getElementById('chartSaldoDonut');
-    if(ctx) {
-        if (chartSaldoInstance) chartSaldoInstance.destroy();
-        const dataSaldo = [totalBank, totalSaving, totalCash, totalWallet];
-        
-        if (netWorth === 0 && userAccounts.length === 0) {
-             chartSaldoInstance = new Chart(ctx.getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }] }, options: { cutout: '75%', responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false } } } });
-        } else {
-            chartSaldoInstance = new Chart(ctx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Dana di Bank', 'Dana Tabungan', 'Dana Cash', 'Dana E Wallet'],
-                    datasets: [{ data: dataSaldo, backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#a855f7'], borderWidth: 2, borderColor: document.documentElement.classList.contains('dark') ? '#020617' : '#ffffff', hoverOffset: 4 }]
-                },
-                options: { cutout: '75%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true } } }
-            });
-        }
+
+if (ctx) {
+    const isEmpty =
+        netWorth === 0 &&
+        userAccounts.length === 0;
+
+    const chartLabels = isEmpty
+        ? []
+        : [
+            'Dana di Bank',
+            'Dana Tabungan',
+            'Dana Cash',
+            'Dana E Wallet'
+        ];
+
+    const chartData = isEmpty
+        ? [1]
+        : [
+            totalBank,
+            totalSaving,
+            totalCash,
+            totalWallet
+        ];
+
+    const chartColors = isEmpty
+        ? ['#e2e8f0']
+        : [
+            '#3b82f6',
+            '#10b981',
+            '#ef4444',
+            '#a855f7'
+        ];
+
+    const borderColor =
+        document.documentElement.classList.contains('dark')
+            ? '#020617'
+            : '#ffffff';
+
+    const shouldAnimate =
+        dashboardChartAnimationPending &&
+        !dashboardChartAnimationPlayed;
+
+    if (shouldAnimate && chartSaldoInstance) {
+        chartSaldoInstance.destroy();
+        chartSaldoInstance = null;
     }
+
+    if (!chartSaldoInstance) {
+        chartSaldoInstance = new Chart(
+            ctx.getContext('2d'),
+            {
+                type: 'doughnut',
+
+                data: {
+                    labels: chartLabels,
+
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: isEmpty ? 0 : 2,
+                        borderColor: borderColor,
+                        hoverOffset: isEmpty ? 0 : 4
+                    }]
+                },
+
+                options: {
+                    cutout: '75%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    animation: shouldAnimate
+                        ? {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                        : false,
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            enabled: !isEmpty
+                        }
+                    }
+                }
+            }
+        );
+
+        if (shouldAnimate) {
+            dashboardChartAnimationPlayed = true;
+            dashboardChartAnimationPending = false;
+        }
+    } else {
+        const dataset =
+            chartSaldoInstance.data.datasets[0];
+
+        chartSaldoInstance.data.labels =
+            chartLabels;
+
+        dataset.data =
+            chartData;
+
+        dataset.backgroundColor =
+            chartColors;
+
+        dataset.borderWidth =
+            isEmpty ? 0 : 2;
+
+        dataset.borderColor =
+            borderColor;
+
+        dataset.hoverOffset =
+            isEmpty ? 0 : 4;
+
+        chartSaldoInstance.options.plugins.tooltip.enabled =
+            !isEmpty;
+
+        chartSaldoInstance.update('none');
+    }
+}
 
     const legendData = [
         { label: 'Dana di Bank', amount: totalBank, color: 'bg-blue-500' },
@@ -2148,6 +2255,10 @@ function fetchFromGoogleSheets({
 
         if (!silent) {
         hideLoader();
+        }
+
+        if (!silent && !dashboardChartAnimationPlayed) {
+            dashboardChartAnimationPending = true;
         }
 
         populateFormDropdowns();
