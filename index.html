@@ -172,26 +172,6 @@ input[type="month"]::-webkit-date-and-time-value {
     }
 }
 
-@media (max-width: 639px) {
-    .transaction-sheet-panel {
-        padding-bottom: env(safe-area-inset-bottom);
-        animation: transactionSheetUp 0.25s ease-out;
-        overscroll-behavior: contain;
-    }
-
-    @keyframes transactionSheetUp {
-        from {
-            opacity: 0;
-            transform: translateY(100%);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-}
-
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
@@ -896,12 +876,12 @@ input[type="month"]::-webkit-date-and-time-value {
 <div
     id="transactionModal"
     onclick="if (event.target === this) closeTransactionModal()"
-    class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-end justify-center p-0 sm:items-center sm:p-4"
+    class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
 >
     <div
     onclick="event.stopPropagation()"
-    class="transaction-sheet-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 border-b-0 sm:border-b rounded-t-2xl rounded-b-none sm:rounded-2xl shadow-xl w-full max-w-none sm:max-w-md h-[72dvh] max-h-[72dvh] sm:h-auto sm:max-h-[92dvh] overflow-hidden flex flex-col"
-    >
+    class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden"
+>
 
         <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
     <h3
@@ -929,7 +909,7 @@ input[type="month"]::-webkit-date-and-time-value {
         <form
             id="transactionForm"
             onsubmit="handleTransactionSubmit(event)"
-            class="p-5 space-y-3.5 flex-1 overflow-y-auto overscroll-contain"
+            class="p-5 space-y-3.5"
         >
             <input
                 type="hidden"
@@ -1160,26 +1140,20 @@ input[type="month"]::-webkit-date-and-time-value {
             </div>
 
             <!-- Simpan -->
-            <div class="
-    sticky bottom-0 z-10
-    -mx-5 px-5 pt-3
-    pb-[calc(1rem+env(safe-area-inset-bottom))]
-    bg-white dark:bg-slate-950
-    border-t border-slate-100 dark:border-slate-800
-">
-    <button
-        type="submit"
-        class="
-            w-full
-            bg-blueSystem-500 hover:bg-blueSystem-600
-            text-white font-semibold
-            py-3 rounded-xl
-            text-xs transition-all
-        "
-    >
-        Simpan
-    </button>
-</div>
+            <div class="pt-2">
+                <button
+                    type="submit"
+                    class="
+                        w-full
+                        bg-blueSystem-500 hover:bg-blueSystem-600
+                        text-white font-semibold
+                        py-2.5 rounded-xl
+                        text-xs transition-all
+                    "
+                >
+                    Simpan
+                </button>
+            </div>
 
         </form>
     </div>
