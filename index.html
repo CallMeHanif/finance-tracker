@@ -571,22 +571,20 @@ input[type="month"]::-webkit-date-and-time-value {
         </div>
 
         <!-- ================= PAGE 2: TRANSACTIONS ================= -->
-        <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
+        <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+            <div class="lg:col-span-4 space-y-3 lg:space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
-                <div class="min-w-0 overflow-hidden bg-white dark:bg-slate-950 p-4 rounded-2xl border border-blueSystem-200 dark:border-blueSystem-900/50 shadow-sm shadow-blueSystem-100 dark:shadow-none">
-                    <input type="month" id="txMonthFilter" onchange="renderDashboard()" onclick="openPickerSafely(this)" class="
-                        block w-full min-w-0 max-w-full
-                        bg-slate-50 dark:bg-slate-900
-                        border border-slate-200 dark:border-slate-800
-                        rounded-xl px-3 py-2
-                        text-xs font-semibold
-                        focus:outline-none cursor-pointer
-                        box-border
-                    ">
+                <div class="px-1">
+                    <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
+                        Transaksi
+                    </h1>
+
+                    <p class="lg:block mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                        Kelola seluruh transaksi keuanganmu.
+                    </p>
                 </div>
 
-                <div class="bg-slate-950 text-white rounded-2xl p-4 shadow-md">
+                <div class="hidden md:block bg-slate-950 text-white rounded-2xl p-4 shadow-md">
                     <div class="grid grid-cols-2 gap-2 text-center divide-x divide-slate-800">
                         <div>
                             <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Pendapatan</span>
@@ -598,9 +596,9 @@ input[type="month"]::-webkit-date-and-time-value {
                         </div>
                     </div>
                 </div>
-                
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+
+            <div class="hidden md:block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <i data-lucide="credit-card" class="w-3.5 h-3.5 text-blueSystem-500"></i> Rincian Saldo
                     </h3>
                     <div id="txAccountBalancesContainer" class="grid grid-cols-1 gap-1.5 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar"></div>
@@ -608,50 +606,156 @@ input[type="month"]::-webkit-date-and-time-value {
             </div>
 
             <div class="lg:col-span-8 space-y-4">
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm flex flex-col lg:flex-row gap-3 items-center justify-between">
-                    <div class="relative w-full lg:w-64">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-lucide="search" class="w-3.5 h-3.5"></i></span>
-                        <input type="text" id="txSearchBar" oninput="scheduleTransactionSearch()" placeholder="Cari transaksi bulan ini..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none">
-                    </div>
-                    <div class="flex flex-wrap w-full lg:w-auto gap-2 items-center justify-end">
-                        <select id="txFilterAccount" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
-                        <select id="txFilterCategory" onchange="renderDashboard()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none"></select>
-                        <button
-                            onclick="openTransactionModal()"
-                            id="inlineAddTransactionBtn"
-                            class="
-                                hidden lg:flex
-                                bg-blueSystem-500 hover:bg-blueSystem-600
-                                text-white font-semibold
-                                lg:py-1.5 lg:px-4
-                                rounded-xl transition-all shadow-sm
-                                items-center justify-center gap-1.5
-                            "
-                        >
-                            <i data-lucide="plus-circle" class="w-7 h-7 lg:w-4 lg:h-4"></i>
-                            <span class="hidden lg:inline text-xs">Tambah Transaksi</span>
-                        </button>
-                    </div>
-                </div>
+                <div class="
+    space-y-3
+    lg:space-y-0
+    lg:bg-white lg:dark:bg-slate-950
+    lg:border lg:border-slate-200 lg:dark:border-slate-800
+    lg:p-4 lg:rounded-2xl lg:shadow-sm
+    lg:flex lg:flex-row
+    lg:gap-3 lg:items-center
+    lg:justify-between
+">
+    <!-- Pencarian -->
+    <div class="relative w-full lg:w-64">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+        </span>
 
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table id="transactionsTable" class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold sticky top-0">
-                                <tr>
-                                    <th class="py-3 px-4">Tanggal</th>
-                                    <th class="py-3 px-4">Item</th>
-                                    <th class="py-3 px-4">Nominal</th>
-                                    <th class="py-3 px-4">Kategori</th>
-                                    <th class="py-3 px-4">Akun</th>
-                                    <th class="py-3 px-4">Catatan</th>
-                                    <th class="py-3 px-4 text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="txTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                        </table>
-                    </div>
-                </div>
+        <input
+            type="text"
+            id="txSearchBar"
+            oninput="scheduleTransactionSearch()"
+            placeholder="Cari transaksi..."
+            class="
+                w-full
+                bg-white dark:bg-slate-950
+                border border-slate-300 dark:border-slate-700
+                shadow-sm
+                rounded-xl
+                pl-9 pr-3 py-2
+                text-xs
+                focus:outline-none
+                focus:border-blueSystem-500
+                focus:ring-1 focus:ring-blueSystem-500/30
+            "
+        >
+    </div>
+
+    <!-- Filter -->
+    <div class="
+        grid grid-cols-3 gap-2
+        w-full
+        bg-white dark:bg-slate-950
+        border border-slate-200 dark:border-slate-800
+        rounded-2xl p-3 shadow-sm
+
+        lg:flex lg:w-auto
+        lg:bg-transparent lg:dark:bg-transparent
+        lg:border-0 lg:rounded-none
+        lg:p-0 lg:shadow-none
+        lg:items-center
+    ">
+        <select
+            id="txMonthFilter"
+            onchange="renderDashboard()"
+            aria-label="Filter tanggal transaksi"
+            class="
+                block w-full min-w-0
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                rounded-xl
+                px-2 py-2
+                text-[10px] sm:text-xs
+                focus:outline-none
+            "
+        >
+            <option value="">
+                Semua Tanggal
+            </option>
+        </select>
+
+        <select
+            id="txFilterAccount"
+            onchange="renderDashboard()"
+            aria-label="Filter akun"
+            class="
+                block w-full min-w-0
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                rounded-xl
+                px-2 py-2
+                text-[10px] sm:text-xs
+                focus:outline-none
+            "
+        ></select>
+
+        <select
+            id="txFilterCategory"
+            onchange="renderDashboard()"
+            aria-label="Filter kategori"
+            class="
+                block w-full min-w-0
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                rounded-xl
+                px-2 py-2
+                text-[10px] sm:text-xs
+                focus:outline-none
+            "
+        ></select>
+
+        <button
+            onclick="openTransactionModal()"
+            id="inlineAddTransactionBtn"
+            class="
+                hidden lg:inline-flex
+                shrink-0 whitespace-nowrap
+                bg-blueSystem-500 hover:bg-blueSystem-600
+                text-white font-semibold
+                py-2 px-4
+                rounded-xl transition-all shadow-sm
+                items-center justify-center gap-1.5
+            "
+        >
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+
+            <span class="text-xs whitespace-nowrap">
+                Tambah Transaksi
+            </span>
+        </button>
+    </div>
+</div>
+
+                <!-- Daftar transaksi desktop -->
+<div class="hidden md:block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto custom-scrollbar">
+        <table id="transactionsTable" class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold sticky top-0">
+                <tr>
+                    <th class="py-3 px-4">Tanggal</th>
+                    <th class="py-3 px-4">Item</th>
+                    <th class="py-3 px-4">Nominal</th>
+                    <th class="py-3 px-4">Kategori</th>
+                    <th class="py-3 px-4">Akun</th>
+                    <th class="py-3 px-4">Catatan</th>
+                    <th class="py-3 px-4 text-center">Aksi</th>
+                </tr>
+            </thead>
+
+            <tbody
+                id="txTableBody"
+                class="divide-y divide-slate-100 dark:divide-slate-800"
+            ></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Daftar transaksi mobile -->
+<div
+    id="txMobileCards"
+    class="md:hidden space-y-4"
+></div>
             </div>
 
             <button

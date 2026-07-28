@@ -274,8 +274,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    document.getElementById('dashboardMonthFilter').value = currentYearMonth;
-    document.getElementById('txMonthFilter').value = currentYearMonth;
+    document.getElementById(
+    'dashboardMonthFilter'
+).value = currentYearMonth;
 
     document.getElementById('dbMode').value = 'sheets';
     localStorage.setItem(
@@ -288,6 +289,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateHeaderCloudIndicator();
     updateObscureUI();
     populateFormDropdowns();
+
+    const transactionMonthFilter =
+        document.getElementById(
+            'txMonthFilter'
+        );
+
+    if (transactionMonthFilter) {
+        transactionMonthFilter.value =
+            currentYearMonth;
+    }
+
     switchPage('dashboard');
     initializeFloatingTransactionButton();
 
@@ -401,6 +413,103 @@ function encodeActionValue(value) {
 
 function decodeActionValue(value) {
     return decodeURIComponent(escape(atob(value)));
+}
+
+function getCurrentYearMonth() {
+    const now = new Date();
+
+    return `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+    ).padStart(2, '0')}`;
+}
+
+function formatTransactionMonthLabel(
+    monthValue
+) {
+    const match =
+        String(monthValue || '')
+            .match(/^(\d{4})-(\d{2})$/);
+
+    if (!match) return monthValue;
+
+    const date = new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        1
+    );
+
+    return date.toLocaleDateString(
+        'id-ID',
+        {
+            month: 'long',
+            year: 'numeric'
+        }
+    );
+}
+
+function populateTransactionMonthFilter() {
+    const monthSelect =
+        document.getElementById(
+            'txMonthFilter'
+        );
+
+    if (!monthSelect) return;
+
+    const previousValue =
+        monthSelect.value;
+
+    const availableMonths =
+        new Set([
+            getCurrentYearMonth()
+        ]);
+
+    transactions.forEach(transaction => {
+        const transactionMonth =
+            getLocalMonth(
+                transaction.date
+            );
+
+        if (transactionMonth) {
+            availableMonths.add(
+                transactionMonth
+            );
+        }
+    });
+
+    const sortedMonths =
+        [...availableMonths]
+            .sort((a, b) =>
+                b.localeCompare(a)
+            );
+
+    monthSelect.innerHTML = `
+        <option value="">
+            Semua Tanggal
+        </option>
+
+        ${sortedMonths
+            .map(month => `
+                <option value="${month}">
+                    ${escapeHtml(
+                        formatTransactionMonthLabel(
+                            month
+                        )
+                    )}
+                </option>
+            `)
+            .join('')}
+    `;
+
+    const previousValueExists =
+        previousValue === '' ||
+        sortedMonths.includes(
+            previousValue
+        );
+
+    monthSelect.value =
+        previousValueExists
+            ? previousValue
+            : getCurrentYearMonth();
 }
 
 function populateFormDropdowns() {
@@ -523,9 +632,11 @@ function populateFormDropdowns() {
     );
 
     restoreValue(
-        filterCategorySelect,
-        selectedFilterCategory
+    filterCategorySelect,
+    selectedFilterCategory
     );
+
+    populateTransactionMonthFilter();
 }
 
 function updateCategoryDropdown(selectedValue = '') {
@@ -895,7 +1006,16 @@ function scheduleTransactionSearch() {
 }
 
 function renderTransactionsPage(selectedMonth) {
-    const liveBalances = calculateBalancesUntil(selectedMonth);
+    const currentMonth =
+    getCurrentYearMonth();
+
+    const summaryMonth =
+        selectedMonth || currentMonth;
+
+    const liveBalances =
+        calculateBalancesUntil(
+            summaryMonth
+        );
     
     const balContainer = document.getElementById('txAccountBalancesContainer');
     if(userAccounts.length === 0) balContainer.innerHTML = emptyStateHTML;
@@ -907,37 +1027,173 @@ function renderTransactionsPage(selectedMonth) {
             </div>`).join('');
     }
 
-    const kw = document.getElementById('txSearchBar').value.toLowerCase();
-    const filterAcc = document.getElementById('txFilterAccount').value;
-    const filterCat = document.getElementById('txFilterCategory').value;
+    const searchInput =
+    document.getElementById(
+        'txSearchBar'
+    );
 
-    const tableBody = document.getElementById('txTableBody');
-    tableBody.innerHTML = '';
+const kw =
+    normalizeText(
+        searchInput?.value
+    ).toLowerCase();
 
-    let filteredIncomeTotal = 0, filteredExpenseTotal = 0;
+const filterAcc =
+    document.getElementById(
+        'txFilterAccount'
+    ).value;
 
-    const filtered = transactions.filter(t => {
-        const matchMonth = selectedMonth ? getLocalMonth(t.date) === selectedMonth : true;
-        const matchKw = t.name.toLowerCase().includes(kw) || (t.notes && t.notes.toLowerCase().includes(kw));
-        const matchAcc = filterAcc === "" ? true : (t.account === filterAcc || (t.isTransfer && t.targetAccount === filterAcc));
-        const matchCat = filterCat === "" ? true : (t.category === filterCat);
-        return matchMonth && matchKw && matchAcc && matchCat;
+const filterCat =
+    document.getElementById(
+        'txFilterCategory'
+    ).value;
+
+const tableBody =
+    document.getElementById(
+        'txTableBody'
+    );
+
+const mobileCards =
+    document.getElementById(
+        'txMobileCards'
+    );
+
+tableBody.innerHTML = '';
+
+if (mobileCards) {
+    mobileCards.innerHTML = '';
+}
+
+let filteredIncomeTotal = 0;
+let filteredExpenseTotal = 0;
+
+const matchesActiveFilters =
+    transaction => {
+        const transactionName =
+            normalizeText(
+                transaction.name
+            ).toLowerCase();
+
+        const transactionNotes =
+            normalizeText(
+                transaction.notes
+            ).toLowerCase();
+
+        const matchKeyword =
+            transactionName.includes(kw) ||
+            transactionNotes.includes(kw);
+
+        const matchAccount =
+            filterAcc === '' ||
+            transaction.account ===
+                filterAcc ||
+            (
+                transaction.isTransfer &&
+                transaction.targetAccount ===
+                    filterAcc
+            );
+
+        const matchCategory =
+            filterCat === '' ||
+            transaction.category ===
+                filterCat;
+
+        return (
+            matchKeyword &&
+            matchAccount &&
+            matchCategory
+        );
+    };
+
+/*
+ * Daftar transaksi mengikuti filter tanggal.
+ * Jika kosong, semua tanggal ditampilkan.
+ */
+const filtered =
+    transactions.filter(transaction => {
+        const matchMonth =
+            selectedMonth
+                ? getLocalMonth(
+                    transaction.date
+                ) === selectedMonth
+                : true;
+
+        return (
+            matchMonth &&
+            matchesActiveFilters(
+                transaction
+            )
+        );
     });
 
-    filtered.forEach(t => {
-        if (!t.isTransfer && isCategoryCalculatedToIncomeExpense(t.category)) {
-            filteredIncomeTotal += (Number(t.debit) || 0);
-            filteredExpenseTotal += (Number(t.credit) || 0);
+/*
+ * Total pendapatan dan pengeluaran:
+ * - Bulan terpilih jika ada.
+ * - Bulan saat ini jika memilih Semua Tanggal.
+ */
+const summaryTransactions =
+    transactions.filter(transaction => {
+        return (
+            getLocalMonth(
+                transaction.date
+            ) === summaryMonth &&
+            matchesActiveFilters(
+                transaction
+            )
+        );
+    });
+
+summaryTransactions.forEach(
+    transaction => {
+        if (
+            !transaction.isTransfer &&
+            isCategoryCalculatedToIncomeExpense(
+                transaction.category
+            )
+        ) {
+            filteredIncomeTotal +=
+                Number(
+                    transaction.debit
+                ) || 0;
+
+            filteredExpenseTotal +=
+                Number(
+                    transaction.credit
+                ) || 0;
         }
-    });
+    }
+);
 
-    document.getElementById('tx-summary-Income').innerText = formatRupiah(filteredIncomeTotal, true);
-    document.getElementById('tx-summary-Expenses').innerText = formatRupiah(filteredExpenseTotal, true);
+document.getElementById(
+    'tx-summary-Income'
+).innerText =
+    formatRupiah(
+        filteredIncomeTotal
+    );
 
-    if(filtered.length === 0) {
-        tableBody.innerHTML = emptyTableRowHTML(7);
-    } else {
-        sortTransactionsNewestFirst(filtered).forEach(t => {
+document.getElementById(
+    'tx-summary-Expenses'
+).innerText =
+    formatRupiah(
+        filteredExpenseTotal
+    );
+
+    if (filtered.length === 0) {
+    tableBody.innerHTML =
+        emptyTableRowHTML(7);
+
+    if (mobileCards) {
+        mobileCards.innerHTML =
+            emptyStateHTML;
+    }
+} else {
+    const sortedTransactions =
+        sortTransactionsNewestFirst(filtered);
+
+    renderMobileTransactionCards(
+        sortedTransactions
+    );
+
+    sortedTransactions.forEach(t => {
             let colorClass = 'text-rose-600 dark:text-rose-400 font-bold';
             let amt = t.credit;
             let displayCategory = t.category || '-';
@@ -985,12 +1241,220 @@ function renderTransactionsPage(selectedMonth) {
                     <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${escapeHtml(displayAccount)}</span></td>
                     <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
                     <td class="py-2.5 px-4 text-center space-x-2 whitespace-nowrap">
-                        <button onclick="event.stopPropagation(); editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+    <button
+        type="button"
+        onclick="event.stopPropagation(); duplicateTransaction(decodeActionValue('${encodeActionValue(t.id)}'))"
+        class="text-slate-400 hover:text-violet-500 inline-block"
+        title="Duplikat transaksi"
+        aria-label="Duplikat transaksi"
+    >
+        <i
+            data-lucide="copy"
+            class="w-3.5 h-3.5"
+        ></i>
+    </button>
+
+    <button onclick="event.stopPropagation(); editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
                         <button onclick="event.stopPropagation(); triggerDeleteConfirm(decodeActionValue('${encodeActionValue(t.id)}'), 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                     </td>
                 </tr>`;
         });
     }
+}
+
+function renderMobileTransactionCards(
+    transactionList
+) {
+    const container =
+        document.getElementById(
+            'txMobileCards'
+        );
+
+    if (!container) return;
+
+    let html = '';
+    let currentDate = '';
+
+    transactionList.forEach(transaction => {
+        let colorClass =
+            'text-rose-600 ' +
+            'dark:text-rose-400 ' +
+            'font-bold';
+
+        let amount =
+            transaction.credit;
+
+        let displayCategory =
+            transaction.category || '-';
+
+        let displayAccount =
+            transaction.account || '-';
+
+        if (transaction.isTransfer) {
+            colorClass =
+                'text-blueSystem-500 ' +
+                'dark:text-blueSystem-100 ' +
+                'font-bold';
+
+            amount =
+                transaction.credit ||
+                transaction.debit;
+
+            displayCategory =
+                'Transfer Dana';
+
+            displayAccount =
+                `${transaction.account} ➔ ` +
+                `${transaction.targetAccount}`;
+        } else if (
+            Number(transaction.debit) > 0
+        ) {
+            colorClass =
+                'text-emerald-600 ' +
+                'dark:text-emerald-400 ' +
+                'font-bold';
+
+            amount =
+                transaction.debit;
+        }
+
+        /*
+         * Buat judul tanggal baru ketika
+         * tanggal transaksi berubah.
+         */
+        if (
+            transaction.date !== currentDate
+        ) {
+            if (currentDate !== '') {
+                html += `
+                    </div>
+                </section>
+                `;
+            }
+
+            currentDate =
+                transaction.date;
+
+            html += `
+                <section class="space-y-2">
+                    <h3 class="
+                        px-1
+                        text-xs font-bold
+                        text-slate-500
+                        dark:text-slate-400
+                    ">
+                        ${escapeHtml(
+                            formatTanggalIndo(
+                                transaction.date
+                            )
+                        )}
+                    </h3>
+
+                    <div class="space-y-2">
+            `;
+        }
+
+        html += `
+            <button
+                type="button"
+                onclick="openTransactionDetailModal(
+                    decodeActionValue(
+                        '${encodeActionValue(
+                            transaction.id
+                        )}'
+                    )
+                )"
+                class="
+                    w-full
+                    bg-white dark:bg-slate-950
+                    border border-slate-200
+                    dark:border-slate-800
+                    rounded-2xl
+                    p-3.5 shadow-sm
+                    flex items-start
+                    justify-between gap-3
+                    text-left
+                    transition-colors
+                    active:bg-slate-50
+                    dark:active:bg-slate-900
+                "
+            >
+                <div class="min-w-0 flex-1">
+                    <p class="
+                        font-semibold text-sm
+                        text-slate-900
+                        dark:text-white
+                        truncate
+                    ">
+                        ${escapeHtml(
+                            transaction.name
+                        )}
+                    </p>
+
+                    <div class="
+                        mt-2 flex flex-wrap
+                        gap-1.5
+                    ">
+                        <span class="
+                            inline-flex
+                            max-w-[145px]
+                            truncate rounded-full
+                            bg-slate-100
+                            dark:bg-slate-800
+                            px-2 py-0.5
+                            text-[10px]
+                            font-medium
+                            text-slate-600
+                            dark:text-slate-300
+                        ">
+                            ${escapeHtml(
+                                displayCategory
+                            )}
+                        </span>
+
+                        <span class="
+                            inline-flex
+                            max-w-[145px]
+                            truncate rounded-full
+                            bg-slate-100
+                            dark:bg-slate-800
+                            border border-slate-200
+                            dark:border-slate-700
+                            px-2 py-0.5
+                            text-[10px]
+                            font-medium
+                            text-slate-600
+                            dark:text-slate-300
+                        ">
+                            ${escapeHtml(displayAccount)}
+                        </span>
+                    </div>
+                </div>
+
+                <p class="
+                    shrink-0
+                    whitespace-nowrap
+                    text-sm
+                    ${colorClass}
+                ">
+                    ${formatRupiah(
+                        amount,
+                        true
+                    )}
+                </p>
+            </button>
+        `;
+    });
+
+    if (currentDate !== '') {
+        html += `
+                </div>
+            </section>
+        `;
+    }
+
+    container.innerHTML =
+        html || emptyStateHTML;
 }
 
 function handleReportCategoryFilterChange(value) {
@@ -1924,6 +2388,121 @@ function editTransaction(id) {
         transaction.notes || '';
 
     const modal = document.getElementById('transactionModal');
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    lucide.createIcons();
+}
+
+function duplicateTransaction(id) {
+    const transaction =
+        transactions.find(
+            item =>
+                item.id === String(id)
+        );
+
+    if (!transaction) return;
+
+    document.getElementById(
+        'modalTxTitle'
+    ).innerHTML = `
+        <i
+            data-lucide="copy"
+            class="text-violet-500 w-4 h-4"
+        ></i>
+
+        Duplikat Transaksi
+    `;
+
+    /*
+     * Kosongkan ID agar saat disimpan
+     * menjadi transaksi baru.
+     */
+    document.getElementById(
+        'form-edit-id'
+    ).value = '';
+
+    populateFormDropdowns();
+
+    let flowValue = 'Credit';
+
+    if (transaction.isTransfer) {
+        flowValue = 'Transfer';
+    } else if (
+        Number(transaction.debit) > 0
+    ) {
+        flowValue = 'Debit';
+    }
+
+    if (
+        typeof setTransactionType ===
+        'function'
+    ) {
+        setTransactionType(
+            flowValue,
+            transaction.category || ''
+        );
+    } else {
+        document.getElementById(
+            'form-type'
+        ).value = flowValue;
+
+        adjustFormInputs();
+
+        updateCategoryDropdown(
+            transaction.category || ''
+        );
+    }
+
+    document.getElementById(
+        'form-date'
+    ).value = transaction.date || '';
+
+    document.getElementById(
+        'form-name'
+    ).value = transaction.name || '';
+
+    const transactionAmount =
+        Number(transaction.debit) > 0
+            ? Number(transaction.debit)
+            : Number(transaction.credit) || 0;
+
+    document.getElementById(
+        'form-amount'
+    ).value = new Intl.NumberFormat(
+        'id-ID',
+        {
+            minimumFractionDigits:
+                Number.isInteger(
+                    transactionAmount
+                )
+                    ? 0
+                    : 2,
+
+            maximumFractionDigits: 2
+        }
+    ).format(transactionAmount);
+
+    document.getElementById(
+        'form-account'
+    ).value = transaction.account || '';
+
+    if (transaction.isTransfer) {
+        document.getElementById(
+            'form-target-account'
+        ).value =
+            transaction.targetAccount || '';
+    }
+
+    document.getElementById(
+        'form-notes'
+    ).value = transaction.notes || '';
+
+    const modal =
+        document.getElementById(
+            'transactionModal'
+        );
 
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
