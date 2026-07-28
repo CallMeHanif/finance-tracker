@@ -309,7 +309,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 silent: true
             });
         }
-    }, 30000);
+    }, 60000);
 
     lucide.createIcons();
 });
@@ -407,27 +407,125 @@ function populateFormDropdowns() {
     userAccounts = normalizeAccounts(userAccounts);
     userCategories = normalizeCategories(userCategories);
 
-    const accountHtml = userAccounts.length > 0
-        ? userAccounts.map(a => `<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}</option>`).join('')
-        : `<option value="">-- Buat Akun Dulu --</option>`;
+    const accountSelect =
+        document.getElementById('form-account');
 
-    const accountSelect = document.getElementById('form-account');
-    const targetAccountSelect = document.getElementById('form-target-account');
-    const filterAccountSelect = document.getElementById('txFilterAccount');
-    if (accountSelect) accountSelect.innerHTML = accountHtml;
-    if (targetAccountSelect) targetAccountSelect.innerHTML = accountHtml;
-    if (filterAccountSelect) filterAccountSelect.innerHTML = `<option value="">Semua Akun</option>` + accountHtml;
+    const targetAccountSelect =
+        document.getElementById('form-target-account');
+
+    const filterAccountSelect =
+        document.getElementById('txFilterAccount');
+
+    const filterCategorySelect =
+        document.getElementById('txFilterCategory');
+
+    /*
+     * Simpan pilihan user sebelum isi dropdown
+     * dibuat ulang saat refresh cloud.
+     */
+    const selectedAccount =
+        accountSelect?.value || '';
+
+    const selectedTargetAccount =
+        targetAccountSelect?.value || '';
+
+    const selectedFilterAccount =
+        filterAccountSelect?.value || '';
+
+    const selectedFilterCategory =
+        filterCategorySelect?.value || '';
+
+    const accountHtml = userAccounts.length > 0
+        ? userAccounts
+            .map(account => `
+                <option value="${escapeHtml(account.name)}">
+                    ${escapeHtml(account.name)}
+                </option>
+            `)
+            .join('')
+        : `
+            <option value="">
+                -- Buat Akun Dulu --
+            </option>
+        `;
+
+    if (accountSelect) {
+        accountSelect.innerHTML = accountHtml;
+    }
+
+    if (targetAccountSelect) {
+        targetAccountSelect.innerHTML = accountHtml;
+    }
+
+    if (filterAccountSelect) {
+        filterAccountSelect.innerHTML = `
+            <option value="">Semua Akun</option>
+            ${accountHtml}
+        `;
+    }
 
     const allCategories = [
         ...userCategories.income,
         ...userCategories.expense,
         ...userCategories.neutral
     ];
-    const filterCategorySelect = document.getElementById('txFilterCategory');
+
+    const uniqueCategories =
+        [...new Set(allCategories)];
+
     if (filterCategorySelect) {
-        filterCategorySelect.innerHTML = `<option value="">Semua Kategori</option>` +
-            [...new Set(allCategories)].map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        filterCategorySelect.innerHTML = `
+            <option value="">Semua Kategori</option>
+            ${uniqueCategories
+                .map(category => `
+                    <option value="${escapeHtml(category)}">
+                        ${escapeHtml(category)}
+                    </option>
+                `)
+                .join('')}
+        `;
     }
+
+    /*
+     * Kembalikan pilihan user jika akun atau
+     * kategorinya masih tersedia.
+     */
+    const restoreValue = (
+        selectElement,
+        previousValue
+    ) => {
+        if (!selectElement) return;
+
+        const valueStillExists =
+            Array.from(selectElement.options)
+                .some(option =>
+                    option.value === previousValue
+                );
+
+        if (valueStillExists) {
+            selectElement.value = previousValue;
+        }
+    };
+
+    restoreValue(
+        accountSelect,
+        selectedAccount
+    );
+
+    restoreValue(
+        targetAccountSelect,
+        selectedTargetAccount
+    );
+
+    restoreValue(
+        filterAccountSelect,
+        selectedFilterAccount
+    );
+
+    restoreValue(
+        filterCategorySelect,
+        selectedFilterCategory
+    );
 }
 
 function updateCategoryDropdown(selectedValue = '') {
@@ -1359,6 +1457,79 @@ function saveSetupCategory(e) {
     commitDataChange();
 }
 
+function setTransactionType(flowType, selectedCategory = '') {
+    const typeInput =
+        document.getElementById('form-type');
+
+    if (!typeInput) return;
+
+    typeInput.value = flowType;
+
+    const activeColorClasses = [
+        'bg-red-500',
+        'bg-emerald-500',
+        'bg-blueSystem-500',
+        'text-white',
+        'shadow-sm'
+    ];
+
+    const inactiveColorClasses = [
+        'text-slate-500',
+        'dark:text-slate-400'
+    ];
+
+    document
+        .querySelectorAll('[data-transaction-type]')
+        .forEach(button => {
+            const isActive =
+                button.dataset.transactionType === flowType;
+
+            button.classList.remove(
+                ...activeColorClasses,
+                ...inactiveColorClasses
+            );
+
+            if (isActive) {
+                if (flowType === 'Credit') {
+                    button.classList.add(
+                        'bg-red-500',
+                        'text-white',
+                        'shadow-sm'
+                    );
+                }
+
+                if (flowType === 'Debit') {
+                    button.classList.add(
+                        'bg-emerald-500',
+                        'text-white',
+                        'shadow-sm'
+                    );
+                }
+
+                if (flowType === 'Transfer') {
+                    button.classList.add(
+                        'bg-blueSystem-500',
+                        'text-white',
+                        'shadow-sm'
+                    );
+                }
+            } else {
+                button.classList.add(
+                    'text-slate-500',
+                    'dark:text-slate-400'
+                );
+            }
+
+            button.setAttribute(
+                'aria-pressed',
+                String(isActive)
+            );
+        });
+
+    adjustFormInputs();
+    updateCategoryDropdown(selectedCategory);
+}
+
 function adjustFormInputs() {
     const flowType = document.getElementById('form-type').value;
     const catContainer = document.getElementById('categoryContainer');
@@ -1388,14 +1559,15 @@ function openTransactionModal() {
     document.getElementById('form-name').value = '';
     document.getElementById('form-amount').value = '';
     document.getElementById('form-notes').value = '';
-    document.getElementById('form-type').value = 'Credit';
+    setTransactionType('Credit');
 
     const now = new Date();
     document.getElementById('form-date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     populateFormDropdowns();
-    adjustFormInputs();
-    updateCategoryDropdown();
+    populateFormDropdowns();
+    setTransactionType('Credit');
+
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
     lucide.createIcons();
@@ -1720,10 +1892,10 @@ function editTransaction(id) {
 
     populateFormDropdowns();
 
-    document.getElementById('form-type').value = flowValue;
-
-    adjustFormInputs();
-    updateCategoryDropdown(transaction.category || '');
+    setTransactionType(
+    flowValue,
+    transaction.category || ''
+    );
 
     document.getElementById('form-name').value =
         transaction.name || '';

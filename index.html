@@ -99,6 +99,99 @@ input[type="date"]::-webkit-date-and-time-value,
 input[type="month"]::-webkit-date-and-time-value {
     min-width: 0;
 }
+
+@media (max-width: 767px) {
+    #dashboardRecentTable,
+    #transactionsTable {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    #dashboardRecentTable th,
+    #dashboardRecentTable td,
+    #transactionsTable th,
+    #transactionsTable td {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    #dashboardRecentTable th:nth-child(3),
+    #dashboardRecentTable td:nth-child(3),
+    #dashboardRecentTable th:nth-child(5),
+    #dashboardRecentTable td:nth-child(5),
+    #dashboardRecentTable th:nth-child(6),
+    #dashboardRecentTable td:nth-child(6) {
+        display: none;
+    }
+
+    #dashboardRecentTable th:nth-child(1),
+    #dashboardRecentTable td:nth-child(1) {
+        width: 28%;
+        white-space: nowrap;
+    }
+
+    #dashboardRecentTable th:nth-child(2),
+    #dashboardRecentTable td:nth-child(2) {
+        width: 42%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #dashboardRecentTable th:nth-child(4),
+    #dashboardRecentTable td:nth-child(4) {
+        width: 30%;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    #transactionsTable th:nth-child(n+4),
+    #transactionsTable td:nth-child(n+4) {
+        display: none;
+    }
+
+    #transactionsTable th:nth-child(1),
+    #transactionsTable td:nth-child(1) {
+        width: 28%;
+        white-space: nowrap;
+    }
+
+    #transactionsTable th:nth-child(2),
+    #transactionsTable td:nth-child(2) {
+        width: 42%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #transactionsTable th:nth-child(3),
+    #transactionsTable td:nth-child(3) {
+        width: 30%;
+        text-align: right;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 639px) {
+    .transaction-sheet-panel {
+        padding-bottom: env(safe-area-inset-bottom);
+        animation: transactionSheetUp 0.25s ease-out;
+        overscroll-behavior: contain;
+    }
+
+    @keyframes transactionSheetUp {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
@@ -480,13 +573,13 @@ input[type="month"]::-webkit-date-and-time-value {
                     <button onclick="switchPage('transactions')" class="text-[11px] font-semibold text-blueSystem-500 border border-blueSystem-500 px-3 py-1.5 rounded-lg hover:bg-blueSystem-50 dark:hover:bg-blueSystem-900/30 transition-colors">Lihat Semua</button>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse text-[11px]">
+                    <table id="dashboardRecentTable" class="w-full text-left border-collapse text-[11px]">
                         <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                             <tr>
                                 <th class="py-3 px-4">Tanggal</th>
-                                <th class="py-3 px-4">Deskripsi</th>
+                                <th class="py-3 px-4">Item</th>
                                 <th class="py-3 px-4">Kategori</th>
-                                <th class="py-3 px-4">Jumlah</th>
+                                <th class="py-3 px-4">Nominal</th>
                                 <th class="py-3 px-4">Akun</th>
                                 <th class="py-3 px-4">Catatan</th>
                             </tr>
@@ -563,7 +656,7 @@ input[type="month"]::-webkit-date-and-time-value {
 
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
                     <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse text-xs">
+                        <table id="transactionsTable" class="w-full text-left border-collapse text-xs">
                             <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold sticky top-0">
                                 <tr>
                                     <th class="py-3 px-4">Tanggal</th>
@@ -800,95 +893,291 @@ input[type="month"]::-webkit-date-and-time-value {
     </div>
 
     <!-- Modal Tambah Transaksi -->
-    <div id="transactionModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5" id="modalTxTitle"><i data-lucide="plus-circle" class="text-blueSystem-500 w-4 h-4"></i> Tambah Transaksi</h3>
-                <button onclick="closeTransactionModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="p-5 space-y-3.5">
-                <input type="hidden" id="form-edit-id">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="min-w-0 overflow-hidden space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">
-                            Tanggal
-                        </label>
+<div
+    id="transactionModal"
+    onclick="if (event.target === this) closeTransactionModal()"
+    class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-end justify-center p-0 sm:items-center sm:p-4"
+>
+    <div
+    onclick="event.stopPropagation()"
+    class="transaction-sheet-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 border-b-0 sm:border-b rounded-t-2xl rounded-b-none sm:rounded-2xl shadow-xl w-full max-w-none sm:max-w-md max-h-[92dvh] overflow-y-auto sm:overflow-hidden"
+    >
 
-                        <input
-                            type="date"
-                            id="form-date"
-                            required
-                            onclick="openPickerSafely(this)"
-                            class="
-                                block w-full min-w-0 max-w-full
-                                bg-slate-50 dark:bg-slate-900
-                                border border-slate-200 dark:border-slate-800
-                                rounded-xl px-3 py-2
-                                text-xs text-slate-800 dark:text-white
-                                cursor-pointer box-border overflow-hidden
-                            "
-                        >
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Aliran</label>
-                        <select id="form-type" onchange="adjustFormInputs(); updateCategoryDropdown();" class="
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+    <h3
+        class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5"
+        id="modalTxTitle"
+    >
+        <i
+            data-lucide="plus-circle"
+            class="text-blueSystem-500 w-4 h-4"
+        ></i>
+
+        Tambah Transaksi
+    </h3>
+
+    <button
+        type="button"
+        onclick="closeTransactionModal()"
+        aria-label="Tutup modal transaksi"
+        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+    >
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+
+        <form
+            id="transactionForm"
+            onsubmit="handleTransactionSubmit(event)"
+            class="p-5 space-y-3.5"
+        >
+            <input
+                type="hidden"
+                id="form-edit-id"
+            >
+
+            <!-- Jenis Aliran -->
+<div class="space-y-1.5">
+    <label class="text-[10px] font-bold text-slate-400 uppercase">
+        Jenis Aliran
+    </label>
+
+    <input
+        type="hidden"
+        id="form-type"
+        value="Credit"
+    >
+
+    <div class="
+        grid grid-cols-3 gap-1
+        bg-slate-100 dark:bg-slate-900
+        border border-slate-200 dark:border-slate-800
+        rounded-xl p-1
+    ">
+        <button
+            type="button"
+            data-transaction-type="Credit"
+            onclick="setTransactionType('Credit')"
+            class="
+                transaction-type-button
+                rounded-lg py-2 px-2
+                text-xs font-semibold
+                transition-all
+            "
+        >
+            Credit
+        </button>
+
+        <button
+            type="button"
+            data-transaction-type="Debit"
+            onclick="setTransactionType('Debit')"
+            class="
+                transaction-type-button
+                rounded-lg py-2 px-2
+                text-xs font-semibold
+                transition-all
+            "
+        >
+            Debit
+        </button>
+
+        <button
+            type="button"
+            data-transaction-type="Transfer"
+            onclick="setTransactionType('Transfer')"
+            class="
+                transaction-type-buttons
+                rounded-lg py-2 px-2
+                text-xs font-semibold
+                transition-all
+            "
+        >
+            Transfer
+        </button>
+    </div>
+</div>
+
+            <!-- Nama Item -->
+<div class="space-y-1">
+    <label class="text-[10px] font-bold text-slate-400 uppercase">
+        Nama Item
+    </label>
+
+    <input
+        type="text"
+        id="form-name"
+        required
+        class="
+            w-full
+            bg-slate-50 dark:bg-slate-900
+            border border-slate-200 dark:border-slate-800
+            rounded-xl px-3 py-2
+            text-xs text-slate-800 dark:text-white
+        "
+    >
+</div>
+
+<!-- Tanggal dan Nominal -->
+<div class="grid grid-cols-2 gap-3">
+
+    <!-- Tanggal -->
+    <div class="min-w-0 overflow-hidden space-y-1">
+        <label class="text-[10px] font-bold text-slate-400 uppercase">
+            Tanggal
+        </label>
+
+        <input
+            type="date"
+            id="form-date"
+            required
+            onclick="openPickerSafely(this)"
+            class="
+                block w-full min-w-0 max-w-full
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                rounded-xl px-3 py-2
+                text-xs text-slate-800 dark:text-white
+                cursor-pointer box-border overflow-hidden
+            "
+        >
+    </div>
+
+    <!-- Nominal -->
+    <div class="min-w-0 space-y-1">
+        <label class="text-[10px] font-bold text-slate-400 uppercase">
+            Nominal
+        </label>
+
+        <input
+            type="text"
+            id="form-amount"
+            required
+            inputmode="decimal"
+            autocomplete="off"
+            oninput="formatInputNominal(this)"
+            placeholder="Contoh: 100.000"
+            class="
+                block w-full min-w-0 max-w-full
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                rounded-xl px-3 py-2
+                text-xs text-slate-800 dark:text-white
+                focus:outline-none box-border
+            "
+        >
+    </div>
+</div>
+            <!-- Akun dan Kategori / Akun Tujuan -->
+            <div class="grid grid-cols-2 gap-3">
+
+                <div
+                    class="space-y-1 min-w-0"
+                    id="accountContainer"
+                >
+                    <label
+                        class="text-[10px] font-bold text-slate-400 uppercase"
+                        id="accountLabel"
+                    >
+                        Akun Keuangan
+                    </label>
+
+                    <select
+                        id="form-account"
+                        required
+                        class="
                             block w-full min-w-0 max-w-full
                             bg-slate-50 dark:bg-slate-900
                             border border-slate-200 dark:border-slate-800
                             rounded-xl px-3 py-2
                             text-xs text-slate-800 dark:text-white
-                            focus:outline-none box-border
-                        ">
-                            <option value="Credit">Credit (Uang Keluar)</option>
-                            <option value="Debit">Debit (Uang Masuk)</option>
-                            <option value="Transfer">Transfer (Pindahan Dana)</option>
-                        </select>
-                    </div>
+                            box-border
+                        "
+                    ></select>
                 </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Deskripsi / Nama Item</label>
-                    <input type="text" id="form-name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white">
+
+                <div
+                    class="space-y-1 min-w-0"
+                    id="categoryContainer"
+                >
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">
+                        Kategori
+                    </label>
+
+                    <select
+                        id="form-category"
+                        class="
+                            block w-full min-w-0 max-w-full
+                            bg-slate-50 dark:bg-slate-900
+                            border border-slate-200 dark:border-slate-800
+                            rounded-xl px-3 py-2
+                            text-xs text-slate-800 dark:text-white
+                            box-border
+                        "
+                    ></select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Nominal</label>
-                        <input
-                            type="text"
-                            id="form-amount"
-                            required
-                            inputmode="decimal"
-                            autocomplete="off"
-                            oninput="formatInputNominal(this)"
-                            placeholder="Contoh: 1.099,94"
-                            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none"
-                        >
-                    </div>
-                    <div class="space-y-1" id="accountContainer">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase" id="accountLabel">Akun Keuangan</label>
-                        <select id="form-account" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white"></select>
-                    </div>
+
+                <div
+                    class="space-y-1 min-w-0 hidden"
+                    id="targetAccountContainer"
+                >
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">
+                        Akun Tujuan
+                    </label>
+
+                    <select
+                        id="form-target-account"
+                        class="
+                            block w-full min-w-0 max-w-full
+                            bg-slate-50 dark:bg-slate-900
+                            border border-slate-200 dark:border-slate-800
+                            rounded-xl px-3 py-2
+                            text-xs text-slate-800 dark:text-white
+                            box-border
+                        "
+                    ></select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="space-y-1" id="categoryContainer">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Kategori</label>
-                        <select id="form-category" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white"></select>
-                    </div>
-                    <div class="space-y-1 hidden" id="targetAccountContainer">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Ke Akun (Tujuan)</label>
-                        <select id="form-target-account" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white"></select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Catatan Tambahan</label>
-                        <input type="text" id="form-notes" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white">
-                    </div>
-                </div>
-                <div class="pt-2 flex gap-2">
-                    <button type="button" onclick="closeTransactionModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold py-2 rounded-xl text-xs transition-all">Batal</button>
-                    <button type="submit" class="flex-1 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 rounded-xl text-xs transition-all">Simpan Data</button>
-                </div>
-            </form>
-        </div>
+
+            </div>
+
+            <!-- Catatan -->
+            <div class="space-y-1">
+                <label class="text-[10px] font-bold text-slate-400 uppercase">
+                    Catatan
+                </label>
+
+                <input
+                    type="text"
+                    id="form-notes"
+                    class="
+                        w-full
+                        bg-slate-50 dark:bg-slate-900
+                        border border-slate-200 dark:border-slate-800
+                        rounded-xl px-3 py-2
+                        text-xs text-slate-800 dark:text-white
+                    "
+                >
+            </div>
+
+            <!-- Simpan -->
+            <div class="pt-2">
+                <button
+                    type="submit"
+                    class="
+                        w-full
+                        bg-blueSystem-500 hover:bg-blueSystem-600
+                        text-white font-semibold
+                        py-2.5 rounded-xl
+                        text-xs transition-all
+                    "
+                >
+                    Simpan
+                </button>
+            </div>
+
+        </form>
     </div>
+</div>
 
     <!-- Modal Kelola Akun -->
     <div id="setupAccountModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
