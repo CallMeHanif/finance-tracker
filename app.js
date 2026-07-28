@@ -731,6 +731,143 @@ function calculateBalancesUntil(selectedMonthIso = null) {
     return balances;
 }
 
+function openBalanceDetailModal() {
+    const modal =
+        document.getElementById(
+            'balanceDetailModal'
+        );
+
+    const listContainer =
+        document.getElementById(
+            'balanceDetailList'
+        );
+
+    const totalElement =
+        document.getElementById(
+            'balanceDetailTotal'
+        );
+
+    const monthFilter =
+        document.getElementById(
+            'dashboardMonthFilter'
+        );
+
+    if (
+        !modal ||
+        !listContainer ||
+        !totalElement
+    ) {
+        return;
+    }
+
+    const selectedMonth =
+        monthFilter?.value || '';
+
+    const balances =
+        calculateBalancesUntil(
+            selectedMonth
+        );
+
+    let totalBalance = 0;
+
+    if (userAccounts.length === 0) {
+        listContainer.innerHTML = `
+            <div class="
+                py-8 text-center
+                text-xs text-slate-400
+            ">
+                Belum ada akun keuangan.
+            </div>
+        `;
+    } else {
+        listContainer.innerHTML =
+            userAccounts
+                .map(account => {
+                    const balance =
+                        Number(
+                            balances[account.name]
+                        ) || 0;
+
+                    totalBalance += balance;
+
+                    const balanceColor =
+                        balance < 0
+                            ? `
+                                text-rose-600
+                                dark:text-rose-400
+                            `
+                            : `
+                                text-slate-900
+                                dark:text-white
+                            `;
+
+                    return `
+    <div class="
+        flex items-center
+        justify-between gap-4
+        p-3.5 rounded-xl
+        bg-slate-50
+        dark:bg-slate-900
+        border border-slate-200
+        dark:border-slate-800
+    ">
+        <div class="min-w-0 flex-1">
+            <p class="
+                text-sm font-semibold
+                text-slate-900
+                dark:text-white
+                truncate
+            ">
+                ${escapeHtml(account.name)}
+            </p>
+
+            <p class="
+                mt-0.5
+                text-[10px]
+                text-slate-400
+                dark:text-slate-500
+                truncate
+            ">
+                ${escapeHtml(account.type || 'Akun')}
+            </p>
+        </div>
+
+        <span class="
+            shrink-0
+            self-center
+            text-sm font-bold
+            whitespace-nowrap
+            ${balanceColor}
+        ">
+            ${formatRupiah(balance)}
+        </span>
+    </div>
+`;
+                })
+                .join('');
+    }
+
+    totalElement.textContent =
+        formatRupiah(totalBalance);
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    lucide.createIcons();
+}
+
+function closeBalanceDetailModal() {
+    const modal =
+        document.getElementById(
+            'balanceDetailModal'
+        );
+
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
 function isCategoryCalculatedToIncomeExpense(categoryName) {
     const category = normalizeText(categoryName);
     if (!category) return false;
@@ -965,30 +1102,94 @@ if (ctx) {
     } else {
         tableBody.innerHTML = '';
         recentTx.forEach(t => {
-            let jenisColor = 'text-rose-600';
-            let bgPill = 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
-            let amtStr = `-${formatRupiah(t.credit, true)}`;
-            
-            if (t.isTransfer) {
-                jenisColor = 'text-blueSystem-500';
-                bgPill = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-                amtStr = formatRupiah(t.credit || t.debit, true);
-            } else if (t.debit > 0) {
-                jenisColor = 'text-emerald-600';
-                bgPill = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-                amtStr = `+${formatRupiah(t.debit, true)}`;
-            }
+    let colorClass =
+        'text-rose-600 dark:text-rose-400 font-bold';
 
-            tableBody.innerHTML += `
-                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                    <td class="py-3 px-4 whitespace-nowrap text-slate-500">${escapeHtml(formatTanggalIndo(t.date))}</td>
-                    <td class="py-3 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
-                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${bgPill}">${escapeHtml(t.category || 'Transfer')}</span></td>
-                    <td class="py-3 px-4 ${jenisColor} font-bold">${amtStr}</td>
-                    <td class="py-3 px-4 text-slate-500">${escapeHtml(t.isTransfer ? `${t.account} ➔ ${t.targetAccount}` : t.account)}</td>
-                    <td class="py-3 px-4 text-slate-400 truncate max-w-[120px]" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
-                </tr>`;
-        });
+    let amount = t.credit;
+    let displayCategory = t.category || '-';
+    let displayAccount = t.account || '-';
+
+    if (t.isTransfer) {
+        colorClass =
+            'text-blueSystem-500 dark:text-blueSystem-100 font-bold';
+
+        amount = t.credit || t.debit;
+        displayCategory = 'Transfer Dana';
+        displayAccount =
+            `${t.account} ➔ ${t.targetAccount}`;
+    } else if (Number(t.debit) > 0) {
+        colorClass =
+            'text-emerald-600 dark:text-emerald-400 font-bold';
+
+        amount = t.debit;
+    }
+
+    tableBody.innerHTML += `
+        <tr class="
+            hover:bg-slate-50
+            dark:hover:bg-slate-900/60
+            transition-colors
+        ">
+            <td class="
+                py-2.5 px-4
+                text-slate-500
+                whitespace-nowrap
+            ">
+                ${escapeHtml(
+                    formatTanggalIndo(t.date)
+                )}
+            </td>
+
+            <td class="
+                py-2.5 px-4
+                font-semibold
+                text-slate-900 dark:text-white
+            ">
+                ${escapeHtml(t.name)}
+            </td>
+
+            <td class="
+                py-2.5 px-4
+                ${colorClass}
+            ">
+                ${formatRupiah(amount, true)}
+            </td>
+
+            <td class="
+                py-2.5 px-4
+                text-slate-500
+            ">
+                ${escapeHtml(displayCategory)}
+            </td>
+
+            <td class="py-2.5 px-4">
+                <span class="
+                    bg-slate-100
+                    dark:bg-slate-800
+                    px-1.5 py-0.5
+                    rounded
+                    text-slate-700
+                    dark:text-slate-300
+                    font-medium
+                ">
+                    ${escapeHtml(displayAccount)}
+                </span>
+            </td>
+
+            <td
+                class="
+                    py-2.5 px-4
+                    text-slate-400
+                    max-w-[120px]
+                    truncate
+                "
+                title="${escapeHtml(t.notes || '')}"
+            >
+                ${escapeHtml(t.notes || '-')}
+            </td>
+        </tr>
+    `;
+});
     }
 }
 
