@@ -21,6 +21,8 @@ let transactions = [
     { id: "3", date: "2026-07-02", name: "Belanja", credit: 52600, debit: 0, category: "Belanja", account: "Cash", notes: "" }
 ];
 
+let userLoans = [];
+
 let activePage = 'dashboard';
 let deleteTargetId = null;
 let deleteTypeContext = 'transaction';
@@ -38,6 +40,22 @@ let cloudSyncQueued = false;
 let cloudFetchInFlight = false;
 let localMutationVersion = 0;
 let transactionSearchTimer = null;
+let loanTypeFilter = 'all';
+let loanStatusFilter = 'unpaid';
+let loanMonthFilter = '';
+
+let loanRepaymentTargetId = null;
+let loanRepaymentMode = 'existing';
+let loanRepaymentSearchQuery = '';
+let loanRepaymentSelectedIds = new Set();
+let loanRepaymentSwipeState = null;
+let loanRepaymentSwipeSuppressClickUntil = 0;
+
+let loanDetailTargetId = null;
+let loanUnlinkTargetTransactionId = null;
+let loanDeleteTargetId = null;
+
+const LOAN_REPAYMENT_SWIPE_DISTANCE = 88;
 
 const CLOUD_SYNC_DELAY = 650;
 const emptyStateHTML = `<div class="p-6 flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 w-full col-span-full">
@@ -57,18 +75,24 @@ function normalizeText(value) {
 }
 
 function openPickerSafely(input) {
-    const isTouchDevice =
-        window.matchMedia('(pointer: coarse)').matches;
-
-    if (isTouchDevice) {
+    if (!input || input.disabled) {
         return;
     }
 
     if (typeof input.showPicker === 'function') {
         try {
             input.showPicker();
+            return;
         } catch (error) {
+            // Browser tertentu tetap membuka date picker
+            // melalui perilaku native setelah event click.
         }
+    }
+
+    try {
+        input.focus({ preventScroll: true });
+    } catch (error) {
+        input.focus();
     }
 }
 
@@ -87,6 +111,20 @@ function createTransactionId() {
         return window.crypto.randomUUID();
     }
     return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createLoanId() {
+    if (
+        window.crypto &&
+        typeof window.crypto.randomUUID ===
+            'function'
+    ) {
+        return window.crypto.randomUUID();
+    }
+
+    return `loan-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
 }
 
 function simpleHash(value) {
@@ -152,54 +190,269 @@ function normalizeCategories(input) {
     return result;
 }
 
-function normalizeTransactions(input) {
-    if (!Array.isArray(input)) return [];
+function normalizeLoans(input) {
+    if (!Array.isArray(input)) {
+        return [];
+    }
+
     const byId = new Map();
 
-    input.forEach((transaction, index) => {
-        if (!transaction || typeof transaction !== 'object') return;
+    input.forEach(loan => {
+        if (
+            !loan ||
+            typeof loan !== 'object'
+        ) {
+            return;
+        }
+
+        const rawType =
+            normalizeText(
+                loan.type
+            ).toLocaleLowerCase('id-ID');
+
+        let type = '';
+
+        if (rawType === 'hutang') {
+            type = 'Hutang';
+        }
+
+        if (rawType === 'piutang') {
+            type = 'Piutang';
+        }
+
         const normalized = {
-            id: normalizeText(transaction.id),
-            date: normalizeDateValue(transaction.date),
-            name: normalizeText(transaction.name),
-            credit: Math.max(0, normalizeMoney(transaction.credit)),
-            debit: Math.max(0, normalizeMoney(transaction.debit)),
-            category: normalizeText(transaction.category),
-            account: normalizeText(transaction.account),
-            targetAccount: normalizeText(transaction.targetAccount),
-            notes: normalizeText(transaction.notes),
-            isTransfer: Boolean(transaction.isTransfer || normalizeText(transaction.targetAccount))
+            id:
+                normalizeText(loan.id) ||
+                createLoanId(),
+
+            date:
+                normalizeDateValue(
+                    loan.date
+                ),
+
+            name:
+                normalizeText(
+                    loan.name
+                ),
+
+            type,
+
+            principal:
+                Math.max(
+                    0,
+                    normalizeMoney(
+                        loan.principal
+                    )
+                ),
+
+            party:
+                normalizeText(
+                    loan.party
+                ),
+
+            notes:
+                normalizeText(
+                    loan.notes
+                ),
+
+            dueDate:
+                normalizeDateValue(
+                    loan.dueDate
+                )
         };
 
-        if (!normalized.id) {
-            const legacySignature = JSON.stringify([
-                normalized.date, normalized.name, normalized.credit, normalized.debit,
-                normalized.category, normalized.account, normalized.targetAccount,
-                normalized.notes, index
-            ]);
-            normalized.id = `legacy-${simpleHash(legacySignature)}`;
+        if (
+            !normalized.name ||
+            !normalized.type ||
+            normalized.principal <= 0
+        ) {
+            return;
         }
 
-        if (normalized.isTransfer) {
-            normalized.category = '';
-            const amount = normalized.credit || normalized.debit;
-            normalized.credit = amount;
-            normalized.debit = 0;
-        }
-
-        byId.set(normalized.id, normalized);
+        byId.set(
+            normalized.id,
+            normalized
+        );
     });
 
-    return Array.from(byId.values());
+    return Array.from(
+        byId.values()
+    );
+}
+
+function normalizeTransactions(input) {
+    if (!Array.isArray(input)) {
+        return [];
+    }
+
+    const byId = new Map();
+
+    input.forEach(
+        (transaction, index) => {
+            if (
+                !transaction ||
+                typeof transaction !==
+                    'object'
+            ) {
+                return;
+            }
+
+            const rawLoanRole =
+                normalizeText(
+                    transaction.loanRole
+                ).toLocaleLowerCase(
+                    'id-ID'
+                );
+
+            const normalized = {
+                id:
+                    normalizeText(
+                        transaction.id
+                    ),
+
+                date:
+                    normalizeDateValue(
+                        transaction.date
+                    ),
+
+                name:
+                    normalizeText(
+                        transaction.name
+                    ),
+
+                credit:
+                    Math.max(
+                        0,
+                        normalizeMoney(
+                            transaction.credit
+                        )
+                    ),
+
+                debit:
+                    Math.max(
+                        0,
+                        normalizeMoney(
+                            transaction.debit
+                        )
+                    ),
+
+                category:
+                    normalizeText(
+                        transaction.category
+                    ),
+
+                account:
+                    normalizeText(
+                        transaction.account
+                    ),
+
+                targetAccount:
+                    normalizeText(
+                        transaction.targetAccount
+                    ),
+
+                notes:
+                    normalizeText(
+                        transaction.notes
+                    ),
+
+                loanId:
+                    normalizeText(
+                        transaction.loanId
+                    ),
+
+                loanRole:
+                    (
+                        rawLoanRole ===
+                            'principal' ||
+                        rawLoanRole ===
+                            'repayment'
+                    )
+                        ? rawLoanRole
+                        : '',
+
+                isTransfer:
+                    Boolean(
+                        transaction.isTransfer ||
+                        normalizeText(
+                            transaction.targetAccount
+                        )
+                    )
+            };
+
+            if (!normalized.id) {
+                const legacySignature =
+                    JSON.stringify([
+                        normalized.date,
+                        normalized.name,
+                        normalized.credit,
+                        normalized.debit,
+                        normalized.category,
+                        normalized.account,
+                        normalized.targetAccount,
+                        normalized.notes,
+                        index
+                    ]);
+
+                normalized.id =
+                    `legacy-${simpleHash(
+                        legacySignature
+                    )}`;
+            }
+
+            if (
+                normalized.isTransfer
+            ) {
+                normalized.category = '';
+
+                const amount =
+                    normalized.credit ||
+                    normalized.debit;
+
+                normalized.credit =
+                    amount;
+
+                normalized.debit = 0;
+
+                normalized.loanId = '';
+                normalized.loanRole = '';
+            }
+
+            if (!normalized.loanId) {
+                normalized.loanRole = '';
+            }
+
+            byId.set(
+                normalized.id,
+                normalized
+            );
+        }
+    );
+
+    return Array.from(
+        byId.values()
+    );
 }
 
 function commitDataChange({
     sync = true,
     render = true
 } = {}) {
-    userAccounts = normalizeAccounts(userAccounts);
-    userCategories = normalizeCategories(userCategories);
-    transactions = normalizeTransactions(transactions);
+    userAccounts =
+        normalizeAccounts(userAccounts);
+
+    userCategories =
+        normalizeCategories(
+            userCategories
+        );
+
+    transactions =
+        normalizeTransactions(
+            transactions
+        );
+
+    userLoans =
+        normalizeLoans(userLoans);
 
     localMutationVersion += 1;
 
@@ -229,24 +482,65 @@ function getCloudConfig() {
 function buildCloudPayload() {
     return {
         action: 'syncAll',
-        userAccounts: normalizeAccounts(userAccounts),
-        userCategories: normalizeCategories(userCategories),
-        transactions: normalizeTransactions(transactions),
-        clientUpdatedAt: new Date().toISOString()
+
+        userAccounts:
+            normalizeAccounts(
+                userAccounts
+            ),
+
+        userCategories:
+            normalizeCategories(
+                userCategories
+            ),
+
+        transactions:
+            normalizeTransactions(
+                transactions
+            ),
+
+        userLoans:
+            normalizeLoans(
+                userLoans
+            ),
+
+        clientUpdatedAt:
+            new Date().toISOString()
     };
 }
 
-function getWorkspaceSignature(data = null) {
+function getWorkspaceSignature(
+    data = null
+) {
     const source = data || {
         userAccounts,
         userCategories,
-        transactions
+        transactions,
+        userLoans
     };
-    return simpleHash(JSON.stringify({
-        userAccounts: normalizeAccounts(source.userAccounts || []),
-        userCategories: normalizeCategories(source.userCategories || {}),
-        transactions: normalizeTransactions(source.transactions || [])
-    }));
+
+    return simpleHash(
+        JSON.stringify({
+            userAccounts:
+                normalizeAccounts(
+                    source.userAccounts || []
+                ),
+
+            userCategories:
+                normalizeCategories(
+                    source.userCategories || {}
+                ),
+
+            transactions:
+                normalizeTransactions(
+                    source.transactions || []
+                ),
+
+            userLoans:
+                normalizeLoans(
+                    source.userLoans || []
+                )
+        })
+    );
 }
 
 function parseNominal(value) {
@@ -370,34 +664,91 @@ function toggleDarkMode() {
 
 function switchPage(pageId) {
     activePage = pageId;
-    document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById('page-' + pageId).classList.remove('hidden');
-    
-    document.querySelectorAll('header nav button').forEach(btn => {
-        btn.className = "px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900";
-    });
-    
-    const activeBtn = document.getElementById('nav-' + pageId);
-    if(activeBtn) activeBtn.className = "px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-blueSystem-500 dark:text-white shadow-sm";
-    
+
     document
-    .querySelectorAll('#bottomMobileNav .bottom-nav-item')
-    .forEach(button => {
-        button.classList.remove('is-active');
-    });
+        .querySelectorAll('.page-content')
+        .forEach(element => {
+            element.classList.add('hidden');
+        });
 
-const activeBottomBtn =
-    document.getElementById(
-        'nav-bottom-' + pageId
-    );
+    const targetPage =
+        document.getElementById(
+            'page-' + pageId
+        );
 
-if (activeBottomBtn) {
-    activeBottomBtn.classList.add('is-active');
-}
+    if (!targetPage) {
+        console.error(
+            `Halaman "${pageId}" tidak ditemukan.`
+        );
+
+        return;
+    }
+
+    targetPage.classList.remove('hidden');
+
+    document
+        .querySelectorAll('header nav button')
+        .forEach(button => {
+            button.className = `
+                px-4 py-1.5
+                rounded-lg
+                transition-all
+                text-slate-500
+                dark:text-slate-400
+                hover:text-slate-900
+            `;
+        });
+
+    const activeDesktopButton =
+        document.getElementById(
+            'nav-' + pageId
+        );
+
+    if (activeDesktopButton) {
+        activeDesktopButton.className = `
+            px-4 py-1.5
+            rounded-lg
+            transition-all
+            bg-white
+            dark:bg-slate-800
+            text-blueSystem-500
+            dark:text-white
+            shadow-sm
+        `;
+    }
+
+    document
+        .querySelectorAll(
+            '#bottomMobileNav .bottom-nav-item'
+        )
+        .forEach(button => {
+            button.classList.remove(
+                'is-active'
+            );
+        });
+
+    const bottomPageId =
+        pageId === 'loans'
+            ? 'dashboard'
+            : pageId;
+
+    const activeBottomButton =
+        document.getElementById(
+            'nav-bottom-' + bottomPageId
+        );
+
+    if (activeBottomButton) {
+        activeBottomButton.classList.add(
+            'is-active'
+        );
+    }
 
     renderDashboard();
-}
 
+    requestAnimationFrame(
+        updateFloatingTransactionButton
+    );
+}
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -879,11 +1230,625 @@ function renderDashboard() {
     const dashMonth = document.getElementById('dashboardMonthFilter').value;
     const txMonth = document.getElementById('txMonthFilter').value;
 
-    if (activePage === 'dashboard') { renderDashboardPage(dashMonth); } 
-    else if (activePage === 'transactions') { renderTransactionsPage(txMonth); } 
-    else if (activePage === 'reports') { renderReportsPage(); }
-    else if (activePage === 'settings') { renderSettingsPage(); }
+    if (activePage === 'dashboard') {
+        renderDashboardPage(dashMonth);
+    } else if (activePage === 'transactions') {
+        renderTransactionsPage(txMonth);
+    } else if (activePage === 'loans') {
+        renderLoansPage();
+    } else if (activePage === 'reports') {
+        renderReportsPage();
+    } else if (activePage === 'settings') {
+        renderSettingsPage();
+    }
     lucide.createIcons();
+}
+
+function parseLocalDateAtMidnight(dateValue) {
+    const normalizedDate = normalizeDateValue(dateValue);
+
+    if (!normalizedDate) {
+        return null;
+    }
+
+    const match = normalizedDate.match(
+        /^(\d{4})-(\d{2})-(\d{2})$/
+    );
+
+    if (!match) {
+        return null;
+    }
+
+    return new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3])
+    );
+}
+
+function getDaysUntilLoanDueDate(dueDate) {
+    const dueDateObject = parseLocalDateAtMidnight(dueDate);
+    const todayObject = parseLocalDateAtMidnight(
+        getTodayLocalDate()
+    );
+
+    if (!dueDateObject || !todayObject) {
+        return null;
+    }
+
+    return Math.round(
+        (dueDateObject.getTime() - todayObject.getTime()) /
+        86400000
+    );
+}
+
+function getDashboardActiveDebts() {
+    return normalizeLoans(userLoans)
+        .filter(loan => {
+            if (loan.type !== 'Hutang') {
+                return false;
+            }
+
+            return getLoanProgress(loan).remaining > 0;
+        })
+        .map(loan => {
+            const progress = getLoanProgress(loan);
+            const dueDate = normalizeDateValue(
+                loan.dueDate
+            );
+
+            return {
+                loan,
+                progress,
+                dueDate,
+                daysUntilDue:
+                    dueDate
+                        ? getDaysUntilLoanDueDate(dueDate)
+                        : null
+            };
+        })
+        .sort((firstItem, secondItem) => {
+            const firstHasDueDate = Boolean(
+                firstItem.dueDate
+            );
+
+            const secondHasDueDate = Boolean(
+                secondItem.dueDate
+            );
+
+            if (firstHasDueDate !== secondHasDueDate) {
+                return firstHasDueDate ? -1 : 1;
+            }
+
+            if (
+                firstHasDueDate &&
+                firstItem.daysUntilDue !==
+                    secondItem.daysUntilDue
+            ) {
+                return (
+                    firstItem.daysUntilDue -
+                    secondItem.daysUntilDue
+                );
+            }
+
+            return String(secondItem.loan.date || '')
+                .localeCompare(
+                    String(firstItem.loan.date || '')
+                );
+        });
+}
+
+function getDashboardDebtReminderStyle(daysUntilDue) {
+    if (daysUntilDue < 0) {
+        return {
+            title: 'Hutang Melewati Jatuh Tempo',
+            icon: 'triangle-alert',
+            containerClass: [
+                'border-rose-200',
+                'bg-rose-50',
+                'dark:border-rose-900/50',
+                'dark:bg-rose-900/30'
+            ].join(' '),
+            iconClass: [
+                'bg-rose-100',
+                'text-rose-600',
+                'dark:bg-rose-900/30',
+                'dark:text-rose-400'
+            ].join(' '),
+            accentClass:
+                'text-rose-600 dark:text-rose-400'
+        };
+    }
+
+    if (daysUntilDue <= 1) {
+        return {
+            title:
+                daysUntilDue === 0
+                    ? 'Hutang Jatuh Tempo Hari Ini'
+                    : 'Hutang Jatuh Tempo Besok',
+            icon: 'alarm-clock',
+            containerClass: [
+                'border-rose-200',
+                'bg-rose-50',
+                'dark:border-rose-900/50',
+                'dark:bg-rose-900/30'
+            ].join(' '),
+            iconClass: [
+                'bg-rose-100',
+                'text-rose-600',
+                'dark:bg-rose-900/30',
+                'dark:text-rose-400'
+            ].join(' '),
+            accentClass:
+                'text-rose-600 dark:text-rose-400'
+        };
+    }
+
+    if (daysUntilDue <= 7) {
+        return {
+            title: 'Hutang Jatuh Tempo Dalam 7 Hari',
+            icon: 'clock-3',
+            containerClass: [
+                'border-slate-200',
+                'bg-amber-50',
+                'dark:border-slate-800',
+                'dark:bg-amber-900/30'
+            ].join(' '),
+            iconClass: [
+                'bg-white',
+                'text-amber-600',
+                'dark:bg-slate-900',
+                'dark:text-amber-400'
+            ].join(' '),
+            accentClass:
+                'text-amber-600 dark:text-amber-400'
+        };
+    }
+
+    return {
+        title: 'Hutang Jatuh Tempo Dalam 30 Hari',
+        icon: 'calendar-clock',
+        containerClass: [
+            'border-blueSystem-500',
+            'bg-blueSystem-50',
+            'dark:border-slate-800',
+            'dark:bg-blueSystem-900/30'
+        ].join(' '),
+        iconClass: [
+            'bg-white',
+            'text-blueSystem-500',
+            'dark:bg-slate-900',
+            'dark:text-blueSystem-100'
+        ].join(' '),
+        accentClass:
+            'text-blueSystem-500 dark:text-blueSystem-100'
+    };
+}
+
+function getDashboardDebtDueText(item) {
+    if (!item.dueDate) {
+        return 'Tanpa jatuh tempo';
+    }
+
+    const daysUntilDue = item.daysUntilDue;
+
+    if (daysUntilDue < 0) {
+        const overdueDays = Math.abs(daysUntilDue);
+
+        return `Terlambat ${overdueDays} hari`;
+    }
+
+    if (daysUntilDue === 0) {
+        return 'Jatuh tempo hari ini';
+    }
+
+    if (daysUntilDue === 1) {
+        return 'Jatuh tempo besok';
+    }
+
+    return `Jatuh tempo ${daysUntilDue} hari lagi`;
+}
+
+function openDashboardDebtList() {
+    loanTypeFilter = 'debt';
+    loanStatusFilter = 'unpaid';
+    loanMonthFilter = '';
+
+    switchPage('loans');
+
+    const typeFilter = document.getElementById(
+        'loanTypeFilter'
+    );
+
+    const statusFilter = document.getElementById(
+        'loanStatusFilter'
+    );
+
+    const monthFilter = document.getElementById(
+        'loanMonthFilter'
+    );
+
+    if (typeFilter) {
+        typeFilter.value = 'debt';
+    }
+
+    if (statusFilter) {
+        statusFilter.value = 'unpaid';
+    }
+
+    if (monthFilter) {
+        monthFilter.value = '';
+    }
+
+    renderLoansPage();
+}
+
+function renderDashboardDebtReminder(activeDebts) {
+    const section = document.getElementById(
+        'dashboardDebtReminderSection'
+    );
+
+    if (!section) {
+        return;
+    }
+
+    const reminderDebts = activeDebts.filter(item => {
+        return (
+            item.dueDate &&
+            item.daysUntilDue !== null &&
+            item.daysUntilDue <= 30
+        );
+    });
+
+    if (reminderDebts.length === 0) {
+        section.classList.add('hidden');
+        section.innerHTML = '';
+        return;
+    }
+
+    const nearestDebt = reminderDebts[0];
+    const style = getDashboardDebtReminderStyle(
+        nearestDebt.daysUntilDue
+    );
+
+    const encodedLoanId = encodeActionValue(
+        nearestDebt.loan.id
+    );
+
+    const additionalCount =
+        reminderDebts.length - 1;
+
+    section.className = '';
+    section.innerHTML = `
+        <div class="
+            rounded-2xl border p-4 shadow-sm
+            ${style.containerClass}
+        ">
+            <div>
+                <div class="min-w-0">
+                    <div class="
+                        flex flex-col sm:flex-row
+                        sm:items-center sm:justify-between
+                        gap-2
+                    ">
+                        <div class="min-w-0">
+                            <h3 class="
+                                text-sm font-bold
+                                text-slate-900 dark:text-white
+                            ">
+                                ${escapeHtml(style.title)}
+                            </h3>
+                        </div>
+
+                        ${additionalCount > 0 ? `
+                            <span class="
+                                self-start shrink-0
+                                rounded-full px-2.5 py-1
+                                bg-white/70 dark:bg-slate-950/50
+                                text-[10px] font-semibold
+                                text-slate-600 dark:text-slate-300
+                            ">
+                                +${additionalCount} lainnya
+                            </span>
+                        ` : ''}
+                    </div>
+
+                    <button
+                        type="button"
+                        onclick="
+                            openLoanDetailModal(
+                                decodeActionValue('${encodedLoanId}')
+                            )
+                        "
+                        class="
+                            mt-3 w-full
+                            flex items-center justify-between
+                            gap-4 text-left
+                            rounded-xl
+                            bg-white/75 dark:bg-slate-950/55
+                            border border-white/80
+                            dark:border-slate-800/80
+                            px-3 py-3
+                            hover:bg-white
+                            dark:hover:bg-slate-950
+                            transition-colors
+                        "
+                    >
+                        <div class="min-w-0 flex-1">
+                            <p class="
+                                text-xs font-semibold
+                                text-slate-900 dark:text-white
+                                truncate
+                            ">
+                                ${escapeHtml(nearestDebt.loan.name)}
+                            </p>
+
+                            <p class="
+                                mt-1 text-[10px]
+                                ${style.accentClass}
+                            ">
+                                ${escapeHtml(
+                                    formatTanggalIndo(
+                                        nearestDebt.dueDate
+                                    )
+                                )}
+                            </p>
+                        </div>
+
+                        <div class="shrink-0 text-right">
+                            <p class="
+                                text-[9px] font-medium
+                                text-slate-400 uppercase
+                                tracking-wider
+                            ">
+                                Sisa
+                            </p>
+
+                            <p class="
+                                mt-0.5 text-sm font-bold
+                                whitespace-nowrap
+                                ${style.accentClass}
+                            ">
+                                ${formatRupiah(
+                                    nearestDebt.progress.remaining
+                                )}
+                            </p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDashboardActiveDebts(activeDebts) {
+    const section = document.getElementById(
+        'dashboardActiveDebtSection'
+    );
+
+    if (!section) {
+        return;
+    }
+
+    if (activeDebts.length === 0) {
+        section.classList.add('hidden');
+        section.innerHTML = '';
+        return;
+    }
+
+    const totalRemaining = activeDebts.reduce(
+        (total, item) =>
+            total + item.progress.remaining,
+        0
+    );
+
+    const displayedDebts = activeDebts.slice(0, 3);
+
+    const debtRows = displayedDebts.map(item => {
+        const encodedLoanId = encodeActionValue(
+            item.loan.id
+        );
+
+        const isUrgent = Boolean(
+            item.dueDate &&
+            item.daysUntilDue !== null &&
+            item.daysUntilDue <= 7
+        );
+
+        const dueTextClass = isUrgent
+            ? 'text-rose-600 dark:text-rose-400 font-semibold'
+            : 'text-slate-400';
+
+        return `
+            <button
+                type="button"
+                onclick="
+                    openLoanDetailModal(
+                        decodeActionValue('${encodedLoanId}')
+                    )
+                "
+                class="
+                    w-full px-4 py-3
+                    flex items-center justify-between
+                    gap-4 text-left
+                    hover:bg-slate-50
+                    dark:hover:bg-slate-900/60
+                    transition-colors
+                "
+            >
+                <div class="min-w-0 flex-1">
+                    <p class="
+                        text-xs font-semibold
+                        text-slate-900 dark:text-white
+                        truncate
+                    ">
+                        ${escapeHtml(item.loan.name)}
+                    </p>
+
+                    <p class="
+                        mt-1 text-[10px]
+                        ${dueTextClass}
+                    ">
+                        ${escapeHtml(
+                            getDashboardDebtDueText(item)
+                        )}
+                        ${item.loan.party ? `
+                            <span class="mx-1">•</span>
+                            ${escapeHtml(item.loan.party)}
+                        ` : ''}
+                    </p>
+                </div>
+
+                <div class="shrink-0 text-right">
+                    <p class="
+                        text-[9px] font-medium
+                        text-slate-400 uppercase
+                        tracking-wider
+                    ">
+                        Sisa
+                    </p>
+
+                    <p class="
+                        mt-0.5 text-xs font-bold
+                        text-rose-600 dark:text-rose-400
+                        whitespace-nowrap
+                    ">
+                        ${formatRupiah(
+                            item.progress.remaining
+                        )}
+                    </p>
+                </div>
+
+                <i
+                    data-lucide="chevron-right"
+                    class="
+                        shrink-0 w-4 h-4
+                        text-slate-300 dark:text-slate-700
+                    "
+                ></i>
+            </button>
+        `;
+    }).join('');
+
+    section.className = [
+        'bg-white',
+        'dark:bg-slate-950',
+        'border',
+        'border-slate-200',
+        'dark:border-slate-800',
+        'rounded-2xl',
+        'shadow-sm',
+        'overflow-hidden'
+    ].join(' ');
+
+    section.innerHTML = `
+        <div class="
+            p-4 border-b
+            border-slate-100 dark:border-slate-800
+            flex items-center justify-between gap-3
+        ">
+            <div class="min-w-0">
+                <h3 class="
+                    text-sm font-bold
+                    text-slate-900 dark:text-white
+                    flex items-center gap-1.5
+                ">
+                    <i
+                        data-lucide="hand-coins"
+                        class="w-4 h-4 text-rose-500"
+                    ></i>
+                    Yang Masih Harus Dibayar
+                </h3>
+            </div>
+
+            <button
+                type="button"
+                onclick="openDashboardDebtList()"
+                class="
+                    shrink-0
+                    text-[11px] font-semibold
+                    text-blueSystem-500
+                    border border-blueSystem-500
+                    px-3 py-1.5 rounded-lg
+                    hover:bg-blueSystem-50
+                    dark:hover:bg-blueSystem-900/30
+                    transition-colors
+                "
+            >
+                Lihat Semua
+            </button>
+        </div>
+
+        <div class="
+            px-4 py-4
+            bg-slate-50/70 dark:bg-slate-900/45
+            border-b border-slate-100 dark:border-slate-800
+            flex items-center justify-between gap-4
+        ">
+            <div class="min-w-0">
+                <p class="
+                    text-[10px] font-semibold
+                    uppercase tracking-wider
+                    text-slate-400
+                ">
+                    Total Sisa Hutang
+                </p>
+
+                <p class="
+                    mt-1 text-xl sm:text-2xl
+                    font-bold text-rose-600
+                    dark:text-rose-400
+                    whitespace-nowrap
+                ">
+                    ${formatRupiah(totalRemaining)}
+                </p>
+            </div>
+
+            <div class="
+                shrink-0 w-11 h-11 rounded-xl
+                flex items-center justify-center
+                bg-rose-50 dark:bg-rose-950/30
+                text-rose-600 dark:text-rose-400
+            ">
+                <i
+                    data-lucide="wallet-cards"
+                    class="w-5 h-5"
+                ></i>
+            </div>
+        </div>
+
+        <div class="
+            divide-y divide-slate-100
+            dark:divide-slate-800
+        ">
+            ${debtRows}
+        </div>
+
+        ${activeDebts.length > displayedDebts.length ? `
+            <button
+                type="button"
+                onclick="openDashboardDebtList()"
+                class="
+                    w-full px-4 py-3
+                    text-[11px] font-semibold
+                    text-blueSystem-500
+                    hover:bg-slate-50
+                    dark:hover:bg-slate-900/60
+                    transition-colors
+                "
+            >
+                Lihat ${activeDebts.length - displayedDebts.length}
+                hutang lainnya
+            </button>
+        ` : ''}
+    `;
+}
+
+function renderDashboardDebtInformation() {
+    const activeDebts = getDashboardActiveDebts();
+
+    renderDashboardDebtReminder(activeDebts);
+    renderDashboardActiveDebts(activeDebts);
 }
 
 function renderDashboardPage(selectedMonth) {
@@ -920,6 +1885,8 @@ function renderDashboardPage(selectedMonth) {
 
     document.getElementById('dash-inc-month').innerText = formatRupiah(overallIncome);
     document.getElementById('dash-exp-month').innerText = formatRupiah(overallExpense);
+
+    renderDashboardDebtInformation();
 
     const ctx = document.getElementById('chartSaldoDonut');
 
@@ -1093,103 +2060,160 @@ if (ctx) {
         }).join('');
     }
 
-    const recentTx = sortTransactionsNewestFirst(transactions)
-    .slice(0, 5);
-    const tableBody = document.getElementById('dashRecentTxTable');
-    
-    if (recentTx.length === 0) {
-        tableBody.innerHTML = emptyTableRowHTML(6);
-    } else {
-        tableBody.innerHTML = '';
-        recentTx.forEach(t => {
-    let colorClass =
-        'text-rose-600 dark:text-rose-400 font-bold';
+    const recentTx = sortTransactionsNewestFirst(
+        transactions
+    ).slice(0, 5);
 
-    let amount = t.credit;
-    let displayCategory = t.category || '-';
-    let displayAccount = t.account || '-';
+    const recentList = document.getElementById(
+        'dashboardRecentList'
+    );
 
-    if (t.isTransfer) {
-        colorClass =
-            'text-blueSystem-500 dark:text-blueSystem-100 font-bold';
+    if (recentList) {
+        if (recentTx.length === 0) {
+            recentList.innerHTML = `
+                <div class="px-4 py-8 text-center">
+                    <i
+                        data-lucide="receipt-text"
+                        class="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700"
+                    ></i>
+                    <p class="mt-2 text-xs text-slate-400">
+                        Belum ada transaksi.
+                    </p>
+                </div>
+            `;
+        } else {
+            recentList.innerHTML = recentTx.map(transaction => {
+                let amount = Number(transaction.credit) || 0;
+                let amountClass =
+                    'text-rose-600 dark:text-rose-400';
+                let icon = 'arrow-up-right';
+                let iconClass = [
+                    'bg-rose-50',
+                    'text-rose-600',
+                    'dark:bg-rose-950/30',
+                    'dark:text-rose-400'
+                ].join(' ');
+                let displayCategory =
+                    transaction.category || '-';
+                let displayAccount =
+                    transaction.account || '-';
 
-        amount = t.credit || t.debit;
-        displayCategory = 'Transfer Dana';
-        displayAccount =
-            `${t.account} ➔ ${t.targetAccount}`;
-    } else if (Number(t.debit) > 0) {
-        colorClass =
-            'text-emerald-600 dark:text-emerald-400 font-bold';
+                if (transaction.isTransfer) {
+                    amount =
+                        Number(transaction.credit) ||
+                        Number(transaction.debit) ||
+                        0;
+                    amountClass =
+                        'text-blueSystem-500 dark:text-blueSystem-100';
+                    icon = 'repeat-2';
+                    iconClass = [
+                        'bg-blueSystem-50',
+                        'text-blueSystem-500',
+                        'dark:bg-blueSystem-900/30',
+                        'dark:text-blueSystem-100'
+                    ].join(' ');
+                    displayCategory = 'Transfer Dana';
+                    displayAccount =
+                        `${transaction.account} ➔ ` +
+                        `${transaction.targetAccount}`;
+                } else if (Number(transaction.debit) > 0) {
+                    amount = Number(transaction.debit) || 0;
+                    amountClass =
+                        'text-emerald-600 dark:text-emerald-400';
+                    icon = 'arrow-down-left';
+                    iconClass = [
+                        'bg-emerald-50',
+                        'text-emerald-600',
+                        'dark:bg-emerald-900/30',
+                        'dark:text-emerald-400'
+                    ].join(' ');
+                }
 
-        amount = t.debit;
-    }
+                const encodedId = encodeActionValue(
+                    transaction.id
+                );
 
-    tableBody.innerHTML += `
-        <tr class="
-            hover:bg-slate-50
-            dark:hover:bg-slate-900/60
-            transition-colors
-        ">
-            <td class="
-                py-2.5 px-4
-                text-slate-500
-                whitespace-nowrap
-            ">
-                ${escapeHtml(
-                    formatTanggalIndo(t.date)
-                )}
-            </td>
+                const note = normalizeText(
+                    transaction.notes
+                );
 
-            <td class="
-                py-2.5 px-4
-                font-semibold
-                text-slate-900 dark:text-white
-            ">
-                ${escapeHtml(t.name)}
-            </td>
+                return `
+                    <button
+                        type="button"
+                        onclick="
+                            openTransactionDetailModal(
+                                decodeActionValue('${encodedId}')
+                            )
+                        "
+                        class="
+                            w-full px-4 py-3.5
+                            flex items-center gap-3
+                            text-left
+                            hover:bg-slate-50
+                            dark:hover:bg-slate-900/60
+                            transition-colors
+                        "
+                    >
+                        <span class="
+                            shrink-0 w-9 h-9 rounded-xl
+                            flex items-center justify-center
+                            ${iconClass}
+                        ">
+                            <i
+                                data-lucide="${icon}"
+                                class="w-4 h-4"
+                            ></i>
+                        </span>
 
-            <td class="
-                py-2.5 px-4
-                ${colorClass}
-            ">
-                ${formatRupiah(amount, true)}
-            </td>
+                        <span class="min-w-0 flex-1">
+                            <span class="
+                                block text-xs font-semibold
+                                text-slate-900 dark:text-white
+                                truncate
+                            ">
+                                ${escapeHtml(transaction.name || '-')}
+                            </span>
 
-            <td class="
-                py-2.5 px-4
-                text-slate-500
-            ">
-                ${escapeHtml(displayCategory)}
-            </td>
+                            <span class="
+                                mt-1 block text-[10px]
+                                text-slate-400 truncate
+                            ">
+                                ${escapeHtml(
+                                    formatTanggalIndo(transaction.date)
+                                )}
+                                <span class="mx-1">•</span>
+                                ${escapeHtml(displayCategory)}
+                                ${note ? `
+                                    <span class="mx-1">•</span>
+                                    ${escapeHtml(note)}
+                                ` : ''}
+                            </span>
+                        </span>
 
-            <td class="py-2.5 px-4">
-                <span class="
-                    bg-slate-100
-                    dark:bg-slate-800
-                    px-1.5 py-0.5
-                    rounded
-                    text-slate-700
-                    dark:text-slate-300
-                    font-medium
-                ">
-                    ${escapeHtml(displayAccount)}
-                </span>
-            </td>
+                        <span class="shrink-0 text-right" style="max-width: 42%;">
+                            <span class="
+                                block text-xs font-bold
+                                whitespace-nowrap
+                                ${amountClass}
+                            ">
+                                ${formatRupiah(amount, true)}
+                            </span>
 
-            <td
-                class="
-                    py-2.5 px-4
-                    text-slate-400
-                    max-w-[120px]
-                    truncate
-                "
-                title="${escapeHtml(t.notes || '')}"
-            >
-                ${escapeHtml(t.notes || '-')}
-            </td>
-        </tr>
-    `;
-});
+                            <span class="
+                                mt-1 inline-block max-w-full
+                                truncate rounded
+                                bg-slate-100 dark:bg-slate-800
+                                px-1.5 py-0.5
+                                text-[9px] font-medium
+                                text-slate-500 dark:text-slate-300
+                            ">
+                                ${escapeHtml(displayAccount)}
+                            </span>
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        }
     }
 }
 
@@ -1656,6 +2680,2539 @@ function renderMobileTransactionCards(
 
     container.innerHTML =
         html || emptyStateHTML;
+}
+
+function getTodayLocalDate() {
+    const today = new Date();
+
+    return [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0')
+    ].join('-');
+}
+
+function getLoanTransactions(loanId, role = '') {
+    const normalizedLoanId = normalizeText(loanId);
+
+    return transactions.filter(transaction => {
+        if (normalizeText(transaction.loanId) !== normalizedLoanId) {
+            return false;
+        }
+
+        if (!role) {
+            return true;
+        }
+
+        return normalizeText(transaction.loanRole).toLowerCase() === role;
+    });
+}
+
+function getLoanRepaymentAmount(loan, transaction) {
+    if (!loan || !transaction || transaction.isTransfer) {
+        return 0;
+    }
+
+    if (normalizeText(transaction.loanRole).toLowerCase() !== 'repayment') {
+        return 0;
+    }
+
+    if (loan.type === 'Piutang') {
+        return Math.max(0, Number(transaction.debit) || 0);
+    }
+
+    return Math.max(0, Number(transaction.credit) || 0);
+}
+
+function getLoanProgress(loan) {
+    const principal = Math.max(0, Number(loan?.principal) || 0);
+
+    const repaymentTransactions = getLoanTransactions(
+        loan?.id,
+        'repayment'
+    );
+
+    const totalRepayment = repaymentTransactions.reduce(
+        (total, transaction) => {
+            return total + getLoanRepaymentAmount(loan, transaction);
+        },
+        0
+    );
+
+    const paid = Math.min(principal, totalRepayment);
+    const remaining = Math.max(0, principal - totalRepayment);
+    const overpayment = Math.max(0, totalRepayment - principal);
+
+    let status = 'unpaid';
+    let statusLabel = 'Belum Lunas';
+
+    if (principal > 0 && remaining <= 0) {
+        status = 'paid';
+        statusLabel = 'Lunas';
+    } else if (totalRepayment > 0) {
+        status = 'partial';
+        statusLabel = 'Dicicil';
+    }
+
+    return {
+        principal,
+        totalRepayment,
+        paid,
+        remaining,
+        overpayment,
+        status,
+        statusLabel,
+        repaymentCount: repaymentTransactions.length
+    };
+}
+
+function populateLoanMonthFilter() {
+    const monthSelect = document.getElementById('loanMonthFilter');
+
+    if (!monthSelect) {
+        return;
+    }
+
+    const availableMonths = new Set();
+
+    userLoans.forEach(loan => {
+        const month = getLocalMonth(loan.date);
+
+        if (month) {
+            availableMonths.add(month);
+        }
+    });
+
+    const sortedMonths = [...availableMonths]
+        .sort((firstMonth, secondMonth) =>
+            secondMonth.localeCompare(firstMonth)
+        );
+
+    monthSelect.innerHTML = `
+        <option value="">Semua Bulan</option>
+        ${sortedMonths.map(month => `
+            <option value="${month}">
+                ${escapeHtml(formatTransactionMonthLabel(month))}
+            </option>
+        `).join('')}
+    `;
+
+    if (
+        loanMonthFilter &&
+        !sortedMonths.includes(loanMonthFilter)
+    ) {
+        loanMonthFilter = '';
+    }
+
+    monthSelect.value = loanMonthFilter;
+}
+
+function handleLoanFilterChange() {
+    loanTypeFilter =
+        document.getElementById('loanTypeFilter')?.value || 'all';
+
+    loanStatusFilter =
+        document.getElementById('loanStatusFilter')?.value || 'unpaid';
+
+    loanMonthFilter =
+        document.getElementById('loanMonthFilter')?.value || '';
+
+    renderLoansPage();
+}
+
+function populateLoanOriginAccountOptions() {
+    const accountSelect = document.getElementById('loanOriginAccountInput');
+
+    if (!accountSelect) {
+        return;
+    }
+
+    accountSelect.innerHTML = userAccounts.length > 0
+        ? userAccounts.map(account => `
+            <option value="${escapeHtml(account.name)}">
+                ${escapeHtml(account.name)}
+            </option>
+        `).join('')
+        : '<option value="">Belum ada akun</option>';
+}
+
+function updateLoanTypeButtons() {
+    const typeInput = document.getElementById('loanTypeInput');
+    const hutangButton = document.getElementById('loanTypeHutangButton');
+    const piutangButton = document.getElementById('loanTypePiutangButton');
+
+    if (!typeInput || !hutangButton || !piutangButton) {
+        return;
+    }
+
+    const selectedType = typeInput.value === 'Hutang'
+        ? 'Hutang'
+        : 'Piutang';
+
+    const isLocked = typeInput.dataset.locked === 'true';
+
+    const baseClasses = [
+        'rounded-lg',
+        'px-3',
+        'py-2.5',
+        'text-xs',
+        'font-semibold',
+        'transition-all'
+    ];
+
+    const inactiveClasses = [
+        'text-slate-500',
+        'dark:text-slate-400',
+        'hover:bg-white/70',
+        'dark:hover:bg-slate-800/70'
+    ];
+
+    const buttonConfigs = [
+        {
+            button: hutangButton,
+            type: 'Hutang',
+            activeClasses: [
+                'bg-rose-600',
+                'text-white',
+                'shadow-sm'
+            ]
+        },
+        {
+            button: piutangButton,
+            type: 'Piutang',
+            activeClasses: [
+                'bg-blueSystem-500',
+                'text-white',
+                'shadow-sm'
+            ]
+        }
+    ];
+
+    buttonConfigs.forEach(config => {
+        const isActive = selectedType === config.type;
+
+        config.button.className = [
+            ...baseClasses,
+            ...(isActive
+                ? config.activeClasses
+                : inactiveClasses),
+            ...(isLocked
+                ? ['cursor-not-allowed', 'opacity-70']
+                : [])
+        ].join(' ');
+
+        config.button.disabled = isLocked;
+        config.button.setAttribute(
+            'aria-pressed',
+            isActive ? 'true' : 'false'
+        );
+    });
+}
+
+function setLoanFormType(type, { force = false } = {}) {
+    const typeInput = document.getElementById('loanTypeInput');
+
+    if (!typeInput) {
+        return;
+    }
+
+    if (
+        typeInput.dataset.locked === 'true' &&
+        !force
+    ) {
+        return;
+    }
+
+    typeInput.value = type === 'Hutang'
+        ? 'Hutang'
+        : 'Piutang';
+
+    updateLoanTypeButtons();
+    updateLoanPartyField();
+    updateLoanOriginFields();
+}
+
+function setLoanFormTypeLocked(isLocked) {
+    const typeInput = document.getElementById('loanTypeInput');
+
+    if (!typeInput) {
+        return;
+    }
+
+    typeInput.dataset.locked = isLocked
+        ? 'true'
+        : 'false';
+
+    updateLoanTypeButtons();
+}
+
+function updateLoanDueDateField() {
+    const noDueDateInput = document.getElementById(
+        'loanNoDueDateInput'
+    );
+    const dueDateInput = document.getElementById(
+        'loanDueDateInput'
+    );
+
+    if (!noDueDateInput || !dueDateInput) {
+        return;
+    }
+
+    const hasNoDueDate = noDueDateInput.checked;
+
+    dueDateInput.disabled = hasNoDueDate;
+    dueDateInput.required = !hasNoDueDate;
+
+    if (hasNoDueDate) {
+        dueDateInput.value = '';
+    }
+}
+
+function showLoanNoticeModal(title, message) {
+    const modal = document.getElementById('loanNoticeModal');
+    const titleElement = document.getElementById('loanNoticeTitle');
+    const messageElement = document.getElementById('loanNoticeMessage');
+
+    if (!modal || !titleElement || !messageElement) {
+        return;
+    }
+
+    titleElement.textContent = normalizeText(title) || 'Perhatian';
+    messageElement.textContent = normalizeText(message);
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    lucide.createIcons();
+}
+
+function closeLoanNoticeModal() {
+    const modal = document.getElementById('loanNoticeModal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+
+    const hasOpenLoanModal = [
+        'loanFormModal',
+        'loanDetailModal',
+        'loanRepaymentModal'
+    ].some(modalId => {
+        const element = document.getElementById(modalId);
+        return element && !element.classList.contains('hidden');
+    });
+
+    if (!hasOpenLoanModal) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function handleLoanNoticeBackdrop(event) {
+    if (event.target?.id === 'loanNoticeModal') {
+        closeLoanNoticeModal();
+    }
+}
+
+function updateLoanPartyField() {
+    const typeInput = document.getElementById('loanTypeInput');
+    const partyLabel = document.getElementById('loanPartyLabel');
+    const partyInput = document.getElementById('loanPartyInput');
+
+    if (!typeInput) {
+        return;
+    }
+
+    const type = typeInput.value === 'Hutang'
+        ? 'Hutang'
+        : 'Piutang';
+
+    if (partyLabel) {
+        partyLabel.textContent = type === 'Hutang'
+            ? 'Pemberi Dana'
+            : 'Penerima Dana';
+    }
+
+    if (partyInput) {
+        partyInput.placeholder = 'Nama Orang / Toko';
+    }
+}
+
+function updateLoanOriginModeButtons() {
+    const modeInput = document.getElementById('loanOriginModeInput');
+    const yesButton = document.getElementById('loanOriginYesButton');
+    const noButton = document.getElementById('loanOriginNoButton');
+
+    if (!modeInput || !yesButton || !noButton) {
+        return;
+    }
+
+    const selectedMode = modeInput.value === 'account'
+        ? 'account'
+        : 'none';
+
+    const baseClasses = [
+        'rounded-lg',
+        'px-3',
+        'py-2',
+        'text-xs',
+        'font-semibold',
+        'transition-all'
+    ];
+
+    const inactiveClasses = [
+        'text-slate-500',
+        'dark:text-slate-400',
+        'hover:bg-white/70',
+        'dark:hover:bg-slate-800/70'
+    ];
+
+    [
+        {
+            button: yesButton,
+            mode: 'account'
+        },
+        {
+            button: noButton,
+            mode: 'none'
+        }
+    ].forEach(config => {
+        const isActive = selectedMode === config.mode;
+
+        config.button.className = [
+            ...baseClasses,
+            ...(isActive
+                ? [
+                    'bg-blueSystem-500',
+                    'text-white',
+                    'shadow-sm'
+                ]
+                : inactiveClasses)
+        ].join(' ');
+
+        config.button.setAttribute(
+            'aria-pressed',
+            isActive ? 'true' : 'false'
+        );
+    });
+}
+
+function setLoanOriginMode(mode) {
+    const modeInput = document.getElementById('loanOriginModeInput');
+
+    if (!modeInput) {
+        return;
+    }
+
+    modeInput.value = mode === 'account'
+        ? 'account'
+        : 'none';
+
+    updateLoanOriginModeButtons();
+    updateLoanOriginFields();
+}
+
+function updateLoanOriginFields() {
+    const typeInput = document.getElementById('loanTypeInput');
+    const modeInput = document.getElementById('loanOriginModeInput');
+    const accountContainer = document.getElementById(
+        'loanOriginAccountContainer'
+    );
+    const helpElement = document.getElementById('loanOriginHelp');
+
+    if (!typeInput || !modeInput || !accountContainer) {
+        return;
+    }
+
+    const type = typeInput.value === 'Hutang'
+        ? 'Hutang'
+        : 'Piutang';
+
+    const usesAccount = modeInput.value === 'account';
+
+    accountContainer.classList.toggle(
+        'hidden',
+        !usesAccount
+    );
+
+    updateLoanPartyField();
+    updateLoanOriginModeButtons();
+
+    if (helpElement) {
+        if (usesAccount) {
+            helpElement.textContent = type === 'Piutang'
+                ? 'Saldo berkurang saat dana diberikan.'
+                : 'Saldo bertambah saat dana diterima.';
+        } else {
+            helpElement.textContent = type === 'Piutang'
+                ? 'Saldo tidak berubah pada pencatatan awal.'
+                : 'Saldo tidak berubah pada pencatatan awal.';
+        }
+    }
+}
+
+function setLoanFormHeader({ editing = false } = {}) {
+    const title = document.getElementById('loanFormTitle');
+    const submitText = document.getElementById('loanFormSubmitText');
+
+    if (title) {
+        title.textContent = editing
+            ? 'Edit Pinjaman'
+            : 'Tambah Pinjaman';
+    }
+
+    if (submitText) {
+        submitText.textContent = editing
+            ? 'Simpan Perubahan'
+            : 'Simpan Pinjaman';
+    }
+}
+
+function updateLoanFormLayout({ editing = false } = {}) {
+    const originModeContainer = document.getElementById(
+        'loanOriginModeContainer'
+    );
+    const originAccountContainer = document.getElementById(
+        'loanOriginAccountContainer'
+    );
+    const originHelp = document.getElementById('loanOriginHelp');
+    const partyField = document.getElementById(
+        'loanPartyFieldContainer'
+    );
+
+    originModeContainer?.classList.toggle('hidden', editing);
+    originAccountContainer?.classList.add('hidden');
+    originHelp?.classList.toggle('hidden', editing);
+    partyField?.classList.toggle('col-span-2', editing);
+}
+
+function openLoanFormModal() {
+    const modal = document.getElementById('loanFormModal');
+    const form = document.getElementById('loanForm');
+
+    if (!modal || !form) {
+        return;
+    }
+
+    form.reset();
+
+    const editIdInput = document.getElementById('loanFormEditId');
+    const dateInput = document.getElementById('loanDateInput');
+    const modeInput = document.getElementById('loanOriginModeInput');
+    const noDueDateInput = document.getElementById('loanNoDueDateInput');
+    const dueDateInput = document.getElementById('loanDueDateInput');
+
+    if (editIdInput) {
+        editIdInput.value = '';
+    }
+
+    if (dateInput) {
+        dateInput.value = getTodayLocalDate();
+    }
+
+    if (modeInput) {
+        modeInput.value = 'none';
+    }
+
+    if (noDueDateInput) {
+        noDueDateInput.checked = true;
+    }
+
+    if (dueDateInput) {
+        dueDateInput.value = '';
+    }
+
+    updateLoanDueDateField();
+    setLoanFormTypeLocked(false);
+    setLoanFormType('Piutang', { force: true });
+    updateLoanFormLayout({ editing: false });
+    populateLoanOriginAccountOptions();
+    updateLoanOriginFields();
+    setLoanFormHeader({ editing: false });
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    window.setTimeout(() => {
+        document.getElementById('loanNameInput')?.focus();
+    }, 50);
+
+    lucide.createIcons();
+}
+
+function openLoanEditModal(loanId) {
+    const loan = getLoanById(loanId);
+    const modal = document.getElementById('loanFormModal');
+    const form = document.getElementById('loanForm');
+
+    if (!loan || !modal || !form) {
+        return;
+    }
+
+    form.reset();
+
+    const editIdInput = document.getElementById('loanFormEditId');
+
+    if (editIdInput) {
+        editIdInput.value = loan.id;
+    }
+
+    document.getElementById('loanNameInput').value =
+        loan.name || '';
+
+    document.getElementById('loanDateInput').value =
+        loan.date || '';
+
+    document.getElementById('loanPrincipalInput').value =
+        new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits:
+                Number.isInteger(Number(loan.principal)) ? 0 : 2,
+            maximumFractionDigits: 2
+        }).format(Number(loan.principal) || 0);
+
+    document.getElementById('loanPartyInput').value =
+        loan.party || '';
+
+    document.getElementById('loanNotesInput').value =
+        loan.notes || '';
+
+    const noDueDateInput = document.getElementById('loanNoDueDateInput');
+    const dueDateInput = document.getElementById('loanDueDateInput');
+    const dueDate = normalizeDateValue(loan.dueDate);
+
+    if (noDueDateInput) {
+        noDueDateInput.checked = !dueDate;
+    }
+
+    if (dueDateInput) {
+        dueDateInput.value = dueDate;
+    }
+
+    updateLoanDueDateField();
+    setLoanFormType(loan.type, { force: true });
+    setLoanFormTypeLocked(true);
+    updateLoanFormLayout({ editing: true });
+    setLoanFormHeader({ editing: true });
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    window.setTimeout(() => {
+        document.getElementById('loanNameInput')?.focus();
+    }, 50);
+
+    lucide.createIcons();
+}
+
+function closeLoanFormModal() {
+    const modal = document.getElementById('loanFormModal');
+    const editIdInput = document.getElementById('loanFormEditId');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+
+    if (editIdInput) {
+        editIdInput.value = '';
+    }
+
+    setLoanFormTypeLocked(false);
+    document.body.classList.remove('overflow-hidden');
+}
+
+function handleLoanFormBackdrop(event) {
+    if (event.target?.id === 'loanFormModal') {
+        closeLoanFormModal();
+    }
+}
+
+function submitLoanForm(event) {
+    event.preventDefault();
+
+    const editId = normalizeText(
+        document.getElementById('loanFormEditId')?.value
+    );
+
+    const type = normalizeText(
+        document.getElementById('loanTypeInput')?.value
+    );
+
+    const name = normalizeText(
+        document.getElementById('loanNameInput')?.value
+    );
+
+    const date = normalizeDateValue(
+        document.getElementById('loanDateInput')?.value
+    );
+
+    const principal = Math.max(
+        0,
+        parseNominal(
+            document.getElementById('loanPrincipalInput')?.value
+        )
+    );
+
+    const party = normalizeText(
+        document.getElementById('loanPartyInput')?.value
+    );
+
+    const notes = normalizeText(
+        document.getElementById('loanNotesInput')?.value
+    );
+
+    const hasNoDueDate = Boolean(
+        document.getElementById('loanNoDueDateInput')?.checked
+    );
+
+    const dueDate = hasNoDueDate
+        ? ''
+        : normalizeDateValue(
+            document.getElementById('loanDueDateInput')?.value
+        );
+
+    if (!['Hutang', 'Piutang'].includes(type)) {
+        showLoanNoticeModal('Jenis Tidak Valid', 'Pilih Hutang atau Piutang.');
+        return;
+    }
+
+    if (!name || !date) {
+        showLoanNoticeModal('Data Belum Lengkap', 'Nama dan tanggal wajib diisi.');
+        return;
+    }
+
+    if (principal <= 0) {
+        showLoanNoticeModal('Nominal Tidak Valid', 'Nominal harus lebih besar dari 0.');
+        return;
+    }
+
+    if (!hasNoDueDate && !dueDate) {
+        showLoanNoticeModal('Jatuh Tempo Belum Dipilih', 'Pilih tanggal jatuh tempo atau aktifkan opsi tanpa jatuh tempo.');
+        return;
+    }
+
+    if (dueDate && dueDate < date) {
+        showLoanNoticeModal('Jatuh Tempo Tidak Valid', 'Tanggal jatuh tempo tidak boleh lebih awal daripada tanggal pencatatan.');
+        return;
+    }
+
+    if (editId) {
+        const loan = getLoanById(editId);
+
+        if (!loan) {
+            showLoanNoticeModal('Data Tidak Ditemukan', 'Record pinjaman yang diedit tidak ditemukan.');
+            return;
+        }
+
+        const progress = getLoanProgress(loan);
+
+        if (principal < progress.totalRepayment) {
+            showLoanNoticeModal(
+                'Nominal Tidak Dapat Diubah',
+                'Nominal tidak boleh lebih kecil daripada total ' +
+                `pelunasan yang sudah tercatat (${formatRupiah(
+                    progress.totalRepayment
+                )}).`
+            );
+            return;
+        }
+
+        userLoans = userLoans.map(item => {
+            if (item.id !== editId) {
+                return item;
+            }
+
+            return {
+                ...item,
+                name,
+                date,
+                type: item.type,
+                principal,
+                party,
+                notes,
+                dueDate
+            };
+        });
+
+        closeLoanFormModal();
+        commitDataChange();
+        return;
+    }
+
+    const originMode =
+        document.getElementById('loanOriginModeInput')?.value || 'none';
+
+    const originAccount = normalizeText(
+        document.getElementById('loanOriginAccountInput')?.value
+    );
+
+    if (originMode === 'account') {
+        const accountExists = userAccounts.some(
+            account => account.name === originAccount
+        );
+
+        if (!accountExists) {
+            showLoanNoticeModal('Akun Belum Dipilih', 'Pilih akun yang saldonya akan berubah.');
+            return;
+        }
+    }
+
+    const loanId = createLoanId();
+
+    userLoans.push({
+        id: loanId,
+        date,
+        name,
+        type,
+        principal,
+        party,
+        notes,
+        dueDate
+    });
+
+    if (originMode === 'account') {
+        const categoryExists = userCategories.neutral.some(
+            category =>
+                category.toLocaleLowerCase('id-ID') ===
+                type.toLocaleLowerCase('id-ID')
+        );
+
+        if (!categoryExists) {
+            userCategories.neutral.push(type);
+        }
+
+        transactions.push({
+            id: createTransactionId(),
+            date,
+            name,
+            credit: type === 'Piutang' ? principal : 0,
+            debit: type === 'Hutang' ? principal : 0,
+            category: type,
+            account: originAccount,
+            targetAccount: '',
+            notes: party
+                ? `Pihak terkait: ${party}`
+                : '',
+            loanId,
+            loanRole: 'principal',
+            isTransfer: false
+        });
+    }
+
+    closeLoanFormModal();
+    commitDataChange();
+}
+
+function getLoanById(loanId) {
+    const normalizedLoanId = normalizeText(loanId);
+
+    return userLoans.find(
+        loan => normalizeText(loan.id) === normalizedLoanId
+    ) || null;
+}
+
+function getLoanRepaymentCandidateAmount(loan, transaction) {
+    if (!loan || !transaction || transaction.isTransfer) {
+        return 0;
+    }
+
+    return loan.type === 'Piutang'
+        ? Math.max(0, Number(transaction.debit) || 0)
+        : Math.max(0, Number(transaction.credit) || 0);
+}
+
+function isLoanRepaymentCandidate(loan, transaction) {
+    if (!loan || !transaction || transaction.isTransfer) {
+        return false;
+    }
+
+    if (
+        normalizeText(transaction.loanId) ||
+        normalizeText(transaction.loanRole)
+    ) {
+        return false;
+    }
+
+    const transactionCategory = normalizeText(transaction.category)
+        .toLocaleLowerCase('id-ID');
+
+    const loanCategory = normalizeText(loan.type)
+        .toLocaleLowerCase('id-ID');
+
+    if (transactionCategory !== loanCategory) {
+        return false;
+    }
+
+    return getLoanRepaymentCandidateAmount(loan, transaction) > 0;
+}
+
+function getLoanRepaymentCandidates(loan) {
+    return sortTransactionsNewestFirst(
+        transactions.filter(transaction =>
+            isLoanRepaymentCandidate(loan, transaction)
+        )
+    );
+}
+
+function setLoanRepaymentMode(mode) {
+    loanRepaymentMode = mode === 'new' ? 'new' : 'existing';
+
+    const existingPanel = document.getElementById(
+        'loanRepaymentExistingPanel'
+    );
+    const newPanel = document.getElementById(
+        'loanRepaymentNewPanel'
+    );
+    const existingTab = document.getElementById(
+        'loanRepaymentExistingTab'
+    );
+    const newTab = document.getElementById(
+        'loanRepaymentNewTab'
+    );
+
+    existingPanel?.classList.toggle(
+        'hidden',
+        loanRepaymentMode !== 'existing'
+    );
+
+    newPanel?.classList.toggle(
+        'hidden',
+        loanRepaymentMode !== 'new'
+    );
+
+    const activeClass = [
+        'bg-white',
+        'dark:bg-slate-800',
+        'text-blueSystem-500',
+        'dark:text-white',
+        'shadow-sm'
+    ];
+
+    const inactiveClass = [
+        'text-slate-500',
+        'dark:text-slate-400'
+    ];
+
+    [existingTab, newTab].forEach(button => {
+        if (!button) return;
+
+        button.classList.remove(
+            ...activeClass,
+            ...inactiveClass
+        );
+    });
+
+    const activeTab = loanRepaymentMode === 'existing'
+        ? existingTab
+        : newTab;
+
+    const inactiveTab = loanRepaymentMode === 'existing'
+        ? newTab
+        : existingTab;
+
+    activeTab?.classList.add(...activeClass);
+    inactiveTab?.classList.add(...inactiveClass);
+}
+
+function populateLoanRepaymentAccountOptions() {
+    const accountSelect = document.getElementById(
+        'loanRepaymentAccountInput'
+    );
+
+    if (!accountSelect) {
+        return;
+    }
+
+    accountSelect.innerHTML = userAccounts.length > 0
+        ? userAccounts.map(account => `
+            <option value="${escapeHtml(account.name)}">
+                ${escapeHtml(account.name)}
+            </option>
+        `).join('')
+        : '<option value="">Belum ada akun</option>';
+}
+
+function handleLoanRepaymentSearch() {
+    loanRepaymentSearchQuery = normalizeText(
+        document.getElementById('loanRepaymentSearchInput')?.value
+    ).toLocaleLowerCase('id-ID');
+
+    const loan = getLoanById(loanRepaymentTargetId);
+
+    if (loan) {
+        renderLoanRepaymentCandidates(loan);
+    }
+}
+
+function toggleLoanRepaymentCandidate(transactionId, isChecked) {
+    const normalizedId = normalizeText(transactionId);
+
+    if (!normalizedId) {
+        return;
+    }
+
+    if (isChecked) {
+        loanRepaymentSelectedIds.add(normalizedId);
+    } else {
+        loanRepaymentSelectedIds.delete(normalizedId);
+    }
+
+    updateLoanRepaymentSelection();
+}
+
+function renderLoanRepaymentCandidates(loan) {
+    const container = document.getElementById(
+        'loanRepaymentCandidateList'
+    );
+
+    if (!container) {
+        return;
+    }
+
+    const progress = getLoanProgress(loan);
+    const allCandidates = getLoanRepaymentCandidates(loan);
+
+    const candidates = allCandidates.filter(transaction => {
+        if (!loanRepaymentSearchQuery) {
+            return true;
+        }
+
+        const searchableText = [
+            transaction.name,
+            transaction.account,
+            transaction.notes,
+            transaction.category,
+            formatTanggalIndo(transaction.date)
+        ]
+            .map(value => normalizeText(value))
+            .join(' ')
+            .toLocaleLowerCase('id-ID');
+
+        return searchableText.includes(
+            loanRepaymentSearchQuery
+        );
+    });
+
+    if (candidates.length === 0) {
+        const hasSearch = Boolean(loanRepaymentSearchQuery);
+
+        container.innerHTML = `
+            <div class="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center">
+                <i
+                    data-lucide="${hasSearch ? 'search-x' : 'inbox'}"
+                    class="w-7 h-7 mx-auto text-slate-300 dark:text-slate-700"
+                ></i>
+
+                <p class="mt-2 text-[11px] text-slate-400">
+                    ${
+                        hasSearch
+                            ? 'Tidak ada transaksi yang cocok dengan pencarian.'
+                            : 'Belum ada transaksi yang dapat dihubungkan.'
+                    }
+                </p>
+
+                ${!hasSearch ? `
+                    <button
+                        type="button"
+                        onclick="setLoanRepaymentMode('new')"
+                        class="mt-3 text-[11px] font-semibold text-blueSystem-500"
+                    >
+                        Catat transaksi baru
+                    </button>
+                ` : ''}
+            </div>
+        `;
+
+        updateLoanRepaymentSelection();
+        lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = candidates.map(transaction => {
+        const amount = getLoanRepaymentCandidateAmount(
+            loan,
+            transaction
+        );
+
+        const exceedsRemaining = amount > progress.remaining;
+        const isSelected = loanRepaymentSelectedIds.has(
+            transaction.id
+        );
+
+        return `
+            <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 ${
+                exceedsRemaining
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'cursor-pointer hover:border-blueSystem-500/50'
+            } transition-colors">
+                <input
+                    type="checkbox"
+                    name="loanRepaymentCandidate"
+                    value="${escapeHtml(transaction.id)}"
+                    data-amount="${amount}"
+                    onchange="toggleLoanRepaymentCandidate(this.value, this.checked)"
+                    class="shrink-0 w-4 h-4 rounded border-slate-300 text-blueSystem-500 focus:ring-blueSystem-500"
+                    ${isSelected ? 'checked' : ''}
+                    ${exceedsRemaining ? 'disabled' : ''}
+                >
+
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                        ${escapeHtml(transaction.name || '-')}
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-slate-400 truncate">
+                        ${escapeHtml(formatTanggalIndo(transaction.date))}
+                        <span class="mx-1">•</span>
+                        ${escapeHtml(transaction.account || '-')}
+                    </p>
+
+                    ${exceedsRemaining ? `
+                        <p class="mt-1 text-[9px] font-medium text-rose-500">
+                            Nominal melebihi sisa pinjaman
+                        </p>
+                    ` : ''}
+                </div>
+
+                <span class="shrink-0 text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    ${formatRupiah(amount)}
+                </span>
+            </label>
+        `;
+    }).join('');
+
+    updateLoanRepaymentSelection();
+}
+
+function updateLoanRepaymentSelection() {
+    const loan = getLoanById(loanRepaymentTargetId);
+
+    if (!loan) {
+        loanRepaymentSelectedIds.clear();
+    }
+
+    const validCandidateIds = new Set(
+        loan
+            ? getLoanRepaymentCandidates(loan)
+                .map(transaction => transaction.id)
+            : []
+    );
+
+    Array.from(loanRepaymentSelectedIds).forEach(
+        transactionId => {
+            if (!validCandidateIds.has(transactionId)) {
+                loanRepaymentSelectedIds.delete(transactionId);
+            }
+        }
+    );
+
+    const selectedTotal = loan
+        ? transactions.reduce(
+            (total, transaction) => {
+                if (!loanRepaymentSelectedIds.has(transaction.id)) {
+                    return total;
+                }
+
+                return total + getLoanRepaymentCandidateAmount(
+                    loan,
+                    transaction
+                );
+            },
+            0
+        )
+        : 0;
+
+    const totalElement = document.getElementById(
+        'loanRepaymentSelectedTotal'
+    );
+
+    if (totalElement) {
+        totalElement.textContent = formatRupiah(selectedTotal);
+    }
+}
+
+function openLoanRepaymentModal(loanId) {
+    const loan = getLoanById(loanId);
+
+    if (!loan) {
+        return;
+    }
+
+    const progress = getLoanProgress(loan);
+
+    if (progress.status === 'paid') {
+        showLoanNoticeModal('Pinjaman Sudah Lunas', 'Tidak ada sisa nominal yang perlu dilunasi.');
+        return;
+    }
+
+    loanRepaymentTargetId = loan.id;
+    loanRepaymentSearchQuery = '';
+    loanRepaymentSelectedIds.clear();
+
+    const subtitle = document.getElementById(
+        'loanRepaymentModalSubtitle'
+    );
+
+    if (subtitle) {
+        subtitle.textContent = [
+            loan.type,
+            loan.name,
+            loan.party
+        ].filter(Boolean).join(' • ');
+    }
+
+    const principalElement = document.getElementById(
+        'loanRepaymentPrincipal'
+    );
+    const paidElement = document.getElementById(
+        'loanRepaymentPaid'
+    );
+    const remainingElement = document.getElementById(
+        'loanRepaymentRemaining'
+    );
+
+    if (principalElement) {
+        principalElement.textContent = formatRupiah(progress.principal);
+    }
+
+    if (paidElement) {
+        paidElement.textContent = formatRupiah(progress.paid);
+    }
+
+    if (remainingElement) {
+        remainingElement.textContent = formatRupiah(progress.remaining);
+    }
+
+    const searchInput = document.getElementById(
+        'loanRepaymentSearchInput'
+    );
+
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    renderLoanRepaymentCandidates(loan);
+    populateLoanRepaymentAccountOptions();
+
+    const dateInput = document.getElementById(
+        'loanRepaymentDateInput'
+    );
+    const amountInput = document.getElementById(
+        'loanRepaymentAmountInput'
+    );
+    const nameInput = document.getElementById(
+        'loanRepaymentNameInput'
+    );
+    const notesInput = document.getElementById(
+        'loanRepaymentNotesInput'
+    );
+
+    if (dateInput) {
+        dateInput.value = getTodayLocalDate();
+    }
+
+    if (amountInput) {
+        amountInput.value = '';
+    }
+
+    if (nameInput) {
+        nameInput.value = `Pelunasan ${loan.name}`;
+    }
+
+    if (notesInput) {
+        notesInput.value = '';
+    }
+
+    setLoanRepaymentMode('existing');
+
+    const modal = document.getElementById(
+        'loanRepaymentModal'
+    );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    lucide.createIcons();
+}
+
+function closeLoanRepaymentModal() {
+    const modal = document.getElementById(
+        'loanRepaymentModal'
+    );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+    document.body.classList.remove('overflow-hidden');
+
+    loanRepaymentTargetId = null;
+    loanRepaymentSearchQuery = '';
+    loanRepaymentSelectedIds.clear();
+
+    const searchInput = document.getElementById(
+        'loanRepaymentSearchInput'
+    );
+
+    if (searchInput) {
+        searchInput.value = '';
+    }
+}
+
+function handleLoanRepaymentBackdrop(event) {
+    if (event.target?.id === 'loanRepaymentModal') {
+        closeLoanRepaymentModal();
+    }
+}
+
+function linkSelectedLoanRepayments() {
+    const loan = getLoanById(loanRepaymentTargetId);
+
+    if (!loan) {
+        closeLoanRepaymentModal();
+        return;
+    }
+
+    const selectedIds = new Set(
+        loanRepaymentSelectedIds
+    );
+
+    if (selectedIds.size === 0) {
+        showLoanNoticeModal('Belum Ada Transaksi Dipilih', 'Pilih minimal satu transaksi pelunasan.');
+        return;
+    }
+
+    const validCandidateIds = new Set(
+        getLoanRepaymentCandidates(loan)
+            .map(transaction => transaction.id)
+    );
+
+    const containsInvalidSelection = Array.from(
+        selectedIds
+    ).some(transactionId =>
+        !validCandidateIds.has(transactionId)
+    );
+
+    if (containsInvalidSelection) {
+        showLoanNoticeModal(
+            'Transaksi Tidak Tersedia',
+            'Sebagian transaksi yang dipilih sudah tidak dapat dihubungkan. ' +
+            'Silakan pilih ulang.'
+        );
+
+        renderLoanRepaymentCandidates(loan);
+        return;
+    }
+
+    const progress = getLoanProgress(loan);
+
+    const selectedTotal = transactions.reduce(
+        (total, transaction) => {
+            if (!selectedIds.has(transaction.id)) {
+                return total;
+            }
+
+            return total + getLoanRepaymentCandidateAmount(
+                loan,
+                transaction
+            );
+        },
+        0
+    );
+
+    if (selectedTotal > progress.remaining) {
+        showLoanNoticeModal('Nominal Melebihi Sisa', 'Total transaksi yang dipilih melebihi sisa pinjaman.');
+        return;
+    }
+
+    transactions = transactions.map(transaction => {
+        if (!selectedIds.has(transaction.id)) {
+            return transaction;
+        }
+
+        return {
+            ...transaction,
+            loanId: loan.id,
+            loanRole: 'repayment'
+        };
+    });
+
+    closeLoanRepaymentModal();
+    commitDataChange();
+}
+
+function submitNewLoanRepayment(event) {
+    event.preventDefault();
+
+    const loan = getLoanById(loanRepaymentTargetId);
+
+    if (!loan) {
+        closeLoanRepaymentModal();
+        return;
+    }
+
+    const progress = getLoanProgress(loan);
+
+    const name = normalizeText(
+        document.getElementById('loanRepaymentNameInput')?.value
+    );
+    const date = normalizeDateValue(
+        document.getElementById('loanRepaymentDateInput')?.value
+    );
+    const amount = Math.max(
+        0,
+        parseNominal(
+            document.getElementById('loanRepaymentAmountInput')?.value
+        )
+    );
+    const account = normalizeText(
+        document.getElementById('loanRepaymentAccountInput')?.value
+    );
+    const notes = normalizeText(
+        document.getElementById('loanRepaymentNotesInput')?.value
+    );
+
+    if (!name || !date) {
+        showLoanNoticeModal('Data Belum Lengkap', 'Nama dan tanggal transaksi wajib diisi.');
+        return;
+    }
+
+    if (amount <= 0) {
+        showLoanNoticeModal('Nominal Tidak Valid', 'Nominal pelunasan harus lebih besar dari 0.');
+        return;
+    }
+
+    if (amount > progress.remaining) {
+        showLoanNoticeModal('Nominal Melebihi Sisa', 'Nominal pelunasan melebihi sisa pinjaman.');
+        return;
+    }
+
+    const accountExists = userAccounts.some(
+        item => item.name === account
+    );
+
+    if (!accountExists) {
+        showLoanNoticeModal('Akun Belum Dipilih', 'Pilih akun keuangan untuk transaksi pelunasan.');
+        return;
+    }
+
+    const categoryExists = userCategories.neutral.some(
+        category => category.toLocaleLowerCase('id-ID') ===
+            loan.type.toLocaleLowerCase('id-ID')
+    );
+
+    if (!categoryExists) {
+        userCategories.neutral.push(loan.type);
+    }
+
+    transactions.push({
+        id: createTransactionId(),
+        date,
+        name,
+        credit: loan.type === 'Hutang' ? amount : 0,
+        debit: loan.type === 'Piutang' ? amount : 0,
+        category: loan.type,
+        account,
+        targetAccount: '',
+        notes,
+        loanId: loan.id,
+        loanRole: 'repayment',
+        isTransfer: false
+    });
+
+    closeLoanRepaymentModal();
+    commitDataChange();
+}
+
+function resetLoanRepaymentSwipeCard(card) {
+    if (!card) return;
+
+    card.style.transition = 'transform 180ms ease-out';
+    card.style.transform = 'translate3d(0, 0, 0)';
+
+    window.setTimeout(() => {
+        card.style.transition = '';
+    }, 200);
+}
+
+function startLoanRepaymentSwipe(event, loanId) {
+    if (window.matchMedia('(min-width: 768px)').matches) {
+        return;
+    }
+
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+    }
+
+    const loan = getLoanById(loanId);
+
+    if (!loan || getLoanProgress(loan).status === 'paid') {
+        return;
+    }
+
+    const card = event.currentTarget;
+
+    loanRepaymentSwipeState = {
+        loanId: loan.id,
+        card,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        currentX: 0,
+        isDragging: false
+    };
+
+    card.style.transition = 'none';
+
+    try {
+        card.setPointerCapture(event.pointerId);
+    } catch (error) {
+    }
+}
+
+function moveLoanRepaymentSwipe(event) {
+    const state = loanRepaymentSwipeState;
+
+    if (
+        !state ||
+        state.card !== event.currentTarget ||
+        state.pointerId !== event.pointerId
+    ) {
+        return;
+    }
+
+    const distanceX = event.clientX - state.startX;
+    const distanceY = event.clientY - state.startY;
+
+    if (!state.isDragging) {
+        if (Math.abs(distanceX) < 6 && Math.abs(distanceY) < 6) {
+            return;
+        }
+
+        if (Math.abs(distanceY) > Math.abs(distanceX)) {
+            resetLoanRepaymentSwipeCard(state.card);
+            loanRepaymentSwipeState = null;
+            return;
+        }
+
+        state.isDragging = true;
+    }
+
+    const maximumDistance = Math.min(
+        140,
+        state.card.clientWidth * 0.46
+    );
+
+    state.currentX = Math.min(
+        maximumDistance,
+        Math.max(0, distanceX)
+    );
+
+    state.card.style.transform =
+        `translate3d(${state.currentX}px, 0, 0)`;
+
+    event.preventDefault();
+}
+
+function finishLoanRepaymentSwipe(event) {
+    const state = loanRepaymentSwipeState;
+
+    if (
+        !state ||
+        state.card !== event.currentTarget ||
+        state.pointerId !== event.pointerId
+    ) {
+        return;
+    }
+
+    const requiredDistance = Math.min(
+        LOAN_REPAYMENT_SWIPE_DISTANCE,
+        state.card.clientWidth * 0.3
+    );
+
+    const shouldOpenModal =
+        state.isDragging &&
+        state.currentX >= requiredDistance;
+
+    if (state.isDragging) {
+        loanRepaymentSwipeSuppressClickUntil = Date.now() + 450;
+    }
+
+    resetLoanRepaymentSwipeCard(state.card);
+
+    const loanId = state.loanId;
+    loanRepaymentSwipeState = null;
+
+    if (shouldOpenModal) {
+        window.setTimeout(() => {
+            openLoanRepaymentModal(loanId);
+        }, 180);
+    }
+}
+
+function cancelLoanRepaymentSwipe(event) {
+    const state = loanRepaymentSwipeState;
+
+    if (!state || state.card !== event.currentTarget) {
+        return;
+    }
+
+    resetLoanRepaymentSwipeCard(state.card);
+    loanRepaymentSwipeState = null;
+}
+
+function getLoanStatusClasses(status) {
+    if (status === 'paid') {
+        return [
+            'bg-emerald-50',
+            'text-emerald-600',
+            'dark:bg-emerald-900/30',
+            'dark:text-emerald-400'
+        ];
+    }
+
+    if (status === 'partial') {
+        return [
+            'bg-amber-50',
+            'text-amber-600',
+            'dark:bg-amber-900/30',
+            'dark:text-amber-400'
+        ];
+    }
+
+    return [
+        'bg-slate-100',
+        'text-slate-600',
+        'dark:bg-slate-800',
+        'dark:text-slate-300'
+    ];
+}
+
+function renderLoanLinkedTransactionRow(
+    loan,
+    transaction,
+    { allowUnlink = false } = {}
+) {
+    const amount = normalizeText(transaction.loanRole)
+        .toLocaleLowerCase('id-ID') === 'repayment'
+        ? getLoanRepaymentAmount(loan, transaction)
+        : Math.max(
+            0,
+            Number(transaction.credit) ||
+            Number(transaction.debit) ||
+            0
+        );
+
+    const encodedTransactionId = encodeActionValue(
+        transaction.id
+    );
+
+    return `
+        <div class="
+            flex items-center gap-2
+            rounded-xl
+            bg-slate-50 dark:bg-slate-900
+            border border-slate-200 dark:border-slate-800
+            p-3
+        ">
+            <button
+                type="button"
+                onclick="openLinkedLoanTransactionDetail(
+                    decodeActionValue('${encodedTransactionId}')
+                )"
+                class="
+                    min-w-0 flex-1
+                    flex items-center justify-between gap-3
+                    text-left
+                "
+            >
+                <div class="min-w-0">
+                    <p class="
+                        text-xs font-semibold
+                        text-slate-900 dark:text-white
+                        truncate
+                    ">
+                        ${escapeHtml(transaction.name || '-')}
+                    </p>
+
+                    <p class="mt-1 text-[10px] text-slate-400 truncate">
+                        ${escapeHtml(formatTanggalIndo(transaction.date))}
+                        <span class="mx-1">•</span>
+                        ${escapeHtml(transaction.account || '-')}
+                    </p>
+                </div>
+
+                <span class="
+                    shrink-0 text-xs font-bold
+                    text-slate-700 dark:text-slate-200
+                    whitespace-nowrap
+                ">
+                    ${formatRupiah(amount)}
+                </span>
+            </button>
+
+            ${allowUnlink ? `
+                <button
+                    type="button"
+                    onclick="openLoanUnlinkConfirm(
+                        decodeActionValue('${encodedTransactionId}')
+                    )"
+                    class="
+                        shrink-0 w-8 h-8 rounded-lg
+                        flex items-center justify-center
+                        text-slate-400
+                        hover:bg-amber-50 hover:text-amber-600
+                        dark:hover:bg-amber-900/30
+                        dark:hover:text-amber-400
+                        transition-colors
+                    "
+                    aria-label="Batalkan tautan transaksi"
+                    title="Batalkan tautan"
+                >
+                    <i data-lucide="unlink" class="w-3.5 h-3.5"></i>
+                </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+function renderLoanDetailModalContent(loanId = loanDetailTargetId) {
+    const loan = getLoanById(loanId);
+
+    if (!loan) {
+        closeLoanDetailModal();
+        return;
+    }
+
+    loanDetailTargetId = loan.id;
+
+    const progress = getLoanProgress(loan);
+    const isDebt = loan.type === 'Hutang';
+    const typeColor = isDebt
+        ? 'text-rose-600 dark:text-rose-400'
+        : 'text-blueSystem-500 dark:text-blueSystem-100';
+
+    const typeElement = document.getElementById(
+        'loanDetailType'
+    );
+    const nameElement = document.getElementById(
+        'loanDetailName'
+    );
+    const metaElement = document.getElementById(
+        'loanDetailMeta'
+    );
+    const statusElement = document.getElementById(
+        'loanDetailStatus'
+    );
+    const notesElement = document.getElementById(
+        'loanDetailNotes'
+    );
+    const dueDateElement = document.getElementById(
+        'loanDetailDueDate'
+    );
+    const principalTitleElement = document.getElementById(
+        'loanDetailPrincipalTitle'
+    );
+
+    if (typeElement) {
+        typeElement.className = `text-[11px] font-semibold ${typeColor}`;
+        typeElement.textContent = loan.type;
+    }
+
+    if (nameElement) {
+        nameElement.textContent = loan.name || '-';
+    }
+
+    if (metaElement) {
+        metaElement.textContent = [
+            formatTanggalIndo(loan.date),
+            loan.party
+        ].filter(Boolean).join(' • ');
+    }
+
+    if (statusElement) {
+        statusElement.className = [
+            'shrink-0',
+            'inline-flex',
+            'rounded-full',
+            'px-2.5',
+            'py-1',
+            'text-[10px]',
+            'font-semibold',
+            ...getLoanStatusClasses(progress.status)
+        ].join(' ');
+
+        statusElement.textContent = progress.statusLabel;
+    }
+
+    if (notesElement) {
+        const notes = normalizeText(loan.notes);
+        notesElement.textContent = notes;
+        notesElement.classList.toggle('hidden', !notes);
+    }
+
+    if (dueDateElement) {
+        const dueDate = normalizeDateValue(loan.dueDate);
+        const isOverdue = Boolean(
+            dueDate &&
+            progress.status !== 'paid' &&
+            dueDate < getTodayLocalDate()
+        );
+
+        dueDateElement.textContent = dueDate
+            ? `Jatuh tempo: ${formatTanggalIndo(dueDate)}${isOverdue ? ' • Terlambat' : ''}`
+            : 'Tanpa jatuh tempo';
+
+        dueDateElement.className = isOverdue
+            ? 'mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400'
+            : 'mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400';
+    }
+
+    if (principalTitleElement) {
+        principalTitleElement.textContent = isDebt
+            ? 'Dana Diterima'
+            : 'Dana Diberikan';
+    }
+
+    const summaryValues = {
+        loanDetailPrincipal: progress.principal,
+        loanDetailPaid: progress.paid,
+        loanDetailRemaining: progress.remaining
+    };
+
+    Object.entries(summaryValues).forEach(
+        ([elementId, amount]) => {
+            const element = document.getElementById(elementId);
+
+            if (element) {
+                element.textContent = formatRupiah(amount);
+            }
+        }
+    );
+
+    const principalTransactions = sortTransactionsNewestFirst(
+        getLoanTransactions(loan.id, 'principal')
+    );
+
+    const repaymentTransactions = sortTransactionsNewestFirst(
+        getLoanTransactions(loan.id, 'repayment')
+    );
+
+    const principalCountElement = document.getElementById(
+        'loanDetailPrincipalCount'
+    );
+    const principalList = document.getElementById(
+        'loanDetailPrincipalList'
+    );
+
+    if (principalCountElement) {
+        principalCountElement.textContent = principalTransactions.length > 0
+            ? `${principalTransactions.length} transaksi`
+            : 'Tanpa arus kas';
+    }
+
+    if (principalList) {
+        principalList.innerHTML = principalTransactions.length > 0
+            ? principalTransactions
+                .map(transaction =>
+                    renderLoanLinkedTransactionRow(
+                        loan,
+                        transaction
+                    )
+                )
+                .join('')
+            : `
+                <div class="
+                    rounded-xl
+                    border border-dashed
+                    border-slate-200 dark:border-slate-800
+                    p-4
+                    text-[11px] leading-relaxed
+                    text-slate-400
+                ">
+                    Record ini dibuat tanpa arus dana awal.
+                </div>
+            `;
+    }
+
+    const repaymentCountElement = document.getElementById(
+        'loanDetailRepaymentCount'
+    );
+    const repaymentList = document.getElementById(
+        'loanDetailRepaymentList'
+    );
+
+    if (repaymentCountElement) {
+        repaymentCountElement.textContent =
+            `${repaymentTransactions.length} transaksi`;
+    }
+
+    if (repaymentList) {
+        repaymentList.innerHTML = repaymentTransactions.length > 0
+            ? repaymentTransactions
+                .map(transaction =>
+                    renderLoanLinkedTransactionRow(
+                        loan,
+                        transaction,
+                        { allowUnlink: true }
+                    )
+                )
+                .join('')
+            : `
+                <div class="
+                    rounded-xl
+                    border border-dashed
+                    border-slate-200 dark:border-slate-800
+                    p-5 text-center
+                ">
+                    <i
+                        data-lucide="receipt-text"
+                        class="w-6 h-6 mx-auto text-slate-300 dark:text-slate-700"
+                    ></i>
+
+                    <p class="mt-2 text-[11px] text-slate-400">
+                        Belum ada transaksi cicilan atau pelunasan.
+                    </p>
+                </div>
+            `;
+    }
+
+    const repaymentButton = document.getElementById(
+        'loanDetailRepaymentButton'
+    );
+
+    if (repaymentButton) {
+        repaymentButton.classList.toggle(
+            'hidden',
+            progress.status === 'paid'
+        );
+    }
+
+    const footerActions = document.getElementById(
+        'loanDetailFooterActions'
+    );
+
+    if (footerActions) {
+        footerActions.className = [
+            'shrink-0',
+            'grid',
+            progress.status === 'paid' ? 'grid-cols-2' : 'grid-cols-3',
+            'gap-2',
+            'px-5',
+            'py-4',
+            'border-t',
+            'border-slate-200',
+            'dark:border-slate-800',
+            'bg-white',
+            'dark:bg-slate-950'
+        ].join(' ');
+    }
+
+    lucide.createIcons();
+}
+
+function openLoanDetailModal(loanId) {
+    const loan = getLoanById(loanId);
+    const modal = document.getElementById('loanDetailModal');
+
+    if (!loan || !modal) {
+        return;
+    }
+
+    loanDetailTargetId = loan.id;
+    renderLoanDetailModalContent(loan.id);
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeLoanDetailModal() {
+    const modal = document.getElementById('loanDetailModal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+    document.body.classList.remove('overflow-hidden');
+
+    loanDetailTargetId = null;
+}
+
+function handleLoanDetailBackdrop(event) {
+    if (event.target?.id === 'loanDetailModal') {
+        closeLoanDetailModal();
+    }
+}
+
+function openLoanRepaymentFromDetail() {
+    const loanId = loanDetailTargetId;
+
+    if (!loanId) {
+        return;
+    }
+
+    closeLoanDetailModal();
+
+    window.setTimeout(() => {
+        openLoanRepaymentModal(loanId);
+    }, 80);
+}
+
+
+function openLoanEditFromDetail() {
+    const loanId = loanDetailTargetId;
+
+    if (!loanId || !getLoanById(loanId)) {
+        return;
+    }
+
+    closeLoanDetailModal();
+
+    window.setTimeout(() => {
+        openLoanEditModal(loanId);
+    }, 80);
+}
+
+function openLoanDeleteConfirm() {
+    const loan = getLoanById(loanDetailTargetId);
+    const modal = document.getElementById(
+        'loanDeleteConfirmModal'
+    );
+
+    if (!loan || !modal) {
+        return;
+    }
+
+    loanDeleteTargetId = loan.id;
+
+    const progress = getLoanProgress(loan);
+    const linkedTransactions = getLoanTransactions(loan.id);
+
+    const nameElement = document.getElementById(
+        'loanDeleteConfirmName'
+    );
+    const infoElement = document.getElementById(
+        'loanDeleteConfirmInfo'
+    );
+
+    if (nameElement) {
+        nameElement.textContent = loan.name || '-';
+    }
+
+    if (infoElement) {
+        infoElement.textContent = [
+            loan.type,
+            `Nominal ${formatRupiah(progress.principal)}`,
+            `${linkedTransactions.length} transaksi terkait`
+        ].join(' • ');
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    lucide.createIcons();
+}
+
+function closeLoanDeleteConfirm() {
+    const modal = document.getElementById(
+        'loanDeleteConfirmModal'
+    );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+    loanDeleteTargetId = null;
+
+    const detailModal = document.getElementById(
+        'loanDetailModal'
+    );
+
+    const detailIsOpen = Boolean(
+        detailModal &&
+        !detailModal.classList.contains('hidden')
+    );
+
+    if (!detailIsOpen) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function handleLoanDeleteBackdrop(event) {
+    if (event.target?.id === 'loanDeleteConfirmModal') {
+        closeLoanDeleteConfirm();
+    }
+}
+
+function confirmLoanDelete() {
+    const loanId = normalizeText(loanDeleteTargetId);
+    const loan = getLoanById(loanId);
+
+    if (!loan) {
+        closeLoanDeleteConfirm();
+        return;
+    }
+
+    userLoans = userLoans.filter(
+        item => item.id !== loanId
+    );
+
+    transactions = transactions.map(transaction => {
+        if (normalizeText(transaction.loanId) !== loanId) {
+            return transaction;
+        }
+
+        return {
+            ...transaction,
+            loanId: '',
+            loanRole: ''
+        };
+    });
+
+    const deleteModal = document.getElementById(
+        'loanDeleteConfirmModal'
+    );
+    const detailModal = document.getElementById(
+        'loanDetailModal'
+    );
+
+    deleteModal?.classList.add('hidden');
+
+    if (deleteModal) {
+        deleteModal.style.display = '';
+    }
+
+    detailModal?.classList.add('hidden');
+
+    if (detailModal) {
+        detailModal.style.display = '';
+    }
+
+    loanDeleteTargetId = null;
+    loanDetailTargetId = null;
+    document.body.classList.remove('overflow-hidden');
+
+    commitDataChange();
+}
+
+function openLinkedLoanTransactionDetail(transactionId) {
+    closeLoanDetailModal();
+
+    window.setTimeout(() => {
+        openTransactionDetailModal(transactionId);
+    }, 80);
+}
+
+function openLoanUnlinkConfirm(transactionId) {
+    const transaction = transactions.find(
+        item => item.id === String(transactionId)
+    );
+
+    if (
+        !transaction ||
+        normalizeText(transaction.loanRole)
+            .toLocaleLowerCase('id-ID') !== 'repayment'
+    ) {
+        return;
+    }
+
+    const loan = getLoanById(transaction.loanId);
+
+    if (!loan) {
+        return;
+    }
+
+    loanUnlinkTargetTransactionId = transaction.id;
+
+    const nameElement = document.getElementById(
+        'loanUnlinkConfirmName'
+    );
+    const amountElement = document.getElementById(
+        'loanUnlinkConfirmAmount'
+    );
+
+    if (nameElement) {
+        nameElement.textContent = transaction.name || '-';
+    }
+
+    if (amountElement) {
+        amountElement.textContent = formatRupiah(
+            getLoanRepaymentAmount(loan, transaction)
+        );
+    }
+
+    const modal = document.getElementById(
+        'loanUnlinkConfirmModal'
+    );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    lucide.createIcons();
+}
+
+function closeLoanUnlinkConfirm() {
+    const modal = document.getElementById(
+        'loanUnlinkConfirmModal'
+    );
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.style.display = '';
+    loanUnlinkTargetTransactionId = null;
+}
+
+function handleLoanUnlinkBackdrop(event) {
+    if (event.target?.id === 'loanUnlinkConfirmModal') {
+        closeLoanUnlinkConfirm();
+    }
+}
+
+function confirmLoanRepaymentUnlink() {
+    const transactionId = loanUnlinkTargetTransactionId;
+
+    if (!transactionId) {
+        return;
+    }
+
+    const transaction = transactions.find(
+        item => item.id === String(transactionId)
+    );
+
+    if (!transaction) {
+        closeLoanUnlinkConfirm();
+        return;
+    }
+
+    const currentLoanId = normalizeText(transaction.loanId);
+
+    transactions = transactions.map(item => {
+        if (item.id !== String(transactionId)) {
+            return item;
+        }
+
+        return {
+            ...item,
+            loanId: '',
+            loanRole: ''
+        };
+    });
+
+    closeLoanUnlinkConfirm();
+    commitDataChange();
+
+    if (
+        loanDetailTargetId &&
+        loanDetailTargetId === currentLoanId
+    ) {
+        renderLoanDetailModalContent(currentLoanId);
+    }
+}
+
+function renderLoanRecordCard(loan) {
+    const progress = getLoanProgress(loan);
+    const isDebt = loan.type === 'Hutang';
+    const encodedLoanId = encodeActionValue(loan.id);
+
+    const amountColor = isDebt
+        ? 'text-rose-600 dark:text-rose-400'
+        : 'text-blueSystem-500 dark:text-blueSystem-100';
+
+    const statusColor = getLoanStatusClasses(
+        progress.status
+    ).join(' ');
+
+    const normalizedDueDate = normalizeDateValue(
+        loan.dueDate
+    );
+
+    const isOverdue = Boolean(
+        progress.status !== 'paid' &&
+        normalizedDueDate &&
+        normalizedDueDate < getTodayLocalDate()
+    );
+
+    return `
+        <article
+            onclick="
+                openLoanDetailModal(
+                    decodeActionValue('${encodedLoanId}')
+                );
+            "
+            onkeydown="
+                if (
+                    event.target === event.currentTarget &&
+                    (event.key === 'Enter' || event.key === ' ')
+                ) {
+                    event.preventDefault();
+
+                    openLoanDetailModal(
+                        decodeActionValue('${encodedLoanId}')
+                    );
+                }
+            "
+            tabindex="0"
+            class="
+                relative h-full min-w-0
+                cursor-pointer
+                bg-white dark:bg-slate-950
+                border border-slate-200 dark:border-slate-800
+                rounded-2xl p-4 shadow-sm
+                hover:bg-slate-50 dark:hover:bg-slate-900/60
+                focus:outline-none focus:ring-2
+                focus:ring-blueSystem-500/30
+                transition-colors
+            "
+        >
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-[11px] font-semibold ${amountColor}">
+                    ${escapeHtml(loan.type)}
+                </span>
+
+                <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor}">
+                    ${progress.statusLabel}
+                </span>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white break-words">
+                        ${escapeHtml(loan.name)}
+                    </h3>
+
+                    <p class="mt-1 text-[11px] text-slate-400">
+                        ${escapeHtml(formatTanggalIndo(loan.date))}
+                        ${loan.party
+                            ? `<span class="mx-1">•</span>${escapeHtml(loan.party)}`
+                            : ''}
+                    </p>
+
+                    ${normalizedDueDate ? `
+                        <p class="mt-1 text-[10px] ${
+                            isOverdue
+                                ? 'font-semibold text-rose-600 dark:text-rose-400'
+                                : 'text-slate-400'
+                        }">
+                            Jatuh tempo ${escapeHtml(
+                                formatTanggalIndo(normalizedDueDate)
+                            )}
+                        </p>
+                    ` : ''}
+                </div>
+
+                <div class="shrink-0 self-center text-right">
+                    <p class="text-[10px] font-medium text-slate-400">
+                        ${progress.status === 'paid' ? 'Nominal' : 'Sisa'}
+                    </p>
+
+                    <p class="mt-0.5 text-sm font-bold whitespace-nowrap ${amountColor}">
+                        ${formatRupiah(
+                            progress.status === 'paid'
+                                ? progress.principal
+                                : progress.remaining
+                        )}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 text-[10px] text-slate-400">
+                <span>
+                    Nominal:<br>
+                    <strong class="font-semibold text-slate-600 dark:text-slate-300">
+                        ${formatRupiah(progress.principal)}
+                    </strong>
+                </span>
+
+                <span class="text-right">
+                    Terbayar:<br>
+                    <strong class="font-semibold text-slate-600 dark:text-slate-300">
+                        ${formatRupiah(progress.paid)}
+                    </strong>
+                </span>
+            </div>
+        </article>
+    `;
+}
+
+function renderLoansPage() {
+    populateLoanMonthFilter();
+
+    const sortedLoans = sortTransactionsNewestFirst(
+        normalizeLoans(userLoans)
+    );
+
+    const monthFilteredLoans = sortedLoans.filter(loan => {
+        return !loanMonthFilter ||
+            getLocalMonth(loan.date) === loanMonthFilter;
+    });
+
+    const totals = monthFilteredLoans.reduce(
+        (result, loan) => {
+            const progress = getLoanProgress(loan);
+            const isDebt = loan.type === 'Hutang';
+
+            if (isDebt) {
+                if (progress.status === 'paid') {
+                    result.debtPaid += progress.principal;
+                } else {
+                    result.debtUnpaid += progress.remaining;
+                }
+            } else if (progress.status === 'paid') {
+                result.receivablePaid += progress.principal;
+            } else {
+                result.receivableUnpaid += progress.remaining;
+            }
+
+            return result;
+        },
+        {
+            debtUnpaid: 0,
+            receivableUnpaid: 0,
+            debtPaid: 0,
+            receivablePaid: 0
+        }
+    );
+
+    const summaryValues = {
+        loanDebtUnpaidTotal: totals.debtUnpaid,
+        loanReceivableUnpaidTotal: totals.receivableUnpaid,
+        loanDebtPaidTotal: totals.debtPaid,
+        loanReceivablePaidTotal: totals.receivablePaid
+    };
+
+    Object.entries(summaryValues).forEach(([elementId, amount]) => {
+        const element = document.getElementById(elementId);
+
+        if (element) {
+            element.textContent = formatRupiah(amount);
+        }
+    });
+
+    const visibleLoans = monthFilteredLoans.filter(loan => {
+        const progress = getLoanProgress(loan);
+
+        const matchesType =
+            loanTypeFilter === 'all' ||
+            (loanTypeFilter === 'debt' && loan.type === 'Hutang') ||
+            (loanTypeFilter === 'receivable' && loan.type === 'Piutang');
+
+        const matchesStatus =
+            loanStatusFilter === 'all' ||
+            (loanStatusFilter === 'paid' && progress.status === 'paid') ||
+            (loanStatusFilter === 'unpaid' && progress.status !== 'paid');
+
+        return matchesType && matchesStatus;
+    });
+
+    if (loanStatusFilter === 'all') {
+        visibleLoans.sort((firstLoan, secondLoan) => {
+            const firstPaid = getLoanProgress(firstLoan).status === 'paid';
+            const secondPaid = getLoanProgress(secondLoan).status === 'paid';
+
+            if (firstPaid === secondPaid) {
+                return 0;
+            }
+
+            return firstPaid ? 1 : -1;
+        });
+    }
+
+    const container = document.getElementById('loanListContainer');
+
+    if (!container) {
+        return;
+    }
+
+    if (userLoans.length === 0) {
+        container.className = '';
+        container.innerHTML = `
+            <div class="
+                bg-white dark:bg-slate-950
+                border border-dashed border-slate-200 dark:border-slate-800
+                rounded-2xl p-8 text-center
+            ">
+                <i data-lucide="landmark" class="
+                    w-9 h-9 mx-auto
+                    text-slate-300 dark:text-slate-700
+                "></i>
+
+                <p class="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Belum ada catatan hutang atau piutang
+                </p>
+
+                <p class="mt-1 text-xs text-slate-400">
+                    Tambahkan pinjaman baru tanpa mengubah transaksi lama.
+                </p>
+
+                <button
+                    type="button"
+                    onclick="openLoanFormModal()"
+                    class="
+                        mt-4 inline-flex items-center gap-1.5
+                        bg-blueSystem-500 hover:bg-blueSystem-600
+                        text-white px-4 py-2.5 rounded-xl
+                        text-xs font-semibold transition-colors
+                    "
+                >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Tambah Pinjaman
+                </button>
+            </div>
+        `;
+    } else if (visibleLoans.length === 0) {
+        container.className = '';
+        container.innerHTML = `
+            <div class="
+                bg-white dark:bg-slate-950
+                border border-dashed border-slate-200 dark:border-slate-800
+                rounded-2xl p-8 text-center
+            ">
+                <i data-lucide="search-x" class="
+                    w-8 h-8 mx-auto
+                    text-slate-300 dark:text-slate-700
+                "></i>
+
+                <p class="mt-3 text-xs text-slate-400 italic">
+                    Tidak ada pinjaman yang sesuai dengan filter.
+                </p>
+            </div>
+        `;
+    } else {
+        container.className = 'grid grid-cols-1 xl:grid-cols-2 gap-3';
+        container.innerHTML = visibleLoans
+            .map(renderLoanRecordCard)
+            .join('');
+    }
+
+    lucide.createIcons();
 }
 
 function handleReportCategoryFilterChange(value) {
@@ -2243,6 +5800,143 @@ function closeTransactionModal() {
     modal.classList.add('hidden'); modal.style.display = ''; 
 }
 
+function validateLinkedLoanTransactionUpdate(
+    transactionId,
+    payload
+) {
+    const existingTransaction = transactions.find(
+        transaction => transaction.id === String(transactionId)
+    );
+
+    if (!existingTransaction) {
+        return {
+            valid: true,
+            message: ''
+        };
+    }
+
+    const loanId = normalizeText(existingTransaction.loanId);
+    const loanRole = normalizeText(existingTransaction.loanRole)
+        .toLocaleLowerCase('id-ID');
+
+    if (!loanId || !['principal', 'repayment'].includes(loanRole)) {
+        return {
+            valid: true,
+            message: ''
+        };
+    }
+
+    const loan = getLoanById(loanId);
+
+    if (!loan) {
+        return {
+            valid: true,
+            message: ''
+        };
+    }
+
+    if (payload.isTransfer) {
+        return {
+            valid: false,
+            message:
+                'Transaksi ini terhubung dengan record pinjaman dan ' +
+                'tidak dapat diubah menjadi transfer. Lepaskan tautannya ' +
+                'dari Rincian Pinjaman terlebih dahulu.'
+        };
+    }
+
+    if (
+        normalizeText(payload.category)
+            .toLocaleLowerCase('id-ID') !==
+        loan.type.toLocaleLowerCase('id-ID')
+    ) {
+        return {
+            valid: false,
+            message:
+                `Kategori transaksi harus tetap “${loan.type}” selama ` +
+                'masih terhubung dengan record pinjaman.'
+        };
+    }
+
+    const credit = Math.max(0, Number(payload.credit) || 0);
+    const debit = Math.max(0, Number(payload.debit) || 0);
+
+    const usesCorrectDirection = loanRole === 'principal'
+        ? (
+            loan.type === 'Piutang'
+                ? credit > 0 && debit === 0
+                : debit > 0 && credit === 0
+        )
+        : (
+            loan.type === 'Piutang'
+                ? debit > 0 && credit === 0
+                : credit > 0 && debit === 0
+        );
+
+    if (!usesCorrectDirection) {
+        const expectedDirection = loanRole === 'principal'
+            ? (
+                loan.type === 'Piutang'
+                    ? 'Credit / uang keluar'
+                    : 'Debit / uang masuk'
+            )
+            : (
+                loan.type === 'Piutang'
+                    ? 'Debit / uang masuk'
+                    : 'Credit / uang keluar'
+            );
+
+        return {
+            valid: false,
+            message:
+                `Transaksi ini terhubung sebagai ${
+                    loanRole === 'principal'
+                        ? 'transaksi awal'
+                        : 'pelunasan'
+                } ${loan.type}. Jenis alirannya harus tetap ` +
+                `${expectedDirection}.`
+        };
+    }
+
+    if (loanRole === 'repayment') {
+        const newAmount = loan.type === 'Piutang'
+            ? debit
+            : credit;
+
+        const otherRepaymentTotal = getLoanTransactions(
+            loan.id,
+            'repayment'
+        )
+            .filter(transaction => transaction.id !== String(transactionId))
+            .reduce(
+                (total, transaction) =>
+                    total + getLoanRepaymentAmount(loan, transaction),
+                0
+            );
+
+        const maximumAmount = Math.max(
+            0,
+            Number(loan.principal) - otherRepaymentTotal
+        );
+
+        if (newAmount > maximumAmount) {
+            return {
+                valid: false,
+                message:
+                    'Nominal pelunasan terlalu besar. Maksimal nominal ' +
+                    `yang dapat digunakan adalah ${formatRupiah(
+                        maximumAmount
+                    )}.`
+            };
+        }
+    }
+
+    return {
+        valid: true,
+        message: ''
+    };
+}
+
 function handleTransactionSubmit(e) {
     e.preventDefault();
     const editId = normalizeText(document.getElementById('form-edit-id').value);
@@ -2291,6 +5985,19 @@ function handleTransactionSubmit(e) {
         category: flowType === 'Transfer' ? '' : category,
         targetAccount: flowType === 'Transfer' ? targetAccount : ''
     };
+
+    if (editId) {
+        const validation =
+            validateLinkedLoanTransactionUpdate(
+                editId,
+                payload
+            );
+
+        if (!validation.valid) {
+            alert(validation.message);
+            return;
+        }
+    }
 
     if (editId) {
         const index = transactions.findIndex(transaction => transaction.id === editId);
@@ -2714,58 +6421,161 @@ function duplicateTransaction(id) {
 function triggerDeleteConfirm(id, type) {
     deleteTargetId = id;
     deleteTypeContext = type;
-    
-    const titleEl = document.getElementById('deleteModalTitle');
-    if(type === 'account') titleEl.innerText = `Hapus Akun "${id}"?`;
-    else if(type.startsWith('category')) titleEl.innerText = `Hapus Kategori "${id}"?`;
-    else titleEl.innerText = "Hapus Transaksi Ini?";
-    
-    document.getElementById('deleteConfirmModal').classList.remove('hidden');
+
+    const titleElement = document.getElementById('deleteModalTitle');
+    const messageElement = document.getElementById('deleteModalMessage');
+
+    if (type === 'account') {
+        titleElement.textContent = `Hapus Akun "${id}"?`;
+
+        if (messageElement) {
+            messageElement.textContent =
+                'Akun hanya dapat dihapus jika tidak digunakan oleh transaksi.';
+        }
+    } else if (type.startsWith('category')) {
+        titleElement.textContent = `Hapus Kategori "${id}"?`;
+
+        if (messageElement) {
+            messageElement.textContent =
+                'Kategori hanya dapat dihapus jika tidak digunakan oleh transaksi.';
+        }
+    } else {
+        const transaction = transactions.find(
+            item => item.id === String(id)
+        );
+
+        const loanId = normalizeText(transaction?.loanId);
+        const loanRole = normalizeText(transaction?.loanRole)
+            .toLocaleLowerCase('id-ID');
+        const loan = loanId ? getLoanById(loanId) : null;
+
+        if (loan && loanRole === 'repayment') {
+            titleElement.textContent = 'Hapus Transaksi Pelunasan?';
+
+            if (messageElement) {
+                messageElement.textContent =
+                    `Transaksi akan dihapus permanen. Sisa dan status ${
+                        loan.type.toLocaleLowerCase('id-ID')
+                    } “${loan.name}” akan dihitung ulang.`;
+            }
+        } else if (loan && loanRole === 'principal') {
+            const principalLabel = loan.type === 'Hutang'
+                ? 'Dana Diterima'
+                : 'Dana Diberikan';
+
+            titleElement.textContent = `Hapus ${principalLabel}?`;
+
+            if (messageElement) {
+                messageElement.textContent =
+                    'Transaksi akan dihapus permanen, tetapi record pinjaman ' +
+                    'tetap tersimpan tanpa arus dana awal.';
+            }
+        } else {
+            titleElement.textContent = 'Hapus Transaksi Ini?';
+
+            if (messageElement) {
+                messageElement.textContent =
+                    'Tindakan ini bersifat permanen.';
+            }
+        }
+    }
+
+    document.getElementById('deleteConfirmModal')
+        .classList.remove('hidden');
+
+    lucide.createIcons();
 }
+
 function closeDeleteModal() {
     document.getElementById('deleteConfirmModal').classList.add('hidden');
     deleteTargetId = null;
     deleteTypeContext = 'transaction';
 }
-document.getElementById('confirmDeleteBtn').onclick = () => {
-    if (!deleteTargetId) return;
+function confirmDeleteTarget() {
+    const targetId = normalizeText(deleteTargetId);
+
+    if (!targetId) {
+        closeDeleteModal();
+        return;
+    }
 
     if (deleteTypeContext === 'account') {
         const isUsed = transactions.some(transaction =>
-            transaction.account === deleteTargetId || transaction.targetAccount === deleteTargetId
+            transaction.account === targetId ||
+            transaction.targetAccount === targetId
         );
+
         if (isUsed) {
-            alert('Akun ini masih digunakan oleh transaksi. Hapus atau pindahkan transaksi tersebut terlebih dahulu.');
+            alert(
+                'Akun ini masih digunakan oleh transaksi. ' +
+                'Hapus atau pindahkan transaksi tersebut terlebih dahulu.'
+            );
             return;
         }
-        userAccounts = userAccounts.filter(account => account.name !== deleteTargetId);
+
+        userAccounts = userAccounts.filter(
+            account => account.name !== targetId
+        );
     } else if (deleteTypeContext.startsWith('category_')) {
         const typeMap = {
             category_in: 'income',
             category_out: 'expense',
             category_neutral: 'neutral'
         };
-        const categoryType = typeMap[deleteTypeContext];
-        if (!categoryType) return;
 
-        const isUsed = transactions.some(transaction => transaction.category === deleteTargetId);
-        if (isUsed) {
-            alert('Kategori ini masih digunakan oleh transaksi. Ubah atau hapus transaksi tersebut terlebih dahulu.');
+        const categoryType = typeMap[deleteTypeContext];
+
+        if (!categoryType) {
+            closeDeleteModal();
             return;
         }
-        userCategories[categoryType] = userCategories[categoryType].filter(category => category !== deleteTargetId);
+
+        const isUsed = transactions.some(
+            transaction => transaction.category === targetId
+        );
+
+        if (isUsed) {
+            alert(
+                'Kategori ini masih digunakan oleh transaksi. ' +
+                'Ubah atau hapus transaksi tersebut terlebih dahulu.'
+            );
+            return;
+        }
+
+        userCategories[categoryType] =
+            userCategories[categoryType].filter(
+                category => category !== targetId
+            );
     } else {
-        transactions = transactions.filter(transaction => transaction.id !== String(deleteTargetId));
+        const transactionExists = transactions.some(
+            transaction => transaction.id === targetId
+        );
+
+        if (!transactionExists) {
+            closeDeleteModal();
+            return;
+        }
+
+        transactions = transactions.filter(
+            transaction => transaction.id !== targetId
+        );
     }
 
     closeDeleteModal();
     commitDataChange();
-};
+}
+
 
 function executeWipeAllData() {
     userAccounts = [];
     transactions = [];
-    userCategories = { income: [], expense: [], neutral: [] };
+    userLoans = [];
+
+    userCategories = {
+        income: [],
+        expense: [],
+        neutral: []
+    };
 
     closeWipeModal();
     commitDataChange({ sync: false, render: true });
@@ -3021,11 +6831,21 @@ async function verifyCloudSnapshot(url, expectedSignature) {
         const cloudData = await response.json();
         if (!cloudData || cloudData.status !== 'success') return false;
 
-        const signature = getWorkspaceSignature({
-            userAccounts: cloudData.userAccounts || [],
-            userCategories: cloudData.userCategories || userCategories,
-            transactions: cloudData.transactions || []
-        });
+        const signature =
+    getWorkspaceSignature({
+        userAccounts:
+            cloudData.userAccounts || [],
+
+        userCategories:
+            cloudData.userCategories ||
+            userCategories,
+
+        transactions:
+            cloudData.transactions || [],
+
+        userLoans:
+            cloudData.userLoans || []
+    });
         return signature === expectedSignature;
     } catch (error) {
         console.warn('Verifikasi cloud gagal:', error);
@@ -3099,40 +6919,32 @@ function fetchFromGoogleSheets({
 
         cloudSyncBlocked = false;
 
-        transactions = Array.isArray(resData.transactions)
-            ? resData.transactions.map((transaction, index) => ({
-                ...transaction,
-                id: String(
-                    transaction.id ||
-                    `${Date.now()}-${index}`
-                ),
-                credit:
-                    Number(transaction.credit) || 0,
-                debit:
-                    Number(transaction.debit) || 0,
-                isTransfer:
-                    Boolean(
-                        transaction.isTransfer ||
-                        transaction.targetAccount
-                    ),
-                targetAccount:
-                    transaction.targetAccount || '',
-                notes:
-                    transaction.notes || ''
-            }))
-            : [];
+        transactions =
+    normalizeTransactions(
+        Array.isArray(
+            resData.transactions
+        )
+            ? resData.transactions
+            : []
+    );
 
-        userAccounts = Array.isArray(resData.userAccounts)
-            ? resData.userAccounts.map(account => ({
-                name:
-                    String(account.name || '').trim(),
-                type:
-                    String(account.type || '').trim(),
-                initial:
-                    Number(account.initial) || 0
-            }))
-            : [];
+userAccounts =
+    normalizeAccounts(
+        Array.isArray(
+            resData.userAccounts
+        )
+            ? resData.userAccounts
+            : []
+    );
 
+userLoans =
+    normalizeLoans(
+        Array.isArray(
+            resData.userLoans
+        )
+            ? resData.userLoans
+            : []
+    );
         if (
             resData.userCategories &&
             typeof resData.userCategories === 'object'
@@ -3194,6 +7006,7 @@ function fetchFromGoogleSheets({
         };
 
         transactions = [];
+        userLoans = [];
 
         populateFormDropdowns();
 

@@ -26,7 +26,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=1">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260805-8">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -78,6 +78,7 @@ input[type="month"] {
     appearance: none;
 
     display: block;
+    cursor: pointer;
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -101,48 +102,15 @@ input[type="month"]::-webkit-date-and-time-value {
 }
 
 @media (max-width: 767px) {
-    #dashboardRecentTable,
     #transactionsTable {
         width: 100%;
         table-layout: fixed;
     }
 
-    #dashboardRecentTable th,
-    #dashboardRecentTable td,
     #transactionsTable th,
     #transactionsTable td {
         padding-left: 0.5rem;
         padding-right: 0.5rem;
-    }
-
-    #dashboardRecentTable th:nth-child(4),
-    #dashboardRecentTable td:nth-child(4),
-    #dashboardRecentTable th:nth-child(5),
-    #dashboardRecentTable td:nth-child(5),
-    #dashboardRecentTable th:nth-child(6),
-    #dashboardRecentTable td:nth-child(6) {
-        display: none;
-    }
-
-    #dashboardRecentTable th:nth-child(1),
-    #dashboardRecentTable td:nth-child(1) {
-        width: 28%;
-        white-space: nowrap;
-    }
-
-    #dashboardRecentTable th:nth-child(2),
-    #dashboardRecentTable td:nth-child(2) {
-        width: 42%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    #dashboardRecentTable th:nth-child(3),
-    #dashboardRecentTable td:nth-child(3) {
-        width: 30%;
-        text-align: right;
-        white-space: nowrap;
     }
 
     #transactionsTable th:nth-child(n+4),
@@ -174,7 +142,7 @@ input[type="month"]::-webkit-date-and-time-value {
 
     </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+<body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
 
     <header class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
         <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between relative">
@@ -216,6 +184,7 @@ input[type="month"]::-webkit-date-and-time-value {
                 <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold">
                     <button onclick="switchPage('dashboard')" id="nav-dashboard" class="px-4 py-1.5 rounded-lg transition-all">Dashboard</button>
                     <button onclick="switchPage('transactions')" id="nav-transactions" class="px-4 py-1.5 rounded-lg transition-all">Transaksi</button>
+                    <button onclick="switchPage('loans')" id="nav-loans" class="px-4 py-1.5 rounded-lg transition-all">Pinjaman</button>
                     <button onclick="switchPage('reports')" id="nav-reports" class="px-4 py-1.5 rounded-lg transition-all">Laporan</button>
                     <button onclick="switchPage('settings')" id="nav-settings" class="px-4 py-1.5 rounded-lg transition-all">Pengaturan</button>
                 </nav>
@@ -526,6 +495,92 @@ input[type="month"]::-webkit-date-and-time-value {
     </div>
 </div>
 
+<!-- Fitur ARAH Mobile -->
+<div class="
+    md:hidden
+    bg-white dark:bg-slate-950
+    border border-slate-200 dark:border-slate-800
+    rounded-2xl
+    p-4
+    shadow-sm
+">
+    <h3 class="
+        text-[10px] font-bold uppercase
+        tracking-wider
+        text-slate-400
+        flex items-center gap-1.5
+    ">
+        <i
+            data-lucide="grid-2x2"
+            class="w-3.5 h-3.5 text-blueSystem-500"
+        ></i>
+
+        Fitur ARAH
+    </h3>
+
+    <div class="mt-3 space-y-2">
+        <button
+            type="button"
+            onclick="switchPage('loans')"
+            class="
+                w-full
+                flex items-center
+                justify-between gap-3
+                p-3
+                rounded-xl
+                bg-slate-50 dark:bg-slate-900
+                border border-slate-200 dark:border-slate-800
+                text-left
+                hover:border-blueSystem-500/50
+                transition-colors
+            "
+        >
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="
+                    shrink-0
+                    w-9 h-9
+                    rounded-xl
+                    flex items-center justify-center
+                    bg-blueSystem-50
+                    dark:bg-blueSystem-900/30
+                    text-blueSystem-500
+                ">
+                    <i
+                        data-lucide="landmark"
+                        class="w-4 h-4"
+                    ></i>
+                </div>
+
+                <div class="min-w-0">
+                    <p class="
+                        text-xs font-semibold
+                        text-slate-900 dark:text-white
+                    ">
+                        Pinjaman
+                    </p>
+
+                    <p class="
+                        mt-0.5
+                        text-[10px]
+                        text-slate-400
+                    ">
+                        Kelola hutang dan piutang
+                    </p>
+                </div>
+            </div>
+
+            <i
+                data-lucide="chevron-right"
+                class="
+                    shrink-0
+                    w-4 h-4
+                    text-slate-400
+                "
+            ></i>
+        </button>
+    </div>
+</div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
                     <div class="flex items-center justify-between gap-3 mb-5">
@@ -569,27 +624,40 @@ input[type="month"]::-webkit-date-and-time-value {
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="list" class="w-4 h-4 text-blueSystem-500"></i> Transaksi Terbaru</h3>
-                    <button onclick="switchPage('transactions')" class="text-[11px] font-semibold text-blueSystem-500 border border-blueSystem-500 px-3 py-1.5 rounded-lg hover:bg-blueSystem-50 dark:hover:bg-blueSystem-900/30 transition-colors">Lihat Semua</button>
+            <!-- Pengingat jatuh tempo Hutang -->
+            <section
+                id="dashboardDebtReminderSection"
+                class="hidden"
+                aria-live="polite"
+            ></section>
+
+            <!-- Rincian hutang yang masih perlu dibayar -->
+            <section
+                id="dashboardActiveDebtSection"
+                class="hidden"
+            ></section>
+
+            <section class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="history" class="w-4 h-4 text-blueSystem-500"></i>
+                        Transaksi Terbaru
+                    </h3>
+
+                    <button
+                        type="button"
+                        onclick="switchPage('transactions')"
+                        class="shrink-0 text-[11px] font-semibold text-blueSystem-500 border border-blueSystem-500 px-3 py-1.5 rounded-lg hover:bg-blueSystem-50 dark:hover:bg-blueSystem-900/30 transition-colors"
+                    >
+                        Lihat Semua
+                    </button>
                 </div>
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table id="dashboardRecentTable" class="w-full text-left border-collapse text-[11px]">
-                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
-                            <tr>
-                                <th class="py-3 px-4">Tanggal</th>
-                                <th class="py-3 px-4">Item</th>
-                                <th class="py-3 px-4">Nominal</th>
-                                <th class="py-3 px-4">Kategori</th>
-                                <th class="py-3 px-4">Akun</th>
-                                <th class="py-3 px-4">Catatan</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dashRecentTxTable" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                    </table>
-                </div>
-            </div>
+
+                <div
+                    id="dashboardRecentList"
+                    class="divide-y divide-slate-100 dark:divide-slate-800"
+                ></div>
+            </section>
         </div>
 
         <!-- ================= PAGE 2: TRANSACTIONS ================= -->
@@ -820,7 +888,296 @@ input[type="month"]::-webkit-date-and-time-value {
 
         </div>
 
-        <!-- ================= PAGE 3: REPORTS ================= -->
+        <!-- ================= PAGE 3: LOANS ================= -->
+<div
+    id="page-loans"
+    class="page-content hidden space-y-4"
+>
+    <!-- Header -->
+<div class="
+    px-1
+    flex items-start
+    justify-between
+    gap-3
+">
+    <div class="min-w-0">
+        <h1 class="
+            text-2xl lg:text-3xl
+            font-bold
+            text-slate-900 dark:text-white
+        ">
+            Pinjaman
+        </h1>
+
+        <p class="
+            mt-1.5
+            text-xs leading-relaxed
+            text-slate-500 dark:text-slate-400
+        ">
+            Pantau hutang, piutang, cicilan, dan pelunasannya.
+        </p>
+    </div>
+
+    <button
+        type="button"
+        onclick="openLoanFormModal()"
+        class="
+            shrink-0
+            inline-flex items-center gap-1.5
+            bg-blueSystem-500
+            hover:bg-blueSystem-600
+            text-white
+            px-3.5 py-2.5
+            rounded-xl
+            text-xs font-semibold
+            transition-colors
+        "
+    >
+        <i
+            data-lucide="plus"
+            class="w-4 h-4"
+        ></i>
+
+        <span class="hidden sm:inline">
+            Tambah Pinjaman
+        </span>
+
+        <span class="sm:hidden">
+            Tambah
+        </span>
+    </button>
+</div>
+
+    <!-- Ringkasan -->
+<div class="
+    grid grid-cols-1
+    md:grid-cols-2
+    gap-4
+    min-w-0
+">
+    <!-- Hutang -->
+    <div class="
+        min-w-0
+        overflow-hidden
+        bg-white dark:bg-slate-950
+        border border-slate-200 dark:border-slate-800
+        rounded-2xl
+        p-5
+        shadow-sm
+    ">
+        <p class="
+            text-sm font-semibold
+            text-slate-500 dark:text-slate-400
+        ">
+            Hutang Belum Lunas
+        </p>
+
+        <p
+            id="loanDebtUnpaidTotal"
+            class="
+                mt-1
+                text-2xl lg:text-3xl
+                font-bold
+                text-rose-600 dark:text-rose-400
+                tracking-tight
+            "
+        >
+            Rp 0,00
+        </p>
+
+        <div class="
+            mt-5 pt-4
+            border-t
+            border-slate-100 dark:border-slate-800
+        ">
+            <p class="
+                text-xs
+                text-slate-500 dark:text-slate-400
+            ">
+                Sudah Lunas :
+
+                <span
+                    id="loanDebtPaidTotal"
+                    class="
+                        ml-1 font-semibold
+                        text-slate-700 dark:text-slate-200
+                    "
+                >
+                    Rp 0,00
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Piutang -->
+    <div class="
+        min-w-0
+        overflow-hidden
+        bg-white dark:bg-slate-950
+        border border-slate-200 dark:border-slate-800
+        rounded-2xl
+        p-5
+        shadow-sm
+    ">
+        <p class="
+            text-sm font-semibold
+            text-slate-500 dark:text-slate-400
+        ">
+            Piutang Belum Lunas
+        </p>
+
+        <p
+            id="loanReceivableUnpaidTotal"
+            class="
+                mt-1
+                text-2xl lg:text-3xl
+                font-bold
+                text-blueSystem-500
+                dark:text-blueSystem-100
+                tracking-tight
+            "
+        >
+            Rp 0,00
+        </p>
+
+        <div class="
+            mt-5 pt-4
+            border-t
+            border-slate-100 dark:border-slate-800
+        ">
+            <p class="
+                text-xs
+                text-slate-500 dark:text-slate-400
+            ">
+                Sudah Lunas :
+
+                <span
+                    id="loanReceivablePaidTotal"
+                    class="
+                        ml-1 font-semibold
+                        text-slate-700 dark:text-slate-200
+                    "
+                >
+                    Rp 0,00
+                </span>
+            </p>
+        </div>
+    </div>
+</div>
+
+    <!-- Filter Pinjaman -->
+<div class="
+    bg-white dark:bg-slate-950
+    border border-slate-200 dark:border-slate-800
+    rounded-2xl
+    p-3
+    shadow-sm
+">
+    <div class="
+        grid grid-cols-3
+        gap-2
+    ">
+        <!-- Filter Jenis -->
+        <div class="min-w-0">
+            <select
+                id="loanTypeFilter"
+                aria-label="Filter jenis pinjaman"
+                onchange="handleLoanFilterChange()"
+                class="
+                    block w-full min-w-0
+                    bg-slate-50 dark:bg-slate-900
+                    border border-slate-200 dark:border-slate-800
+                    rounded-xl
+                    px-2 py-2.5
+                    text-[10px] sm:text-xs
+                    font-medium
+                    text-slate-700 dark:text-slate-300
+                    focus:outline-none
+                    focus:border-blueSystem-500
+                "
+            >
+                <option value="all">
+                    Semua Jenis
+                </option>
+
+                <option value="debt">
+                    Hutang
+                </option>
+
+                <option value="receivable">
+                    Piutang
+                </option>
+            </select>
+        </div>
+
+        <!-- Filter Status -->
+        <div class="min-w-0">
+            <select
+                id="loanStatusFilter"
+                aria-label="Filter status pinjaman"
+                onchange="handleLoanFilterChange()"
+                class="
+                    block w-full min-w-0
+                    bg-slate-50 dark:bg-slate-900
+                    border border-slate-200 dark:border-slate-800
+                    rounded-xl
+                    px-2 py-2.5
+                    text-[10px] sm:text-xs
+                    font-medium
+                    text-slate-700 dark:text-slate-300
+                    focus:outline-none
+                    focus:border-blueSystem-500
+                "
+            >
+                <option value="unpaid">
+                    Belum Lunas
+                </option>
+
+                <option value="paid">
+                    Lunas
+                </option>
+
+                <option value="all">
+                    Semua Status
+                </option>
+            </select>
+        </div>
+
+        <!-- Filter Bulan -->
+        <div class="min-w-0">
+            <select
+                id="loanMonthFilter"
+                aria-label="Filter bulan pinjaman"
+                onchange="handleLoanFilterChange()"
+                class="
+                    block w-full min-w-0
+                    bg-slate-50 dark:bg-slate-900
+                    border border-slate-200 dark:border-slate-800
+                    rounded-xl
+                    px-2 py-2.5
+                    text-[10px] sm:text-xs
+                    font-medium
+                    text-slate-700 dark:text-slate-300
+                    focus:outline-none
+                    focus:border-blueSystem-500
+                "
+            >
+                <option value="">
+                    Semua Bulan
+                </option>
+            </select>
+        </div>
+    </div>
+</div>
+
+    <!-- Daftar Hutang dan Piutang -->
+    <div
+        id="loanListContainer"
+        class="space-y-5"
+    ></div>
+</div>
+
+        <!-- ================= PAGE 4 : REPORTS ================= -->
         <div id="page-reports" class="page-content hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
@@ -869,7 +1226,7 @@ input[type="month"]::-webkit-date-and-time-value {
             </div>
         </div>
 
-        <!-- ================= PAGE 4: SETTINGS ================= -->
+        <!-- ================= PAGE 5 : SETTINGS ================= -->
         <div id="page-settings" class="page-content hidden space-y-6">
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -1635,17 +1992,753 @@ input[type="month"]::-webkit-date-and-time-value {
     </div>
 </div>
 
+<!-- Loan Form Modal -->
+<div
+    id="loanFormModal"
+    onclick="handleLoanFormBackdrop(event)"
+    class="hidden fixed inset-0 z-[70] bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+>
+    <form
+        id="loanForm"
+        onsubmit="submitLoanForm(event)"
+        onclick="event.stopPropagation()"
+        class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+    >
+        <input id="loanFormEditId" type="hidden" value="">
+        <input id="loanTypeInput" type="hidden" value="Piutang" data-locked="false">
+
+        <div class="shrink-0 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-5 py-4 flex items-center justify-between gap-3">
+            <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <i data-lucide="landmark" class="w-4 h-4 text-blueSystem-500"></i>
+                <span id="loanFormTitle">Tambah Pinjaman</span>
+            </h3>
+
+            <button
+                type="button"
+                onclick="closeLoanFormModal()"
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+                aria-label="Tutup modal"
+            >
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div
+                id="loanTypeSelector"
+                class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 p-1"
+            >
+                <button
+                    id="loanTypeHutangButton"
+                    type="button"
+                    onclick="setLoanFormType('Hutang')"
+                    class="rounded-lg px-3 py-2.5 text-xs font-semibold transition-all"
+                >
+                    Hutang
+                </button>
+
+                <button
+                    id="loanTypePiutangButton"
+                    type="button"
+                    onclick="setLoanFormType('Piutang')"
+                    class="rounded-lg px-3 py-2.5 text-xs font-semibold transition-all"
+                >
+                    Piutang
+                </button>
+            </div>
+
+            <div>
+                <label for="loanNameInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Transaksi</label>
+                <input
+                    id="loanNameInput"
+                    type="text"
+                    placeholder="Contoh : Makan Siang"
+                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                    required
+                >
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
+                    <input
+                        id="loanDateInput"
+                        type="date"
+                        onclick="openPickerSafely(this)"
+                        class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="loanPrincipalInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
+                    <input
+                        id="loanPrincipalInput"
+                        type="text"
+                        inputmode="decimal"
+                        placeholder="0"
+                        oninput="formatInputNominal(this)"
+                        class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="loan-due-date-row">
+                <div>
+                    <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
+                    <input
+                        id="loanDueDateInput"
+                        type="date"
+                        onclick="openPickerSafely(this)"
+                        class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:border-blueSystem-500"
+                        disabled
+                    >
+                </div>
+
+                <label class="loan-no-due-label rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                    <input
+                        id="loanNoDueDateInput"
+                        type="checkbox"
+                        checked
+                        onchange="updateLoanDueDateField()"
+                        class="h-4 w-4 rounded border-slate-300 text-blueSystem-500 focus:ring-blueSystem-500"
+                    >
+                    Tanpa jatuh tempo
+                </label>
+            </div>
+
+            <div id="loanPartyOriginGrid" class="grid grid-cols-2 gap-3">
+                <div id="loanPartyFieldContainer" class="min-w-0">
+                    <label
+                        id="loanPartyLabel"
+                        for="loanPartyInput"
+                        class="loan-field-label-aligned mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400"
+                    >
+                        Penerima Dana
+                    </label>
+
+                    <input
+                        id="loanPartyInput"
+                        type="text"
+                        placeholder="Nama Orang / Toko"
+                        class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                    >
+                </div>
+
+                <div id="loanOriginModeContainer" class="min-w-0">
+                    <label class="loan-field-label-aligned mb-1.5 text-[10px] leading-tight font-bold uppercase tracking-wider text-slate-400">
+                        Ada Perubahan Saldo?
+                    </label>
+
+                    <input
+                        id="loanOriginModeInput"
+                        type="hidden"
+                        value="none"
+                    >
+
+                    <div
+                        id="loanOriginModeSelector"
+                        class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 p-1"
+                    >
+                        <button
+                            id="loanOriginYesButton"
+                            type="button"
+                            onclick="setLoanOriginMode('account')"
+                            class="rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                        >
+                            Ya
+                        </button>
+
+                        <button
+                            id="loanOriginNoButton"
+                            type="button"
+                            onclick="setLoanOriginMode('none')"
+                            class="rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                        >
+                            Tidak
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <p id="loanOriginHelp" class="text-[10px] leading-relaxed text-slate-400"></p>
+
+            <div id="loanOriginAccountContainer" class="hidden">
+                <label for="loanOriginAccountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun Keuangan</label>
+                <select
+                    id="loanOriginAccountInput"
+                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                ></select>
+            </div>
+
+            <div>
+                <label for="loanNotesInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan</label>
+                <textarea
+                    id="loanNotesInput"
+                    rows="3"
+                    placeholder="Opsional"
+                    class="w-full resize-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                ></textarea>
+            </div>
+        </div>
+
+        <div class="shrink-0 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 px-5 py-4">
+            <button
+                type="submit"
+                class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-semibold transition-colors"
+            >
+                <span id="loanFormSubmitText">Simpan Pinjaman</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Loan Detail Modal -->
+<div
+    id="loanDetailModal"
+    onclick="handleLoanDetailBackdrop(event)"
+    class="hidden fixed inset-0 z-[80] bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+    >
+        <div class="shrink-0 flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <div class="min-w-0 flex items-center gap-2">
+                <i data-lucide="landmark" class="w-4 h-4 text-blueSystem-500"></i>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Rincian Pinjaman</h3>
+            </div>
+
+            <button
+                type="button"
+                onclick="closeLoanDetailModal()"
+                class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                aria-label="Tutup rincian pinjaman"
+            >
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="shrink-0 px-5 py-4 space-y-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+            <section>
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p id="loanDetailType" class="text-[11px] font-semibold text-blueSystem-500">-</p>
+                        <h4 id="loanDetailName" class="mt-1 text-base font-bold text-slate-900 dark:text-white break-words">-</h4>
+                        <p id="loanDetailMeta" class="mt-1 text-[11px] text-slate-400 break-words">-</p>
+                        <p id="loanDetailDueDate" class="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">Tanpa jatuh tempo</p>
+                    </div>
+
+                    <span id="loanDetailStatus" class="shrink-0 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold">-</span>
+                </div>
+
+                <p
+                    id="loanDetailNotes"
+                    class="hidden mt-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 break-words"
+                ></p>
+            </section>
+
+            <section class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div class="
+                    min-w-0
+                    rounded-xl
+                    bg-slate-50 dark:bg-slate-900
+                    px-3 py-3
+                    flex items-center justify-between gap-4
+                    sm:block
+                ">
+                    <p class="
+                        shrink-0
+                        text-[9px] font-semibold uppercase
+                        tracking-wider text-slate-400
+                    ">
+                        Nominal
+                    </p>
+
+                    <p
+                        id="loanDetailPrincipal"
+                        class="
+                            min-w-0
+                            text-sm sm:text-xs
+                            font-bold
+                            text-right sm:text-left
+                            text-slate-800 dark:text-slate-200
+                            whitespace-nowrap
+                            sm:mt-1
+                        "
+                    >
+                        Rp 0,00
+                    </p>
+                </div>
+
+                <div class="
+                    min-w-0
+                    rounded-xl
+                    bg-slate-50 dark:bg-slate-900
+                    px-3 py-3
+                    flex items-center justify-between gap-4
+                    sm:block
+                ">
+                    <p class="
+                        shrink-0
+                        text-[9px] font-semibold uppercase
+                        tracking-wider text-slate-400
+                    ">
+                        Terbayar
+                    </p>
+
+                    <p
+                        id="loanDetailPaid"
+                        class="
+                            min-w-0
+                            text-sm sm:text-xs
+                            font-bold
+                            text-right sm:text-left
+                            text-emerald-600 dark:text-emerald-400
+                            whitespace-nowrap
+                            sm:mt-1
+                        "
+                    >
+                        Rp 0,00
+                    </p>
+                </div>
+
+                <div class="
+                    min-w-0
+                    rounded-xl
+                    bg-slate-50 dark:bg-slate-900
+                    px-3 py-3
+                    flex items-center justify-between gap-4
+                    sm:block
+                ">
+                    <p class="
+                        shrink-0
+                        text-[9px] font-semibold uppercase
+                        tracking-wider text-slate-400
+                    ">
+                        Sisa
+                    </p>
+
+                    <p
+                        id="loanDetailRemaining"
+                        class="
+                            min-w-0
+                            text-sm sm:text-xs
+                            font-bold
+                            text-right sm:text-left
+                            text-rose-600 dark:text-rose-400
+                            whitespace-nowrap
+                            sm:mt-1
+                        "
+                    >
+                        Rp 0,00
+                    </p>
+                </div>
+            </section>
+
+            <section class="space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                    <h5 id="loanDetailPrincipalTitle" class="text-xs font-bold text-slate-800 dark:text-slate-200">Dana Diberikan</h5>
+                    <span id="loanDetailPrincipalCount" class="text-[10px] font-medium text-slate-400">-</span>
+                </div>
+                <div id="loanDetailPrincipalList"></div>
+            </section>
+        </div>
+
+        <section class="flex-1 min-h-0 flex flex-col px-5 py-4">
+            <div class="shrink-0 flex items-center justify-between gap-3 pb-2">
+                <h5 class="text-xs font-bold text-slate-800 dark:text-slate-200">Riwayat Pelunasan</h5>
+                <span id="loanDetailRepaymentCount" class="text-[10px] font-medium text-slate-400">0 transaksi</span>
+            </div>
+
+            <div id="loanDetailRepaymentList" class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1"></div>
+        </section>
+
+        <div
+            id="loanDetailFooterActions"
+            class="shrink-0 grid grid-cols-3 gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+        >
+            <button
+                type="button"
+                onclick="openLoanDeleteConfirm()"
+                class="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/50 bg-rose-500/5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-2.5 text-[10px] sm:text-xs font-semibold transition-colors"
+            >
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                Hapus
+            </button>
+
+            <button
+                type="button"
+                onclick="openLoanEditFromDetail()"
+                class="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-blueSystem-500 hover:bg-blueSystem-600 text-white px-2 py-2.5 text-[10px] sm:text-xs font-semibold transition-colors"
+            >
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                Edit
+            </button>
+
+            <button
+                id="loanDetailRepaymentButton"
+                type="button"
+                onclick="openLoanRepaymentFromDetail()"
+                class="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-2.5 text-[10px] sm:text-xs font-semibold transition-colors"
+            >
+                <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Catat Pelunasan</span>
+                <span class="sm:hidden">Pelunasan</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loan Notice Modal -->
+<div
+    id="loanNoticeModal"
+    onclick="handleLoanNoticeBackdrop(event)"
+    class="hidden fixed inset-0 z-[120] bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full overflow-hidden"
+    >
+        <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="circle-alert" class="w-4 h-4 text-amber-500"></i>
+                <h4 id="loanNoticeTitle" class="text-sm font-bold text-slate-900 dark:text-white">Perhatian</h4>
+            </div>
+            <button type="button" onclick="closeLoanNoticeModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Tutup pemberitahuan">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="p-5">
+            <p id="loanNoticeMessage" class="text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>
+        </div>
+
+        <div class="px-5 py-4 border-t border-slate-200 dark:border-slate-800">
+            <button type="button" onclick="closeLoanNoticeModal()" class="w-full rounded-xl bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 text-xs font-semibold transition-colors">Oke</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Unlink Repayment Modal -->
+<div
+    id="loanUnlinkConfirmModal"
+    onclick="handleLoanUnlinkBackdrop(event)"
+    class="
+        hidden fixed inset-0 z-[90]
+        bg-slate-900/40 dark:bg-black/60
+        backdrop-blur-sm
+        flex items-center justify-center
+        p-4
+    "
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="
+            bg-white dark:bg-slate-950
+            border border-slate-200 dark:border-slate-800
+            rounded-2xl shadow-xl
+            max-w-sm w-full
+            p-5 text-center
+            space-y-4
+        "
+    >
+        <div class="
+            mx-auto w-12 h-12 rounded-full
+            bg-amber-50 dark:bg-amber-900/30
+            flex items-center justify-center
+            text-amber-600 dark:text-amber-400
+        ">
+            <i data-lucide="unlink" class="w-6 h-6"></i>
+        </div>
+
+        <div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white">
+                Batalkan Tautan Pelunasan?
+            </h4>
+
+            <p class="mt-1 text-[11px] leading-relaxed text-slate-400">
+                Transaksi tetap tersimpan. ARAH hanya melepaskannya dari record pinjaman ini.
+            </p>
+        </div>
+
+        <div class="
+            rounded-xl bg-slate-50 dark:bg-slate-900
+            border border-slate-200 dark:border-slate-800
+            p-3
+        ">
+            <p
+                id="loanUnlinkConfirmName"
+                class="text-xs font-semibold text-slate-900 dark:text-white"
+            >
+                -
+            </p>
+
+            <p
+                id="loanUnlinkConfirmAmount"
+                class="mt-1 text-base font-bold text-amber-600 dark:text-amber-400"
+            >
+                Rp 0,00
+            </p>
+        </div>
+
+        <div class="flex gap-2">
+            <button
+                type="button"
+                onclick="closeLoanUnlinkConfirm()"
+                class="
+                    flex-1 py-2.5 rounded-xl
+                    bg-slate-100 dark:bg-slate-800
+                    text-slate-700 dark:text-slate-300
+                    text-xs font-semibold
+                "
+            >
+                Batal
+            </button>
+
+            <button
+                type="button"
+                onclick="confirmLoanRepaymentUnlink()"
+                class="
+                    flex-1 py-2.5 rounded-xl
+                    bg-amber-600 hover:bg-amber-700
+                    text-white text-xs font-semibold
+                    transition-colors
+                "
+            >
+                Ya, Lepaskan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loan Delete Confirm Modal -->
+<div
+    id="loanDeleteConfirmModal"
+    onclick="handleLoanDeleteBackdrop(event)"
+    class="
+        hidden fixed inset-0 z-[95]
+        bg-slate-900/40 dark:bg-black/60
+        backdrop-blur-sm
+        flex items-center justify-center
+        p-4
+    "
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="
+            bg-white dark:bg-slate-950
+            border border-slate-200 dark:border-slate-800
+            rounded-2xl shadow-xl
+            max-w-sm w-full
+            p-5 text-center space-y-4
+        "
+    >
+        <div class="
+            mx-auto w-12 h-12 rounded-full
+            bg-rose-50 dark:bg-rose-900/30
+            flex items-center justify-center
+            text-rose-600 dark:text-rose-400
+        ">
+            <i data-lucide="trash-2" class="w-6 h-6"></i>
+        </div>
+
+        <div>
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white">
+                Hapus Record Pinjaman?
+            </h4>
+
+            <p class="mt-1 text-[11px] leading-relaxed text-slate-400">
+                Record pinjaman akan dihapus. Seluruh transaksi terkait tetap
+                tersimpan dan hanya akan dilepaskan dari record ini.
+            </p>
+        </div>
+
+        <div class="
+            rounded-xl bg-slate-50 dark:bg-slate-900
+            border border-slate-200 dark:border-slate-800
+            p-3
+        ">
+            <p
+                id="loanDeleteConfirmName"
+                class="text-xs font-semibold text-slate-900 dark:text-white"
+            >
+                -
+            </p>
+
+            <p
+                id="loanDeleteConfirmInfo"
+                class="mt-1 text-[10px] text-slate-400"
+            >
+                -
+            </p>
+        </div>
+
+        <div class="flex gap-2">
+            <button
+                type="button"
+                onclick="closeLoanDeleteConfirm()"
+                class="
+                    flex-1 py-2.5 rounded-xl
+                    bg-slate-100 dark:bg-slate-800
+                    text-slate-700 dark:text-slate-300
+                    text-xs font-semibold
+                "
+            >
+                Batal
+            </button>
+
+            <button
+                type="button"
+                onclick="confirmLoanDelete()"
+                class="
+                    flex-1 py-2.5 rounded-xl
+                    bg-rose-600 hover:bg-rose-700
+                    text-white text-xs font-semibold
+                    transition-colors
+                "
+            >
+                Ya, Hapus
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loan Repayment Modal -->
+<div
+    id="loanRepaymentModal"
+    onclick="handleLoanRepaymentBackdrop(event)"
+    class="hidden fixed inset-0 z-[75] bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+>
+    <div
+        onclick="event.stopPropagation()"
+        class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+    >
+        <div class="shrink-0 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 px-5 py-4 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                    <i data-lucide="hand-coins" class="w-4 h-4 text-emerald-500"></i>
+                    Catat Pelunasan
+                </h3>
+                <p id="loanRepaymentModalSubtitle" class="mt-1 text-[10px] text-slate-400 truncate">-</p>
+            </div>
+
+            <button
+                type="button"
+                onclick="closeLoanRepaymentModal()"
+                class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+                aria-label="Tutup modal"
+            >
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
+                    <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Nominal</p>
+                    <p id="loanRepaymentPrincipal" class="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200 truncate">Rp 0,00</p>
+                </div>
+                <div class="min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
+                    <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Terbayar</p>
+                    <p id="loanRepaymentPaid" class="mt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate">Rp 0,00</p>
+                </div>
+                <div class="min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
+                    <p class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Sisa</p>
+                    <p id="loanRepaymentRemaining" class="mt-1 text-xs font-bold text-rose-600 dark:text-rose-400 truncate">Rp 0,00</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 p-1">
+                <button id="loanRepaymentExistingTab" type="button" onclick="setLoanRepaymentMode('existing')" class="rounded-lg px-3 py-2 text-[11px] font-semibold transition-all">Pilih Transaksi</button>
+                <button id="loanRepaymentNewTab" type="button" onclick="setLoanRepaymentMode('new')" class="rounded-lg px-3 py-2 text-[11px] font-semibold transition-all">Catat Baru</button>
+            </div>
+
+            <div id="loanRepaymentExistingPanel" class="space-y-3">
+                <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Pilih transaksi pelunasan</p>
+
+                <div class="relative">
+                    <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+                    <input
+                        id="loanRepaymentSearchInput"
+                        type="search"
+                        placeholder="Cari nama, akun, atau catatan..."
+                        autocomplete="off"
+                        oninput="handleLoanRepaymentSearch()"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blueSystem-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                    >
+                </div>
+
+                <div id="loanRepaymentCandidateList" class="max-h-64 overflow-y-auto space-y-2 pr-1"></div>
+
+                <div class="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
+                    <span class="text-[10px] text-slate-400">Total dipilih</span>
+                    <span id="loanRepaymentSelectedTotal" class="text-xs font-bold text-slate-800 dark:text-slate-200">Rp 0,00</span>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="linkSelectedLoanRepayments()"
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-semibold transition-colors"
+                >
+                    Hubungkan Transaksi
+                </button>
+            </div>
+
+            <form id="loanRepaymentNewPanel" onsubmit="submitNewLoanRepayment(event)" class="hidden space-y-4">
+                <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Catat transaksi pelunasan baru</p>
+
+                <div>
+                    <label for="loanRepaymentNameInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Transaksi</label>
+                    <input id="loanRepaymentNameInput" type="text" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
+                        <input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required>
+                    </div>
+                    <div>
+                        <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
+                        <input id="loanRepaymentAmountInput" type="text" inputmode="decimal" placeholder="0" oninput="formatInputNominal(this)" class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="loanRepaymentAccountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun Keuangan</label>
+                    <select id="loanRepaymentAccountInput" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required></select>
+                </div>
+
+                <div>
+                    <label for="loanRepaymentNotesInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan</label>
+                    <textarea id="loanRepaymentNotesInput" rows="3" placeholder="Opsional" class="w-full resize-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-semibold transition-colors">Simpan Pelunasan</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
     <!-- Confirm Delete Modal -->
     <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-5 text-center space-y-4">
             <div class="mx-auto w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
             <div>
                 <h4 class="font-bold text-sm text-slate-900 dark:text-white" id="deleteModalTitle">Hapus Item?</h4>
-                <p class="text-xs text-slate-400 mt-1">Tindakan ini bersifat permanen.</p>
+                <p
+                    id="deleteModalMessage"
+                    class="text-xs text-slate-400 mt-1"
+                >
+                    Tindakan ini bersifat permanen.
+                </p>
             </div>
             <div class="flex gap-2">
                 <button onclick="closeDeleteModal()" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 rounded-xl text-xs font-semibold">Batal</button>
-                <button id="confirmDeleteBtn" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2 rounded-xl text-xs font-semibold">Ya, Hapus</button>
+                <button id="confirmDeleteBtn" type="button" onclick="confirmDeleteTarget()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2 rounded-xl text-xs font-semibold">Ya, Hapus</button>
             </div>
         </div>
     </div>
@@ -1719,6 +2812,6 @@ input[type="month"]::-webkit-date-and-time-value {
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260805-7"></script>
 </body>
 </html>
