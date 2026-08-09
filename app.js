@@ -2947,21 +2947,39 @@ function setLoanFormTypeLocked(isLocked) {
 }
 
 function updateLoanDueDateField() {
-    const noDueDateInput = document.getElementById(
-        'loanNoDueDateInput'
-    );
-    const dueDateInput = document.getElementById(
-        'loanDueDateInput'
-    );
+    const noDueDateInput =
+        document.getElementById(
+            'loanNoDueDateInput'
+        );
 
-    if (!noDueDateInput || !dueDateInput) {
+    const dueDateInput =
+        document.getElementById(
+            'loanDueDateInput'
+        );
+
+    if (
+        !noDueDateInput ||
+        !dueDateInput
+    ) {
         return;
     }
 
-    const hasNoDueDate = noDueDateInput.checked;
+    const hasNoDueDate =
+        noDueDateInput.checked;
 
-    dueDateInput.disabled = hasNoDueDate;
-    dueDateInput.required = !hasNoDueDate;
+    dueDateInput.readOnly =
+        hasNoDueDate;
+
+    dueDateInput.tabIndex =
+        hasNoDueDate ? -1 : 0;
+
+    dueDateInput.required =
+        !hasNoDueDate;
+
+    dueDateInput.classList.toggle(
+        'loan-due-date-disabled',
+        hasNoDueDate
+    );
 
     if (hasNoDueDate) {
         dueDateInput.value = '';

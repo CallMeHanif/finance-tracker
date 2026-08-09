@@ -33,4 +33,11 @@
         align-items: flex-end;
         min-height: 1.5rem;
     }
+
+    .loan-due-date-disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 }
+
