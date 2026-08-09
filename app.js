@@ -1,7 +1,3 @@
-// ==========================================
-// Developed by Hanif Alkhairi
-// ==========================================
-
 let userAccounts = [
     { name: "Cash", type: "Cash", initial: 1200500 },
     { name: "BCA", type: "Bank", initial: 2200100 },
@@ -84,8 +80,6 @@ function openPickerSafely(input) {
             input.showPicker();
             return;
         } catch (error) {
-            // Browser tertentu tetap membuka date picker
-            // melalui perilaku native setelah event click.
         }
     }
 
@@ -665,89 +659,49 @@ function toggleDarkMode() {
 function switchPage(pageId) {
     activePage = pageId;
 
-    document
-        .querySelectorAll('.page-content')
-        .forEach(element => {
-            element.classList.add('hidden');
-        });
+    document.querySelectorAll('.page-content').forEach(element => {
+        element.classList.add('hidden');
+    });
 
-    const targetPage =
-        document.getElementById(
-            'page-' + pageId
-        );
+    const targetPage = document.getElementById(`page-${pageId}`);
 
     if (!targetPage) {
-        console.error(
-            `Halaman "${pageId}" tidak ditemukan.`
-        );
-
+        console.error(`Halaman "${pageId}" tidak ditemukan.`);
         return;
     }
 
     targetPage.classList.remove('hidden');
 
-    document
-        .querySelectorAll('header nav button')
-        .forEach(button => {
-            button.className = `
-                px-4 py-1.5
-                rounded-lg
-                transition-all
-                text-slate-500
-                dark:text-slate-400
-                hover:text-slate-900
-            `;
-        });
+    document.querySelectorAll('header nav button').forEach(button => {
+        button.className = 'px-4 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-900';
+    });
 
-    const activeDesktopButton =
-        document.getElementById(
-            'nav-' + pageId
-        );
+    const isSettingsChild = pageId.startsWith('settings-');
+    const desktopPageId = isSettingsChild ? 'settings' : pageId;
+    const activeDesktopButton = document.getElementById(`nav-${desktopPageId}`);
 
     if (activeDesktopButton) {
-        activeDesktopButton.className = `
-            px-4 py-1.5
-            rounded-lg
-            transition-all
-            bg-white
-            dark:bg-slate-800
-            text-blueSystem-500
-            dark:text-white
-            shadow-sm
-        `;
+        activeDesktopButton.className = 'px-4 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-blueSystem-500 dark:text-white shadow-sm';
     }
 
-    document
-        .querySelectorAll(
-            '#bottomMobileNav .bottom-nav-item'
-        )
-        .forEach(button => {
-            button.classList.remove(
-                'is-active'
-            );
-        });
+    document.querySelectorAll('#bottomMobileNav .bottom-nav-item').forEach(button => {
+        button.classList.remove('is-active');
+    });
 
-    const bottomPageId =
-        pageId === 'loans'
-            ? 'dashboard'
+    const bottomPageId = pageId === 'loans'
+        ? 'dashboard'
+        : isSettingsChild
+            ? 'settings'
             : pageId;
 
-    const activeBottomButton =
-        document.getElementById(
-            'nav-bottom-' + bottomPageId
-        );
+    const activeBottomButton = document.getElementById(`nav-bottom-${bottomPageId}`);
 
     if (activeBottomButton) {
-        activeBottomButton.classList.add(
-            'is-active'
-        );
+        activeBottomButton.classList.add('is-active');
     }
 
     renderDashboard();
-
-    requestAnimationFrame(
-        updateFloatingTransactionButton
-    );
+    requestAnimationFrame(updateFloatingTransactionButton);
 }
 function escapeHtml(value) {
     return String(value ?? '')
@@ -878,11 +832,6 @@ function populateFormDropdowns() {
 
     const filterCategorySelect =
         document.getElementById('txFilterCategory');
-
-    /*
-     * Simpan pilihan user sebelum isi dropdown
-     * dibuat ulang saat refresh cloud.
-     */
     const selectedAccount =
         accountSelect?.value || '';
 
@@ -945,11 +894,6 @@ function populateFormDropdowns() {
                 .join('')}
         `;
     }
-
-    /*
-     * Kembalikan pilihan user jika akun atau
-     * kategorinya masih tersedia.
-     */
     const restoreValue = (
         selectElement,
         previousValue
@@ -1238,7 +1182,7 @@ function renderDashboard() {
         renderLoansPage();
     } else if (activePage === 'reports') {
         renderReportsPage();
-    } else if (activePage === 'settings') {
+    } else if (activePage === 'settings' || activePage.startsWith('settings-')) {
         renderSettingsPage();
     }
     lucide.createIcons();
@@ -2329,10 +2273,6 @@ const matchesActiveFilters =
         );
     };
 
-/*
- * Daftar transaksi mengikuti filter tanggal.
- * Jika kosong, semua tanggal ditampilkan.
- */
 const filtered =
     transactions.filter(transaction => {
         const matchMonth =
@@ -2350,11 +2290,6 @@ const filtered =
         );
     });
 
-/*
- * Total pendapatan dan pengeluaran:
- * - Bulan terpilih jika ada.
- * - Bulan saat ini jika memilih Semua Tanggal.
- */
 const summaryTransactions =
     transactions.filter(transaction => {
         return (
@@ -2542,11 +2477,6 @@ function renderMobileTransactionCards(
             amount =
                 transaction.debit;
         }
-
-        /*
-         * Buat judul tanggal baru ketika
-         * tanggal transaksi berubah.
-         */
         if (
             transaction.date !== currentDate
         ) {
@@ -2946,40 +2876,30 @@ function setLoanFormTypeLocked(isLocked) {
     updateLoanTypeButtons();
 }
 
-function updateLoanDueDateField() {
-    const noDueDateInput =
-        document.getElementById(
-            'loanNoDueDateInput'
-        );
+function openLoanDueDatePicker(input) {
+    const noDueDateInput = document.getElementById('loanNoDueDateInput');
 
-    const dueDateInput =
-        document.getElementById(
-            'loanDueDateInput'
-        );
-
-    if (
-        !noDueDateInput ||
-        !dueDateInput
-    ) {
+    if (noDueDateInput?.checked) {
         return;
     }
 
-    const hasNoDueDate =
-        noDueDateInput.checked;
+    openPickerSafely(input);
+}
 
-    dueDateInput.readOnly =
-        hasNoDueDate;
+function updateLoanDueDateField() {
+    const noDueDateInput = document.getElementById('loanNoDueDateInput');
+    const dueDateInput = document.getElementById('loanDueDateInput');
 
-    dueDateInput.tabIndex =
-        hasNoDueDate ? -1 : 0;
+    if (!noDueDateInput || !dueDateInput) {
+        return;
+    }
 
-    dueDateInput.required =
-        !hasNoDueDate;
+    const hasNoDueDate = noDueDateInput.checked;
 
-    dueDateInput.classList.toggle(
-        'loan-due-date-disabled',
-        hasNoDueDate
-    );
+    dueDateInput.required = !hasNoDueDate;
+    dueDateInput.tabIndex = hasNoDueDate ? -1 : 0;
+    dueDateInput.setAttribute('aria-disabled', String(hasNoDueDate));
+    dueDateInput.classList.toggle('loan-due-date-disabled', hasNoDueDate);
 
     if (hasNoDueDate) {
         dueDateInput.value = '';
@@ -4693,7 +4613,6 @@ function openLoanRepaymentFromDetail() {
     }, 80);
 }
 
-
 function openLoanEditFromDetail() {
     const loanId = loanDetailTargetId;
 
@@ -5277,11 +5196,6 @@ function renderReportsPage() {
     let selectedCategory =
         localStorage.getItem('reportCategoryFilter') ||
         'all';
-
-    /*
-    * Jika kategori yang sebelumnya dipilih sudah dihapus,
-    * otomatis kembali ke Semua Kategori.
-    */
     if (
         selectedCategory !== 'all' &&
         !availableCategories.includes(selectedCategory)
@@ -5514,60 +5428,62 @@ function renderReportsPage() {
 }
 
 function renderSettingsPage() {
-    const accBody = document.getElementById('setupAccountsTableBody');
-    if (userAccounts.length === 0) {
-        accBody.innerHTML = emptyTableRowHTML(4);
-    } else {
-        accBody.innerHTML = userAccounts.map((a, index) => `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 draggable-row transition-colors" 
-                draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${index})">
-                <td class="py-2.5 px-3 text-slate-300 dark:text-slate-600 font-bold select-none text-center cursor-grab">⋮⋮</td>
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(a.name)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${escapeHtml(a.type)}</span></td>
-                <td class="py-2.5 px-3 text-center space-x-2.5 whitespace-nowrap">
-                    <button onclick="editSetupAccount(decodeActionValue('${encodeActionValue(a.name)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(a.name)}'), 'account')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`).join('');
+    const accountBody = document.getElementById('setupAccountsTableBody');
+    const categoryBody = document.getElementById('setupCategoriesTableBody');
+
+    if (accountBody) {
+        accountBody.innerHTML = userAccounts.length === 0
+            ? emptyTableRowHTML(4)
+            : userAccounts.map((account, index) => `
+                <tr
+                    class="hover:bg-slate-50 dark:hover:bg-slate-900/60 draggable-row transition-colors"
+                    draggable="true"
+                    ondragstart="handleDragStart(event, ${index})"
+                    ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)"
+                    ondrop="handleDrop(event, ${index})"
+                >
+                    <td class="py-2.5 px-3 text-slate-300 dark:text-slate-600 font-bold select-none text-center cursor-grab">⋮⋮</td>
+                    <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(account.name)}</td>
+                    <td class="py-2.5 px-3 text-slate-500">
+                        <span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${escapeHtml(account.type)}</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-center space-x-2.5 whitespace-nowrap">
+                        <button type="button" aria-label="Edit akun" onclick="editSetupAccount(decodeActionValue('${encodeActionValue(account.name)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block">
+                            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button type="button" aria-label="Hapus akun" onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(account.name)}'), 'account')" class="text-slate-400 hover:text-rose-600 inline-block">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
     }
 
-    const catBody = document.getElementById('setupCategoriesTableBody');
-    let catHtml = '';
-    
-    userCategories.income.forEach(cat => {
-        catHtml += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Masuk</span></td>
-                <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_in')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`;
-    });
-    
-    userCategories.expense.forEach(cat => {
-        catHtml += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Keluar</span></td>
-                <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_out')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`;
-    });
+    if (categoryBody) {
+        const rows = [
+            ...userCategories.income.map(name => ({ name, type: 'category_in', label: 'Masuk', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' })),
+            ...userCategories.expense.map(name => ({ name, type: 'category_out', label: 'Keluar', badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' })),
+            ...userCategories.neutral.map(name => ({ name, type: 'category_neutral', label: 'Netral', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' }))
+        ];
 
-    userCategories.neutral.forEach(cat => {
-    catHtml += `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-            <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-            <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Netral</span></td>
-            <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_neutral')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-            </td>
-        </tr>`;
-    });
+        categoryBody.innerHTML = rows.length === 0
+            ? emptyTableRowHTML(3)
+            : rows.map(category => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                    <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(category.name)}</td>
+                    <td class="py-2.5 px-3 text-slate-500">
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${category.badge}">${category.label}</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                        <button type="button" aria-label="Hapus kategori" onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category.name)}'), '${category.type}')" class="text-slate-400 hover:text-rose-600 inline-block">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+    }
 
-    catBody.innerHTML = catHtml === '' ? emptyTableRowHTML(3) : catHtml;
     lucide.createIcons();
 }
 
@@ -6340,11 +6256,6 @@ function duplicateTransaction(id) {
 
         Duplikat Transaksi
     `;
-
-    /*
-     * Kosongkan ID agar saat disimpan
-     * menjadi transaksi baru.
-     */
     document.getElementById(
         'form-edit-id'
     ).value = '';
@@ -6583,7 +6494,6 @@ function confirmDeleteTarget() {
     commitDataChange();
 }
 
-
 function executeWipeAllData() {
     userAccounts = [];
     transactions = [];
@@ -6783,7 +6693,6 @@ function triggerCloudPush({
         void flushCloudPush();
     }, CLOUD_SYNC_DELAY);
 }
-
 
 async function flushCloudPush() {
     const { mode, url } = getCloudConfig();
@@ -7099,391 +7008,9 @@ function closeNoAccountModal() {
 
 function goToSettingsFromModal() {
     closeNoAccountModal();
-    switchPage('settings');
+    switchPage('settings-accounts');
 }
 
-/* ================= DEV ONLY: IMPORT CSV =================
-
-document.getElementById('csvFileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = function(event) {
-        const text = event.target.result;
-        processCSV(text);
-    };
-
-    reader.readAsText(file);
-});
-
-================= END DEV ONLY ================= */
-
-function getTransactionContentSignature(transaction) {
-    return simpleHash(JSON.stringify([
-        normalizeDateValue(transaction.date),
-        normalizeText(transaction.name).toLocaleLowerCase('id-ID'),
-        normalizeMoney(transaction.credit),
-        normalizeMoney(transaction.debit),
-        normalizeText(transaction.category).toLocaleLowerCase('id-ID'),
-        normalizeText(transaction.account).toLocaleLowerCase('id-ID'),
-        normalizeText(transaction.targetAccount).toLocaleLowerCase('id-ID'),
-        normalizeText(transaction.notes).toLocaleLowerCase('id-ID'),
-        Boolean(transaction.isTransfer)
-    ]));
-}
-
-function detectCSVDelimiter(csvText) {
-    const firstLine = csvText
-        .split(/\r?\n/)
-        .find(line => line.trim() !== '') || '';
-
-    let commaCount = 0;
-    let semicolonCount = 0;
-    let insideQuotes = false;
-
-    for (let i = 0; i < firstLine.length; i++) {
-        const char = firstLine[i];
-
-        if (char === '"') {
-            if (insideQuotes && firstLine[i + 1] === '"') {
-                i++;
-            } else {
-                insideQuotes = !insideQuotes;
-            }
-        } else if (!insideQuotes) {
-            if (char === ',') commaCount++;
-            if (char === ';') semicolonCount++;
-        }
-    }
-
-    return semicolonCount > commaCount ? ';' : ',';
-}
-
-function parseCSVRows(csvText, delimiter) {
-    const rows = [];
-    let row = [];
-    let value = '';
-    let insideQuotes = false;
-
-    for (let i = 0; i < csvText.length; i++) {
-        const char = csvText[i];
-        const nextChar = csvText[i + 1];
-
-        if (char === '"') {
-            if (insideQuotes && nextChar === '"') {
-                value += '"';
-                i++;
-            } else {
-                insideQuotes = !insideQuotes;
-            }
-
-            continue;
-        }
-
-        if (char === delimiter && !insideQuotes) {
-            row.push(value.trim());
-            value = '';
-            continue;
-        }
-
-        if ((char === '\n' || char === '\r') && !insideQuotes) {
-            if (char === '\r' && nextChar === '\n') {
-                i++;
-            }
-
-            row.push(value.trim());
-
-            if (row.some(cell => cell !== '')) {
-                rows.push(row);
-            }
-
-            row = [];
-            value = '';
-            continue;
-        }
-
-        value += char;
-    }
-
-    row.push(value.trim());
-
-    if (row.some(cell => cell !== '')) {
-        rows.push(row);
-    }
-
-    return rows;
-}
-
-function normalizeCSVHeader(value) {
-    return String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/^\uFEFF/, '')
-        .replace(/[^a-z0-9]/g, '');
-}
-
-function parseCSVAmount(value) {
-    if (value === null || value === undefined || value === '') {
-        return 0;
-    }
-
-    let text = String(value)
-        .trim()
-        .replace(/\s/g, '')
-        .replace(/rp/gi, '')
-        .replace(/[^\d,.\-]/g, '');
-
-    if (!text || text === '-') {
-        return 0;
-    }
-
-    const lastComma = text.lastIndexOf(',');
-    const lastDot = text.lastIndexOf('.');
-
-    if (lastComma !== -1 && lastDot !== -1) {
-        if (lastComma > lastDot) {
-            text = text.replace(/\./g, '').replace(',', '.');
-        } else {
-            text = text.replace(/,/g, '');
-        }
-    } else if (lastComma !== -1) {
-        const decimalLength = text.length - lastComma - 1;
-
-        if (decimalLength === 1 || decimalLength === 2) {
-            text = text.replace(/\./g, '').replace(',', '.');
-        } else {
-            text = text.replace(/,/g, '');
-        }
-    } else if (lastDot !== -1) {
-        const dotParts = text.split('.');
-        const decimalLength = text.length - lastDot - 1;
-
-        if (dotParts.length > 2 || decimalLength === 3) {
-            text = text.replace(/\./g, '');
-        }
-    }
-
-    const amount = Number.parseFloat(text);
-
-    return Number.isFinite(amount) ? amount : 0;
-}
-
-function processCSV(csvText) {
-    try {
-        const delimiter = detectCSVDelimiter(csvText);
-        const rows = parseCSVRows(csvText, delimiter);
-
-        if (rows.length === 0) {
-            alert('File CSV kosong atau tidak dapat dibaca.');
-            return;
-        }
-
-        const normalizedFirstRow = rows[0].map(normalizeCSVHeader);
-
-        const hasHeader = normalizedFirstRow.some(header =>
-            [
-                'tanggal',
-                'date',
-                'nama',
-                'name',
-                'credit',
-                'kredit',
-                'debit',
-                'kategori',
-                'category',
-                'akun',
-                'account',
-                'targetakun',
-                'akuntujuan',
-                'catatan',
-                'notes'
-            ].includes(header)
-        );
-
-        let columnMap = {
-            date: 0,
-            name: 1,
-            credit: 2,
-            debit: 3,
-            category: 4,
-            account: 5,
-            targetAccount: 6,
-            notes: 7
-        };
-
-        let startIndex = 0;
-
-        if (hasHeader) {
-            startIndex = 1;
-
-            const findColumn = aliases => {
-                return normalizedFirstRow.findIndex(header =>
-                    aliases.includes(header)
-                );
-            };
-
-            columnMap = {
-                date: findColumn([
-                    'tanggal',
-                    'date',
-                    'tgl'
-                ]),
-                name: findColumn([
-                    'nama',
-                    'name',
-                    'deskripsi',
-                    'description',
-                    'item'
-                ]),
-                credit: findColumn([
-                    'credit',
-                    'kredit',
-                    'uangkeluar',
-                    'pengeluaran',
-                    'keluar'
-                ]),
-                debit: findColumn([
-                    'debit',
-                    'uangmasuk',
-                    'pendapatan',
-                    'masuk'
-                ]),
-                category: findColumn([
-                    'kategori',
-                    'category'
-                ]),
-                account: findColumn([
-                    'akun',
-                    'account',
-                    'akunasal'
-                ]),
-                targetAccount: findColumn([
-                    'targetakun',
-                    'targetaccount',
-                    'akuntujuan',
-                    'tujuanakun'
-                ]),
-                notes: findColumn([
-                    'catatan',
-                    'notes',
-                    'note',
-                    'keterangan'
-                ])
-            };
-        }
-
-        const getColumnValue = (row, index) => {
-            if (index === -1 || index === undefined) return '';
-            return String(row[index] || '').trim();
-        };
-
-        const importedTransactions = [];
-        let skippedRows = 0;
-
-        for (let i = startIndex; i < rows.length; i++) {
-            const row = rows[i];
-
-            let localMap = { ...columnMap };
-
-            if (!hasHeader && row.length === 7) {
-                const sourceAccount = normalizeText(row[5]);
-                const lastColumnValue = normalizeText(row[6]);
-
-                const targetAccountExists = userAccounts.some(account =>
-                    normalizeText(account.name).toLocaleLowerCase('id-ID') ===
-                    lastColumnValue.toLocaleLowerCase('id-ID')
-                );
-
-                const isDifferentAccount =
-                    sourceAccount.toLocaleLowerCase('id-ID') !==
-                    lastColumnValue.toLocaleLowerCase('id-ID');
-
-                if (
-                    lastColumnValue &&
-                    targetAccountExists &&
-                    isDifferentAccount
-                ) {
-                    localMap.targetAccount = 6;
-                    localMap.notes = -1;
-                } else {
-                    localMap.targetAccount = -1;
-                    localMap.notes = 6;
-                }
-            }
-            const date = getColumnValue(row, localMap.date);
-            const name = getColumnValue(row, localMap.name);
-            const credit = parseCSVAmount(
-                getColumnValue(row, localMap.credit)
-            );
-            const debit = parseCSVAmount(
-                getColumnValue(row, localMap.debit)
-            );
-            const category = getColumnValue(row, localMap.category);
-            const account = getColumnValue(row, localMap.account);
-            const targetAccount = getColumnValue(
-                row,
-                localMap.targetAccount
-            );
-            const notes = getColumnValue(row, localMap.notes);
-
-            if (!date || !name) {
-                skippedRows++;
-                continue;
-            }
-
-            const isTransfer =
-                targetAccount !== '' &&
-                account !== '' &&
-                targetAccount !== account;
-
-            importedTransactions.push({
-                id: createTransactionId(i),
-                date: date,
-                name: name,
-                credit: credit,
-                debit: debit,
-                category: isTransfer ? '' : category,
-                account: account,
-                targetAccount: isTransfer ? targetAccount : '',
-                notes: notes,
-                isTransfer: isTransfer
-            });
-        }
-
-        if (importedTransactions.length === 0) {
-            alert(
-                'Tidak ada transaksi valid yang ditemukan di dalam file CSV.'
-            );
-            return;
-        }
-
-        transactions.push(...importedTransactions);
-
-        document.getElementById('csvFileInput').value = '';
-
-        let successMessage =
-            `${importedTransactions.length} transaksi berhasil diimpor.`;
-
-        if (skippedRows > 0) {
-            successMessage +=
-                ` ${skippedRows} baris dilewati karena tidak memiliki tanggal atau nama.`;
-        }
-
-        openSuccessModal(successMessage);
-
-        commitDataChange();
-    } catch (error) {
-        console.error('Gagal mengimpor CSV:', error);
-
-        alert(
-            'CSV gagal diimpor. Pastikan format kolom dan isi file sudah benar.'
-        );
-    }
-}
-
-// ================= LOADING & SUCCESS MODAL =================
 function showLoader() {
     const loader = document.getElementById('globalLoader');
     if (loader) loader.classList.remove('hidden');

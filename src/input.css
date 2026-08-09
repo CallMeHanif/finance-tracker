@@ -2,12 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    input[type="date"],
+    input[type="month"] {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 2.5rem;
+        box-sizing: border-box;
+        cursor: pointer;
+    }
+
+    input[type="date"]::-webkit-date-and-time-value,
+    input[type="month"]::-webkit-date-and-time-value {
+        min-width: 0;
+        text-align: left;
+    }
+}
+
 @layer components {
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #475569;
+    }
+
+    .draggable-row {
+        cursor: grab;
+        transition: background-color 0.15s ease;
+    }
+
+    .draggable-row:active {
+        cursor: grabbing;
+        background-color: #f1f5f9;
+    }
+
+    .dark .draggable-row:active {
+        background-color: #1e293b;
+    }
+
+    .drag-over {
+        border-top: 2px solid #0056a3 !important;
+    }
+
+    .bottom-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        min-height: 3rem;
+        border-radius: 0.9rem;
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #94a3b8;
+        transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .bottom-nav-item svg {
+        stroke-width: 2;
+    }
+
+    .bottom-nav-item.is-active {
+        color: #0056a3;
+        background: #f0f4ff;
+    }
+
+    .dark .bottom-nav-item {
+        color: #64748b;
+    }
+
+    .dark .bottom-nav-item.is-active {
+        color: #fff;
+        background: #0f172a;
+    }
+
     .loan-due-date-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         align-items: end;
         gap: 0.75rem;
+    }
+
+    .loan-due-date-input {
+        height: 2.5rem;
+        min-height: 2.5rem;
+    }
+
+    .loan-due-date-disabled {
+        opacity: 0.55;
+        pointer-events: none;
     }
 
     .loan-no-due-label {
@@ -17,7 +118,7 @@
         gap: 0.5rem;
         width: 100%;
         min-width: 0;
-        min-height: 38px;
+        min-height: 2.5rem;
         padding: 0.625rem 0.75rem;
         font-size: 0.8125rem;
         line-height: 1rem;
@@ -33,11 +134,43 @@
         align-items: flex-end;
         min-height: 1.5rem;
     }
-
-    .loan-due-date-disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
 }
 
+@media (max-width: 767px) {
+    #transactionsTable {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    #transactionsTable th,
+    #transactionsTable td {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    #transactionsTable th:nth-child(n+4),
+    #transactionsTable td:nth-child(n+4) {
+        display: none;
+    }
+
+    #transactionsTable th:nth-child(1),
+    #transactionsTable td:nth-child(1) {
+        width: 28%;
+        white-space: nowrap;
+    }
+
+    #transactionsTable th:nth-child(2),
+    #transactionsTable td:nth-child(2) {
+        width: 42%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #transactionsTable th:nth-child(3),
+    #transactionsTable td:nth-child(3) {
+        width: 30%;
+        text-align: right;
+        white-space: nowrap;
+    }
+}
