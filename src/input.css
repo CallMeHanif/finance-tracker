@@ -21,6 +21,34 @@
 }
 
 @layer components {
+    .loan-date-amount-row {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        align-items: flex-end;
+        gap: 0.75rem;
+    }
+
+    .loan-date-amount-field {
+        flex: 1 1 0%;
+        width: 0;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .loan-main-date-input {
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
     .loan-due-date-row {
         display: flex;
         width: 100%;
@@ -83,11 +111,21 @@
 }
 
 @supports (-webkit-touch-callout: none) {
+    .loan-main-date-input,
     .loan-due-date-input {
         -webkit-appearance: none;
         appearance: none;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
         inline-size: 100% !important;
         min-inline-size: 0 !important;
         max-inline-size: 100% !important;
+    }
+
+    .loan-main-date-input::-webkit-date-and-time-value {
+        min-width: 0;
+        width: 100%;
+        text-align: left;
     }
 }
