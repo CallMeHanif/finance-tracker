@@ -26,7 +26,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=20260811-date-final">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260811-native-date-final">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -72,44 +72,6 @@
     background: #0f172a;
 }
 
-@media (max-width: 767px) {
-    #transactionsTable {
-        width: 100%;
-        table-layout: fixed;
-    }
-
-    #transactionsTable th,
-    #transactionsTable td {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
-
-    #transactionsTable th:nth-child(n+4),
-    #transactionsTable td:nth-child(n+4) {
-        display: none;
-    }
-
-    #transactionsTable th:nth-child(1),
-    #transactionsTable td:nth-child(1) {
-        width: 28%;
-        white-space: nowrap;
-    }
-
-    #transactionsTable th:nth-child(2),
-    #transactionsTable td:nth-child(2) {
-        width: 42%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    #transactionsTable th:nth-child(3),
-    #transactionsTable td:nth-child(3) {
-        width: 30%;
-        text-align: right;
-        white-space: nowrap;
-    }
-}
 
     </style>
 </head>
@@ -764,7 +726,7 @@
 
         <select
             id="txFilterAccount"
-            onchange="renderDashboard()"
+            onchange="syncTransactionFilters('desktop')"
             aria-label="Filter akun"
             class="
                 block w-full min-w-0
@@ -779,7 +741,7 @@
 
         <select
             id="txFilterCategory"
-            onchange="renderDashboard()"
+            onchange="syncTransactionFilters('desktop')"
             aria-label="Filter kategori"
             class="
                 block w-full min-w-0
@@ -814,35 +776,10 @@
     </div>
 </div>
 
-                <!-- Daftar transaksi desktop -->
-<div class="hidden md:block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto custom-scrollbar">
-        <table id="transactionsTable" class="w-full text-left border-collapse text-xs">
-            <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold sticky top-0">
-                <tr>
-                    <th class="py-3 px-4">Tanggal</th>
-                    <th class="py-3 px-4">Item</th>
-                    <th class="py-3 px-4">Nominal</th>
-                    <th class="py-3 px-4">Kategori</th>
-                    <th class="py-3 px-4">Akun</th>
-                    <th class="py-3 px-4">Catatan</th>
-                    <th class="py-3 px-4 text-center">Aksi</th>
-                </tr>
-            </thead>
-
-            <tbody
-                id="txTableBody"
-                class="divide-y divide-slate-100 dark:divide-slate-800"
-            ></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Daftar transaksi mobile -->
-<div
-    id="txMobileCards"
-    class="md:hidden space-y-4"
-></div>
+                <div
+                    id="txTransactionList"
+                    class="space-y-4"
+                ></div>
             </div>
 
             <button
@@ -1460,17 +1397,13 @@
             Tanggal
         </label>
 
-        <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-            <span class="arah-date-control-display" data-date-display-for="form-date" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
-            <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
-            <input
-                type="date"
-                id="form-date"
-                onclick="openPickerSafely(this)"
-                required
-                class="arah-date-native"
-            >
-        </div>
+        <input
+            type="date"
+            id="form-date"
+            required
+            onclick="openPickerSafely(this)"
+            class="arah-form-control arah-date-input block w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-blueSystem-500"
+        >
     </div>
 
     <!-- Nominal -->
@@ -2028,17 +1961,13 @@
             <div class="loan-date-amount-row">
                 <div class="loan-date-amount-field">
                     <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                    <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-                        <span class="arah-date-control-display" data-date-display-for="loanDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
-                        <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
-                        <input
-                            id="loanDateInput"
-                            type="date"
-                            onclick="openPickerSafely(this)"
-                            class="arah-date-native"
-                            required
-                        >
-                    </div>
+                    <input
+                        id="loanDateInput"
+                        type="date"
+                        onclick="openPickerSafely(this)"
+                        class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                        required
+                    >
                 </div>
 
                 <div class="loan-date-amount-field">
@@ -2057,16 +1986,12 @@
 
             <div class="loan-due-date-field">
                 <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
-                <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-                    <span class="arah-date-control-display" data-date-display-for="loanDueDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
-                    <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
-                    <input
-                        id="loanDueDateInput"
-                        type="date"
-                        onclick="openPickerSafely(this)"
-                        class="arah-date-native"
-                    >
-                </div>
+                <input
+                    id="loanDueDateInput"
+                    type="date"
+                    onclick="openPickerSafely(this)"
+                    class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:border-blueSystem-500"
+                >
                 <p class="mt-1.5 text-[10px] text-slate-400">Kosongkan jika tidak ada jatuh tempo.</p>
             </div>
 
@@ -2656,16 +2581,18 @@
                     <input id="loanRepaymentNameInput" type="text" class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
+                <div class="grid grid-cols-2 gap-3 min-w-0">
+                    <div class="min-w-0 overflow-hidden">
                         <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                        <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-                            <span class="arah-date-control-display" data-date-display-for="loanRepaymentDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
-                            <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
-                            <input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="arah-date-native" required>
-                        </div>
+                        <input
+                            id="loanRepaymentDateInput"
+                            type="date"
+                            onclick="openPickerSafely(this)"
+                            class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                            required
+                        >
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
                         <input id="loanRepaymentAmountInput" type="text" inputmode="decimal" placeholder="0" oninput="formatInputNominal(this)" class="arah-form-control w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
                     </div>
@@ -2774,6 +2701,6 @@
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js?v=20260811-no-due-checkbox"></script>
+    <script src="app.js?v=20260811-unified-transaction-list"></script>
 </body>
 </html>

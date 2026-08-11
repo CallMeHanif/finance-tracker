@@ -74,30 +74,6 @@ function normalizeText(value) {
     return value === null || value === undefined ? '' : String(value).trim();
 }
 
-function syncDateControlDisplay(inputOrId) {
-    const input = typeof inputOrId === 'string'
-        ? document.getElementById(inputOrId)
-        : inputOrId;
-
-    if (!input || !input.id) return;
-
-    const display = document.querySelector(
-        `[data-date-display-for="${input.id}"]`
-    );
-
-    if (!display) return;
-
-    const control = display.closest('.arah-date-control');
-    const value = normalizeDateValue(input.value);
-    const placeholder = display.dataset.placeholder || 'dd/mm/tttt';
-
-    display.textContent = value
-        ? formatTanggalIndo(value)
-        : placeholder;
-
-    control?.classList.toggle('has-value', Boolean(value));
-}
-
 function setDateControlValue(inputOrId, value) {
     const input = typeof inputOrId === 'string'
         ? document.getElementById(inputOrId)
@@ -106,44 +82,32 @@ function setDateControlValue(inputOrId, value) {
     if (!input) return;
 
     input.value = normalizeDateValue(value);
-    syncDateControlDisplay(input);
-}
-
-function initializeDateControls() {
-    document.querySelectorAll('.arah-date-native').forEach(input => {
-        if (input.dataset.dateControlReady !== 'true') {
-            input.addEventListener('input', () => syncDateControlDisplay(input));
-            input.addEventListener('change', () => syncDateControlDisplay(input));
-            input.dataset.dateControlReady = 'true';
-        }
-
-        syncDateControlDisplay(input);
-    });
 }
 
 function openPickerSafely(input) {
     if (
         !input ||
         input.disabled ||
-        input.readOnly
+        input.getAttribute('aria-disabled') === 'true'
     ) {
         return;
     }
 
-    try {
-        if (
-            typeof input.showPicker ===
-            'function'
-        ) {
+    if (typeof input.showPicker === 'function') {
+        try {
             input.showPicker();
             return;
+        } catch (error) {
+            // Browser tertentu tetap membuka date picker
+            // melalui perilaku native setelah event click.
         }
-    } catch (error) {
-        // Fallback ke focus jika browser
-        // tidak mengizinkan showPicker.
     }
 
-    input.focus();
+    try {
+        input.focus({ preventScroll: true });
+    } catch (error) {
+        input.focus();
+    }
 }
 
 function normalizeDateValue(value) {
@@ -633,12 +597,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateHeaderCloudIndicator();
     updateObscureUI();
     populateFormDropdowns();
-    initializeDateControls();
 
     const savedTransactionMonth =
-    localStorage.getItem(
-        'arahTransactionMonthFilter'
-    );
+        localStorage.getItem(
+            'arahTransactionMonthFilter'
+        );
+
+    const initialTransactionMonth =
+        savedTransactionMonth !== null
+            ? savedTransactionMonth
+            : currentYearMonth;
 
     const transactionMonthFilter =
         document.getElementById(
@@ -649,11 +617,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         document.getElementById(
             'txMonthFilterMobile'
         );
-
-    const initialTransactionMonth =
-        savedTransactionMonth !== null
-            ? savedTransactionMonth
-            : currentYearMonth;
 
     if (transactionMonthFilter) {
         transactionMonthFilter.value =
@@ -849,9 +812,9 @@ function populateTransactionMonthFilter() {
     if (!desktopSelect && !mobileSelect) return;
 
     const storedValue =
-    localStorage.getItem(
-        'arahTransactionMonthFilter'
-    );
+        localStorage.getItem(
+            'arahTransactionMonthFilter'
+        );
 
     const previousValue =
         storedValue !== null
@@ -2324,18 +2287,16 @@ function syncTransactionFilters(source = 'desktop') {
     });
 
     const selectedMonth =
-    document.getElementById(
-        'txMonthFilter'
-    )?.value ?? '';
+        document.getElementById(
+            'txMonthFilter'
+        )?.value ?? '';
 
     localStorage.setItem(
         'arahTransactionMonthFilter',
         selectedMonth
     );
 
-    renderTransactionsPage(
-        selectedMonth
-    );
+    renderTransactionsPage(selectedMonth);
 }
 
 function scheduleTransactionSearch() {
@@ -2352,95 +2313,73 @@ function scheduleTransactionSearch() {
 }
 
 function renderTransactionsPage(selectedMonth) {
-    const currentMonth =
-    getCurrentYearMonth();
+    const currentMonth = getCurrentYearMonth();
+    const summaryMonth = selectedMonth || currentMonth;
+    const liveBalances = calculateBalancesUntil(summaryMonth);
 
-    const summaryMonth =
-        selectedMonth || currentMonth;
+    const balanceContainer = document.getElementById(
+        'txAccountBalancesContainer'
+    );
 
-    const liveBalances =
-        calculateBalancesUntil(
-            summaryMonth
-        );
-    
-    const balContainer = document.getElementById('txAccountBalancesContainer');
-    if(userAccounts.length === 0) balContainer.innerHTML = emptyStateHTML;
-    else {
-        balContainer.innerHTML = userAccounts.map(a => `
-            <div class="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
-                <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400">${escapeHtml(a.name)}</span>
-                <span class="text-[11px] font-bold text-slate-900 dark:text-slate-200">${formatRupiah(liveBalances[a.name] || 0)}</span>
-            </div>`).join('');
+    if (balanceContainer) {
+        if (userAccounts.length === 0) {
+            balanceContainer.innerHTML = emptyStateHTML;
+        } else {
+            balanceContainer.innerHTML = userAccounts
+                .map(account => `
+                    <div class="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
+                        <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                            ${escapeHtml(account.name)}
+                        </span>
+                        <span class="text-[11px] font-bold text-slate-900 dark:text-slate-200">
+                            ${formatRupiah(liveBalances[account.name] || 0)}
+                        </span>
+                    </div>
+                `)
+                .join('');
+        }
     }
 
-    const searchInput =
-        document.getElementById('txSearchBar') ||
-        document.getElementById('txSearchBarMobile');
+    const desktopSearch = document.getElementById('txSearchBar');
+    const mobileSearch = document.getElementById('txSearchBarMobile');
+    const searchInput = mobileSearch?.value
+        ? mobileSearch
+        : desktopSearch;
 
-const kw =
-    normalizeText(
+    const keyword = normalizeText(
         searchInput?.value
     ).toLowerCase();
 
-const filterAcc =
-    document.getElementById(
-        'txFilterAccount'
-    ).value;
+    const filterAccount =
+        document.getElementById('txFilterAccount')?.value || '';
 
-const filterCat =
-    document.getElementById(
-        'txFilterCategory'
-    ).value;
+    const filterCategory =
+        document.getElementById('txFilterCategory')?.value || '';
 
-const tableBody =
-    document.getElementById(
-        'txTableBody'
-    );
+    const matchesActiveFilters = transaction => {
+        const transactionName = normalizeText(
+            transaction.name
+        ).toLowerCase();
 
-const mobileCards =
-    document.getElementById(
-        'txMobileCards'
-    );
-
-tableBody.innerHTML = '';
-
-if (mobileCards) {
-    mobileCards.innerHTML = '';
-}
-
-let filteredIncomeTotal = 0;
-let filteredExpenseTotal = 0;
-
-const matchesActiveFilters =
-    transaction => {
-        const transactionName =
-            normalizeText(
-                transaction.name
-            ).toLowerCase();
-
-        const transactionNotes =
-            normalizeText(
-                transaction.notes
-            ).toLowerCase();
+        const transactionNotes = normalizeText(
+            transaction.notes
+        ).toLowerCase();
 
         const matchKeyword =
-            transactionName.includes(kw) ||
-            transactionNotes.includes(kw);
+            transactionName.includes(keyword) ||
+            transactionNotes.includes(keyword);
 
         const matchAccount =
-            filterAcc === '' ||
-            transaction.account ===
-                filterAcc ||
+            filterAccount === '' ||
+            transaction.account === filterAccount ||
             (
                 transaction.isTransfer &&
-                transaction.targetAccount ===
-                    filterAcc
+                transaction.targetAccount === filterAccount
             );
 
         const matchCategory =
-            filterCat === '' ||
-            transaction.category ===
-                filterCat;
+            filterCategory === '' ||
+            transaction.category === filterCategory;
 
         return (
             matchKeyword &&
@@ -2449,233 +2388,188 @@ const matchesActiveFilters =
         );
     };
 
-/*
- * Daftar transaksi mengikuti filter tanggal.
- * Jika kosong, semua tanggal ditampilkan.
- */
-const filtered =
-    transactions.filter(transaction => {
-        const matchMonth =
-            selectedMonth
-                ? getLocalMonth(
-                    transaction.date
-                ) === selectedMonth
-                : true;
+    const filteredTransactions = transactions.filter(transaction => {
+        const matchMonth = selectedMonth
+            ? getLocalMonth(transaction.date) === selectedMonth
+            : true;
 
         return (
             matchMonth &&
-            matchesActiveFilters(
-                transaction
-            )
+            matchesActiveFilters(transaction)
         );
     });
 
-/*
- * Total pendapatan dan pengeluaran:
- * - Bulan terpilih jika ada.
- * - Bulan saat ini jika memilih Semua Tanggal.
- */
-const summaryTransactions =
-    transactions.filter(transaction => {
+    const summaryTransactions = transactions.filter(transaction => {
         return (
-            getLocalMonth(
-                transaction.date
-            ) === summaryMonth &&
-            matchesActiveFilters(
-                transaction
-            )
+            getLocalMonth(transaction.date) === summaryMonth &&
+            matchesActiveFilters(transaction)
         );
     });
 
-summaryTransactions.forEach(
-    transaction => {
+    let incomeTotal = 0;
+    let expenseTotal = 0;
+
+    summaryTransactions.forEach(transaction => {
         if (
-            !transaction.isTransfer &&
-            isCategoryCalculatedToIncomeExpense(
+            transaction.isTransfer ||
+            !isCategoryCalculatedToIncomeExpense(
                 transaction.category
             )
         ) {
-            filteredIncomeTotal +=
-                Number(
-                    transaction.debit
-                ) || 0;
-
-            filteredExpenseTotal +=
-                Number(
-                    transaction.credit
-                ) || 0;
+            return;
         }
-    }
-);
 
-document.getElementById(
-    'tx-summary-Income'
-).innerText =
-    formatRupiah(
-        filteredIncomeTotal
+        incomeTotal += Number(transaction.debit) || 0;
+        expenseTotal += Number(transaction.credit) || 0;
+    });
+
+    const incomeElement = document.getElementById(
+        'tx-summary-Income'
     );
 
-document.getElementById(
-    'tx-summary-Expenses'
-).innerText =
-    formatRupiah(
-        filteredExpenseTotal
+    const expenseElement = document.getElementById(
+        'tx-summary-Expenses'
     );
 
-    if (filtered.length === 0) {
-    tableBody.innerHTML =
-        emptyTableRowHTML(7);
-
-    if (mobileCards) {
-        mobileCards.innerHTML =
-            emptyStateHTML;
+    if (incomeElement) {
+        incomeElement.innerText = formatRupiah(incomeTotal);
     }
-} else {
-    const sortedTransactions =
-        sortTransactionsNewestFirst(filtered);
 
-    renderMobileTransactionCards(
-        sortedTransactions
+    if (expenseElement) {
+        expenseElement.innerText = formatRupiah(expenseTotal);
+    }
+
+    renderTransactionList(
+        sortTransactionsNewestFirst(filteredTransactions)
     );
-
-    sortedTransactions.forEach(t => {
-            let colorClass = 'text-rose-600 dark:text-rose-400 font-bold';
-            let amt = t.credit;
-            let displayCategory = t.category || '-';
-            let displayAccount = t.account;
-
-            if (t.isTransfer) {
-                colorClass = 'text-blueSystem-500 dark:text-blueSystem-100 font-bold';
-                amt = t.credit || t.debit;
-                displayCategory = 'Transfer Dana';
-                displayAccount = `${t.account} ➔ ${t.targetAccount}`;
-            } else if (t.debit > 0) {
-                colorClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
-                amt = t.debit;
-            }
-
-            tableBody.innerHTML += `
-                <tr
-    onclick="openTransactionDetailModal(
-        decodeActionValue('${encodeActionValue(t.id)}')
-    )"
-    onkeydown="
-        if (
-            event.target === event.currentTarget &&
-            (event.key === 'Enter' || event.key === ' ')
-        ) {
-            event.preventDefault();
-
-            openTransactionDetailModal(
-                decodeActionValue('${encodeActionValue(t.id)}')
-            );
-        }
-    "
-    tabindex="0"
-    title="Klik untuk melihat detail transaksi"
-    class="cursor-pointer
-           hover:bg-slate-50 dark:hover:bg-slate-900/60
-           focus:bg-slate-50 dark:focus:bg-slate-900/60
-           focus:outline-none
-           transition-colors"
->
-                    <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${escapeHtml(formatTanggalIndo(t.date))}</td>
-                    <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">${escapeHtml(t.name)}</td>
-                    <td class="py-2.5 px-4 ${colorClass}">${formatRupiah(amt, true)}</td>
-                    <td class="py-2.5 px-4 text-slate-500">${escapeHtml(displayCategory)}</td>
-                    <td class="py-2.5 px-4"><span class="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 font-medium">${escapeHtml(displayAccount)}</span></td>
-                    <td class="py-2.5 px-4 text-slate-400 max-w-[120px] truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '-')}</td>
-                    <td class="py-2.5 px-4 text-center space-x-2 whitespace-nowrap">
-    <button
-        type="button"
-        onclick="event.stopPropagation(); duplicateTransaction(decodeActionValue('${encodeActionValue(t.id)}'))"
-        class="text-slate-400 hover:text-violet-500 inline-block"
-        title="Duplikat transaksi"
-        aria-label="Duplikat transaksi"
-    >
-        <i
-            data-lucide="copy"
-            class="w-3.5 h-3.5"
-        ></i>
-    </button>
-
-    <button onclick="event.stopPropagation(); editTransaction(decodeActionValue('${encodeActionValue(t.id)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                        <button onclick="event.stopPropagation(); triggerDeleteConfirm(decodeActionValue('${encodeActionValue(t.id)}'), 'transaction')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                    </td>
-                </tr>`;
-        });
-    }
 
     lucide.createIcons();
 }
 
-function renderMobileTransactionCards(transactionList) {
-    const container = document.getElementById('txMobileCards');
+function getTransactionListPresentation(transaction) {
+    let amount = Number(transaction.credit) || 0;
+    let amountClass = 'text-rose-600 dark:text-rose-400';
+    let icon = 'arrow-up-right';
+    let iconClass = [
+        'bg-rose-50',
+        'text-rose-600',
+        'dark:bg-rose-950/30',
+        'dark:text-rose-400'
+    ].join(' ');
+
+    let category = transaction.category || '-';
+    let account = transaction.account || '-';
+
+    if (transaction.isTransfer) {
+        amount =
+            Number(transaction.credit) ||
+            Number(transaction.debit) ||
+            0;
+
+        amountClass =
+            'text-blueSystem-500 dark:text-blueSystem-100';
+
+        icon = 'repeat-2';
+        iconClass = [
+            'bg-blueSystem-50',
+            'text-blueSystem-500',
+            'dark:bg-blueSystem-900/30',
+            'dark:text-blueSystem-100'
+        ].join(' ');
+
+        category = 'Transfer Dana';
+        account =
+            `${transaction.account} ➔ ${transaction.targetAccount}`;
+    } else if (Number(transaction.debit) > 0) {
+        amount = Number(transaction.debit) || 0;
+        amountClass =
+            'text-emerald-600 dark:text-emerald-400';
+
+        icon = 'arrow-down-left';
+        iconClass = [
+            'bg-emerald-50',
+            'text-emerald-600',
+            'dark:bg-emerald-900/30',
+            'dark:text-emerald-400'
+        ].join(' ');
+    }
+
+    return {
+        amount,
+        amountClass,
+        icon,
+        iconClass,
+        category,
+        account
+    };
+}
+
+function renderTransactionList(transactionList) {
+    const container = document.getElementById(
+        'txTransactionList'
+    );
+
     if (!container) return;
+
+    if (!transactionList.length) {
+        container.innerHTML = `
+            <div class="py-10 text-center">
+                <i
+                    data-lucide="receipt-text"
+                    class="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700"
+                ></i>
+                <p class="mt-2 text-xs text-slate-400">
+                    Tidak ada transaksi yang sesuai.
+                </p>
+            </div>
+        `;
+
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+
+        return;
+    }
 
     let html = '';
     let currentDate = '';
 
     transactionList.forEach(transaction => {
-        let amountClass = 'text-rose-600 dark:text-rose-400';
-        let amount = Number(transaction.credit) || 0;
-        let icon = 'arrow-up-right';
-        let iconClass = [
-            'bg-rose-50',
-            'text-rose-600',
-            'dark:bg-rose-950/30',
-            'dark:text-rose-400'
-        ].join(' ');
-
-        let displayCategory = transaction.category || '-';
-        let displayAccount = transaction.account || '-';
-
-        if (transaction.isTransfer) {
-            amount = Number(transaction.credit) || Number(transaction.debit) || 0;
-            amountClass = 'text-blueSystem-500 dark:text-blueSystem-100';
-            icon = 'repeat-2';
-            iconClass = [
-                'bg-blueSystem-50',
-                'text-blueSystem-500',
-                'dark:bg-blueSystem-900/30',
-                'dark:text-blueSystem-100'
-            ].join(' ');
-            displayCategory = 'Transfer Dana';
-            displayAccount = `${transaction.account} ➔ ${transaction.targetAccount}`;
-        } else if (Number(transaction.debit) > 0) {
-            amount = Number(transaction.debit) || 0;
-            amountClass = 'text-emerald-600 dark:text-emerald-400';
-            icon = 'arrow-down-left';
-            iconClass = [
-                'bg-emerald-50',
-                'text-emerald-600',
-                'dark:bg-emerald-900/30',
-                'dark:text-emerald-400'
-            ].join(' ');
-        }
-
         if (transaction.date !== currentDate) {
-            if (currentDate !== '') {
-                html += `</div></section>`;
+            if (currentDate) {
+                html += '</div></div></section>';
             }
 
             currentDate = transaction.date;
+
             html += `
-                <section>
+                <section class="mb-5 last:mb-0">
                     <h3 class="
-                        px-1 pb-1.5 pt-1
+                        px-1 pb-2 pt-1
                         text-xs font-bold
                         text-slate-500 dark:text-slate-400
                     ">
-                        ${escapeHtml(formatTanggalIndo(transaction.date))}
+                        ${escapeHtml(
+                            formatTanggalIndo(transaction.date)
+                        )}
                     </h3>
 
                     <div class="
-                        divide-y divide-slate-200
-                        dark:divide-slate-800
+                        rounded-2xl
+                        border border-slate-200 dark:border-slate-800
+                        bg-white dark:bg-slate-950
+                        shadow-sm
+                        overflow-hidden
                     ">
+                        <div class="
+                            divide-y divide-slate-200
+                            dark:divide-slate-800
+                        ">
             `;
         }
+
+        const presentation =
+            getTransactionListPresentation(transaction);
 
         const encodedId = encodeActionValue(transaction.id);
         const note = normalizeText(transaction.notes);
@@ -2683,24 +2577,31 @@ function renderMobileTransactionCards(transactionList) {
         html += `
             <button
                 type="button"
-                onclick="openTransactionDetailModal(
-                    decodeActionValue('${encodedId}')
-                )"
+                onclick="
+                    openTransactionDetailModal(
+                        decodeActionValue('${encodedId}')
+                    )
+                "
                 class="
-                    w-full py-3.5 px-1
+                    w-full py-3.5 px-3 md:px-4
                     flex items-center gap-3
                     text-left
-                    active:bg-slate-100/70
-                    dark:active:bg-slate-900/70
+                    hover:bg-slate-50
+                    dark:hover:bg-slate-900
+                    active:bg-slate-100
+                    dark:active:bg-slate-900
                     transition-colors
                 "
             >
                 <span class="
                     shrink-0 w-9 h-9 rounded-xl
                     flex items-center justify-center
-                    ${iconClass}
+                    ${presentation.iconClass}
                 ">
-                    <i data-lucide="${icon}" class="w-4 h-4"></i>
+                    <i
+                        data-lucide="${presentation.icon}"
+                        class="w-4 h-4"
+                    ></i>
                 </span>
 
                 <span class="min-w-0 flex-1">
@@ -2716,7 +2617,7 @@ function renderMobileTransactionCards(transactionList) {
                         mt-1 block text-[10px]
                         text-slate-400 truncate
                     ">
-                        ${escapeHtml(displayCategory)}
+                        ${escapeHtml(presentation.category)}
                         ${note ? `
                             <span class="mx-1">•</span>
                             ${escapeHtml(note)}
@@ -2724,13 +2625,16 @@ function renderMobileTransactionCards(transactionList) {
                     </span>
                 </span>
 
-                <span class="shrink-0 text-right" style="max-width: 44%;">
+                <span
+                    class="shrink-0 text-right"
+                    style="max-width: 44%;"
+                >
                     <span class="
                         block text-sm font-bold
                         whitespace-nowrap
-                        ${amountClass}
+                        ${presentation.amountClass}
                     ">
-                        ${formatRupiah(amount, true)}
+                        ${formatRupiah(presentation.amount, true)}
                     </span>
 
                     <span class="
@@ -2741,18 +2645,22 @@ function renderMobileTransactionCards(transactionList) {
                         text-[9px] font-medium
                         text-slate-500 dark:text-slate-300
                     ">
-                        ${escapeHtml(displayAccount)}
+                        ${escapeHtml(presentation.account)}
                     </span>
                 </span>
             </button>
         `;
     });
 
-    if (currentDate !== '') {
-        html += `</div></section>`;
+    if (currentDate) {
+        html += '</div></div></section>';
     }
 
-    container.innerHTML = html || emptyStateHTML;
+    container.innerHTML = html;
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 function getTodayLocalDate() {
