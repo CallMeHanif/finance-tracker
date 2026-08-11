@@ -74,6 +74,29 @@ function normalizeText(value) {
     return value === null || value === undefined ? '' : String(value).trim();
 }
 
+function syncDateControlDisplay(inputOrId) {
+    const input = typeof inputOrId === 'string'
+        ? document.getElementById(inputOrId)
+        : inputOrId;
+
+    if (!input || !input.id) return;
+
+    const display = document.querySelector(
+        `[data-date-display-for="${input.id}"]`
+    );
+
+    if (!display) return;
+
+    const shell = display.closest('.arah-date-shell');
+    const value = normalizeDateValue(input.value);
+
+    display.textContent = value
+        ? formatTanggalIndo(value)
+        : '';
+
+    shell?.classList.toggle('has-value', Boolean(value));
+}
+
 function setDateControlValue(inputOrId, value) {
     const input = typeof inputOrId === 'string'
         ? document.getElementById(inputOrId)
@@ -82,6 +105,25 @@ function setDateControlValue(inputOrId, value) {
     if (!input) return;
 
     input.value = normalizeDateValue(value);
+    syncDateControlDisplay(input);
+}
+
+function initializeDateControls() {
+    document.querySelectorAll('.arah-date-native').forEach(input => {
+        if (input.dataset.arahDateReady !== 'true') {
+            input.addEventListener('input', () => {
+                syncDateControlDisplay(input);
+            });
+
+            input.addEventListener('change', () => {
+                syncDateControlDisplay(input);
+            });
+
+            input.dataset.arahDateReady = 'true';
+        }
+
+        syncDateControlDisplay(input);
+    });
 }
 
 function openPickerSafely(input) {
@@ -597,6 +639,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateHeaderCloudIndicator();
     updateObscureUI();
     populateFormDropdowns();
+    initializeDateControls();
 
     const savedTransactionMonth =
         localStorage.getItem(

@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-    input[type="date"],
     input[type="month"] {
         display: block;
         width: 100%;
@@ -13,7 +12,6 @@
         cursor: pointer;
     }
 
-    input[type="date"]::-webkit-date-and-time-value,
     input[type="month"]::-webkit-date-and-time-value {
         min-width: 0;
         text-align: left;
@@ -31,8 +29,7 @@
     }
 
     .transaction-date-amount-row,
-    .loan-date-amount-row,
-    .loan-due-date-row {
+    .loan-date-amount-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         width: 100%;
@@ -43,112 +40,94 @@
     .transaction-date-amount-field,
     .loan-date-amount-field,
     .loan-due-date-field {
+        width: 100%;
         min-width: 0;
         max-width: 100%;
-        overflow: hidden;
     }
 
-    .arah-date-input {
-        display: block;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        height: 2.75rem !important;
-        min-height: 2.75rem !important;
-        inline-size: 100% !important;
-        min-inline-size: 0 !important;
-        max-inline-size: 100% !important;
-        margin: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-        box-sizing: border-box;
-        overflow: hidden;
-        font-size: 0.75rem;
-        line-height: 1rem;
-    }
-
-    .arah-date-input::-webkit-date-and-time-value {
+    /*
+     * Stable date control for Safari/iOS/desktop.
+     * The browser's native date input remains responsible for the picker,
+     * but it is transparent and absolutely positioned. The visible field is
+     * our own normal ARAH control, so WebKit cannot alter its height,
+     * alignment, rounded corners, or intrinsic width.
+     */
+    .arah-date-shell {
+        position: relative;
         display: flex;
         align-items: center;
-        min-width: 0;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-        text-align: left;
-    }
-
-    .arah-date-input::-webkit-datetime-edit {
-        display: flex;
-        align-items: center;
-        min-width: 0;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-    }
-
-    .arah-date-input::-webkit-datetime-edit-fields-wrapper {
-        display: flex;
-        align-items: center;
-        min-width: 0;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-    }
-
-    .arah-date-input::-webkit-calendar-picker-indicator {
-        flex: 0 0 auto;
-        margin: 0;
-        padding: 0;
-    }
-
-    .arah-date-input.loan-date-inactive {
-        opacity: 0.5;
-        pointer-events: none;
-        cursor: default;
-    }
-
-    .loan-no-due-label {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
         width: 100%;
         min-width: 0;
         max-width: 100%;
         height: 2.75rem;
         min-height: 2.75rem;
-        padding: 0 0.75rem;
-        box-sizing: border-box;
+        padding: 0 2.25rem 0 0.75rem;
         overflow: hidden;
+        box-sizing: border-box;
+        transition: border-color 150ms ease;
+    }
+
+    .arah-date-shell:focus-within {
+        border-color: #0056a3;
+    }
+
+    .arah-date-display {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 0.8125rem;
+        font-size: 0.75rem;
         line-height: 1rem;
+        color: rgb(148 163 184);
+        pointer-events: none;
+        user-select: none;
     }
 
-    .loan-no-due-label input {
-        flex: 0 0 auto;
+    .arah-date-shell.has-value .arah-date-display {
+        color: rgb(30 41 59);
     }
 
-    .loan-field-label-aligned {
-        display: flex;
-        min-height: 1.5rem;
-        align-items: flex-end;
+    .dark .arah-date-shell.has-value .arah-date-display {
+        color: rgb(226 232 240);
+    }
+
+    .arah-date-icon {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        width: 0.875rem;
+        height: 0.875rem;
+        transform: translateY(-50%);
+        color: rgb(100 116 139);
+        pointer-events: none;
+    }
+
+    .arah-date-native {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        opacity: 0;
+        cursor: pointer;
+        box-sizing: border-box !important;
+        font-size: 16px;
     }
 
     .arah-loader-logo {
         opacity: 0;
         animation: arahLogoFadeIn 700ms ease-out forwards;
-    }
-}
-
-@supports (-webkit-touch-callout: none) {
-    .arah-date-input {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        inline-size: 100% !important;
-        min-inline-size: 0 !important;
-        max-inline-size: 100% !important;
     }
 }
 

@@ -1385,17 +1385,21 @@
 
     <!-- Tanggal -->
     <div class="transaction-date-amount-field space-y-1">
-        <label class="text-[10px] font-bold text-slate-400 uppercase">
+        <label for="form-date" class="text-[10px] font-bold text-slate-400 uppercase">
             Tanggal
         </label>
 
-        <input
-            type="date"
-            id="form-date"
-            required
-            onclick="openPickerSafely(this)"
-            class="arah-form-control arah-date-input block w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-blueSystem-500"
-        >
+        <div class="arah-date-shell bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+            <span class="arah-date-display" data-date-display-for="form-date" aria-hidden="true"></span>
+            <i data-lucide="calendar-days" class="arah-date-icon" aria-hidden="true"></i>
+            <input
+                type="date"
+                id="form-date"
+                required
+                onclick="openPickerSafely(this)"
+                class="arah-date-native"
+            >
+        </div>
     </div>
 
     <!-- Nominal -->
@@ -1953,13 +1957,17 @@
             <div class="loan-date-amount-row">
                 <div class="loan-date-amount-field">
                     <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                    <input
-                        id="loanDateInput"
-                        type="date"
-                        onclick="openPickerSafely(this)"
-                        class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
-                        required
-                    >
+                    <div class="arah-date-shell bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                        <span class="arah-date-display" data-date-display-for="loanDateInput" aria-hidden="true"></span>
+                        <i data-lucide="calendar-days" class="arah-date-icon" aria-hidden="true"></i>
+                        <input
+                            id="loanDateInput"
+                            type="date"
+                            onclick="openPickerSafely(this)"
+                            class="arah-date-native"
+                            required
+                        >
+                    </div>
                 </div>
 
                 <div class="loan-date-amount-field">
@@ -1978,12 +1986,16 @@
 
             <div class="loan-due-date-field">
                 <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
-                <input
-                    id="loanDueDateInput"
-                    type="date"
-                    onclick="openPickerSafely(this)"
-                    class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:border-blueSystem-500"
-                >
+                <div class="arah-date-shell bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span class="arah-date-display" data-date-display-for="loanDueDateInput" aria-hidden="true"></span>
+                    <i data-lucide="calendar-days" class="arah-date-icon" aria-hidden="true"></i>
+                    <input
+                        id="loanDueDateInput"
+                        type="date"
+                        onclick="openPickerSafely(this)"
+                        class="arah-date-native"
+                    >
+                </div>
                 <p class="mt-1.5 text-[10px] text-slate-400">Kosongkan jika tidak ada jatuh tempo.</p>
             </div>
 
@@ -2576,13 +2588,17 @@
                 <div class="grid grid-cols-2 gap-3 min-w-0">
                     <div class="min-w-0 overflow-hidden">
                         <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                        <input
-                            id="loanRepaymentDateInput"
-                            type="date"
-                            onclick="openPickerSafely(this)"
-                            class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
-                            required
-                        >
+                        <div class="arah-date-shell bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                            <span class="arah-date-display" data-date-display-for="loanRepaymentDateInput" aria-hidden="true"></span>
+                            <i data-lucide="calendar-days" class="arah-date-icon" aria-hidden="true"></i>
+                            <input
+                                id="loanRepaymentDateInput"
+                                type="date"
+                                onclick="openPickerSafely(this)"
+                                class="arah-date-native"
+                                required
+                            >
+                        </div>
                     </div>
                     <div class="min-w-0">
                         <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
