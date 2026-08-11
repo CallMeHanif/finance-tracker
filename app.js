@@ -5534,9 +5534,6 @@ function renderSettingsPage() {
                                         <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
                                             ${escapeHtml(account.name)}
                                         </p>
-                                        <p class="mt-1 truncate text-[10px] text-slate-400">
-                                            ${escapeHtml(formatAccountGroupTitle(group.type))}
-                                        </p>
                                     </div>
 
                                     <div class="flex shrink-0 items-center gap-1">
@@ -5573,7 +5570,6 @@ function renderSettingsPage() {
         const categoryGroups = [
             {
                 title: 'Uang Masuk',
-                subtitle: 'Masuk',
                 items: userCategories.income,
                 deleteType: 'category_in',
                 icon: 'arrow-down-left',
@@ -5581,7 +5577,6 @@ function renderSettingsPage() {
             },
             {
                 title: 'Uang Keluar',
-                subtitle: 'Keluar',
                 items: userCategories.expense,
                 deleteType: 'category_out',
                 icon: 'arrow-up-right',
@@ -5589,7 +5584,6 @@ function renderSettingsPage() {
             },
             {
                 title: 'Netral',
-                subtitle: 'Netral',
                 items: userCategories.neutral,
                 deleteType: 'category_neutral',
                 icon: 'minus',
@@ -5625,9 +5619,6 @@ function renderSettingsPage() {
                                     <div class="min-w-0 flex-1">
                                         <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
                                             ${escapeHtml(category)}
-                                        </p>
-                                        <p class="mt-1 truncate text-[10px] text-slate-400">
-                                            ${escapeHtml(group.subtitle)}
                                         </p>
                                     </div>
 
