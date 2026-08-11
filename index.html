@@ -1190,14 +1190,10 @@
                 </div>
                 <button type="button" onclick="openSettingsModal('account')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Akun</span><span class="sm:hidden">Tambah</span></button>
             </div>
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500"><tr><th class="py-2.5 px-3 w-8"></th><th class="py-2.5 px-3 font-semibold">Nama Akun</th><th class="py-2.5 px-3 font-semibold">Jenis</th><th class="py-2.5 px-3 text-center font-semibold">Aksi</th></tr></thead>
-                        <tbody id="setupAccountsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                    </table>
-                </div>
-            </div>
+            <div
+                id="setupAccountsCardList"
+                class="grid grid-cols-1 lg:grid-cols-2 gap-3"
+            ></div>
         </div>
 
         <div id="page-settings-categories" class="page-content hidden space-y-4">
@@ -1208,14 +1204,10 @@
                 </div>
                 <button type="button" onclick="openSettingsModal('category')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Kategori</span><span class="sm:hidden">Tambah</span></button>
             </div>
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500"><tr><th class="py-2.5 px-3 font-semibold">Nama Kategori</th><th class="py-2.5 px-3 font-semibold">Arus Dana</th><th class="py-2.5 px-3 text-center font-semibold">Aksi</th></tr></thead>
-                        <tbody id="setupCategoriesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                    </table>
-                </div>
-            </div>
+            <div
+                id="setupCategoriesCardList"
+                class="grid grid-cols-1 lg:grid-cols-2 gap-3"
+            ></div>
         </div>
     </main>
 
@@ -1397,13 +1389,15 @@
             Tanggal
         </label>
 
-        <input
+        <div class="arah-date-shell">
+            <input
             type="date"
             id="form-date"
             required
             onclick="openPickerSafely(this)"
             class="arah-form-control arah-date-input block w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-800 dark:text-white cursor-pointer focus:outline-none focus:border-blueSystem-500"
         >
+        </div>
     </div>
 
     <!-- Nominal -->
@@ -1961,13 +1955,15 @@
             <div class="loan-date-amount-row">
                 <div class="loan-date-amount-field">
                     <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                    <input
+                    <div class="arah-date-shell">
+                        <input
                         id="loanDateInput"
                         type="date"
                         onclick="openPickerSafely(this)"
                         class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
                         required
                     >
+                    </div>
                 </div>
 
                 <div class="loan-date-amount-field">
@@ -1986,12 +1982,14 @@
 
             <div class="loan-due-date-field">
                 <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
-                <input
+                <div class="arah-date-shell">
+                    <input
                     id="loanDueDateInput"
                     type="date"
                     onclick="openPickerSafely(this)"
                     class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:border-blueSystem-500"
                 >
+                </div>
                 <p class="mt-1.5 text-[10px] text-slate-400">Kosongkan jika tidak ada jatuh tempo.</p>
             </div>
 
@@ -2584,13 +2582,15 @@
                 <div class="grid grid-cols-2 gap-3 min-w-0">
                     <div class="min-w-0 overflow-hidden">
                         <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                        <input
+                        <div class="arah-date-shell">
+                            <input
                             id="loanRepaymentDateInput"
                             type="date"
                             onclick="openPickerSafely(this)"
                             class="arah-form-control arah-date-input w-full min-w-0 max-w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
                             required
                         >
+                        </div>
                     </div>
                     <div class="min-w-0">
                         <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>

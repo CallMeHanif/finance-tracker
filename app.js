@@ -5422,64 +5422,163 @@ function renderReportsPage() {
 }
 
 function renderSettingsPage() {
-    const accBody = document.getElementById('setupAccountsTableBody');
-    if (accBody && userAccounts.length === 0) {
-        accBody.innerHTML = emptyTableRowHTML(4);
-    } else if (accBody) {
-        accBody.innerHTML = userAccounts.map((a, index) => `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 draggable-row transition-colors" 
-                draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${index})">
-                <td class="py-2.5 px-3 text-slate-300 dark:text-slate-600 font-bold select-none text-center cursor-grab">⋮⋮</td>
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(a.name)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-medium">${escapeHtml(a.type)}</span></td>
-                <td class="py-2.5 px-3 text-center space-x-2.5 whitespace-nowrap">
-                    <button onclick="editSetupAccount(decodeActionValue('${encodeActionValue(a.name)}'))" class="text-slate-400 hover:text-blueSystem-500 inline-block"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(a.name)}'), 'account')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`).join('');
+    const accountList = document.getElementById('setupAccountsCardList');
+
+    if (accountList) {
+        if (userAccounts.length === 0) {
+            accountList.innerHTML = `
+                <div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
+                    <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                        <i data-lucide="wallet-cards" class="h-5 w-5"></i>
+                    </div>
+                    <p class="mt-3 text-sm font-semibold text-slate-900 dark:text-white">Belum ada akun keuangan</p>
+                    <p class="mt-1 text-[11px] text-slate-400">Tambahkan rekening, cash, e-wallet, atau akun lainnya.</p>
+                </div>
+            `;
+        } else {
+            accountList.innerHTML = userAccounts.map((account, index) => `
+                <article
+                    class="draggable-row group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
+                    draggable="true"
+                    ondragstart="handleDragStart(event, ${index})"
+                    ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)"
+                    ondrop="handleDrop(event, ${index})"
+                >
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="mt-0.5 flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-xl bg-blueSystem-50 text-blueSystem-500 active:cursor-grabbing dark:bg-blueSystem-900/30 dark:text-blue-400"
+                            title="Tarik untuk mengurutkan"
+                        >
+                            <i data-lucide="wallet-cards" class="h-4 w-4"></i>
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                                ${escapeHtml(account.name)}
+                            </p>
+                            <span class="mt-1.5 inline-flex max-w-full items-center rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-700 dark:text-slate-300">
+                                ${escapeHtml(account.type)}
+                            </span>
+                        </div>
+
+                        <div class="flex shrink-0 items-center gap-1">
+                            <button
+                                type="button"
+                                onclick="editSetupAccount(decodeActionValue('${encodeActionValue(account.name)}'))"
+                                aria-label="Edit ${escapeHtml(account.name)}"
+                                class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blueSystem-50 hover:text-blueSystem-500 dark:hover:bg-blueSystem-900/30"
+                            >
+                                <i data-lucide="edit-2" class="h-3.5 w-3.5"></i>
+                            </button>
+                            <button
+                                type="button"
+                                onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(account.name)}'), 'account')"
+                                aria-label="Hapus ${escapeHtml(account.name)}"
+                                class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                            >
+                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            `).join('');
+        }
     }
 
-    const catBody = document.getElementById('setupCategoriesTableBody');
-    let catHtml = '';
-    
-    userCategories.income.forEach(cat => {
-        catHtml += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Masuk</span></td>
-                <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_in')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`;
-    });
-    
-    userCategories.expense.forEach(cat => {
-        catHtml += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-                <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Keluar</span></td>
-                <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_out')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                </td>
-            </tr>`;
-    });
+    const categoryList = document.getElementById('setupCategoriesCardList');
 
-    userCategories.neutral.forEach(cat => {
-    catHtml += `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-            <td class="py-2.5 px-3 font-semibold text-slate-950 dark:text-white">${escapeHtml(cat)}</td>
-            <td class="py-2.5 px-3 text-slate-500"><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Netral</span></td>
-            <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                <button onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(cat)}'), 'category_neutral')" class="text-slate-400 hover:text-rose-600 inline-block"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-            </td>
-        </tr>`;
-    });
+    if (categoryList) {
+        const categoryCards = [];
 
-    if (catBody) {
-        catBody.innerHTML = catHtml === '' ? emptyTableRowHTML(3) : catHtml;
+        userCategories.income.forEach(category => {
+            categoryCards.push(`
+                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            <i data-lucide="arrow-down-left" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
+                            <span class="mt-1.5 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Masuk</span>
+                        </div>
+                        <button
+                            type="button"
+                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_in')"
+                            aria-label="Hapus ${escapeHtml(category)}"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                        >
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+                </article>
+            `);
+        });
+
+        userCategories.expense.forEach(category => {
+            categoryCards.push(`
+                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                            <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
+                            <span class="mt-1.5 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Keluar</span>
+                        </div>
+                        <button
+                            type="button"
+                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_out')"
+                            aria-label="Hapus ${escapeHtml(category)}"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                        >
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+                </article>
+            `);
+        });
+
+        userCategories.neutral.forEach(category => {
+            categoryCards.push(`
+                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                            <i data-lucide="minus" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
+                            <span class="mt-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">Netral</span>
+                        </div>
+                        <button
+                            type="button"
+                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_neutral')"
+                            aria-label="Hapus ${escapeHtml(category)}"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                        >
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+                </article>
+            `);
+        });
+
+        categoryList.innerHTML = categoryCards.length > 0
+            ? categoryCards.join('')
+            : `
+                <div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
+                    <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                        <i data-lucide="tags" class="h-5 w-5"></i>
+                    </div>
+                    <p class="mt-3 text-sm font-semibold text-slate-900 dark:text-white">Belum ada kategori</p>
+                    <p class="mt-1 text-[11px] text-slate-400">Tambahkan kategori untuk mengelompokkan transaksi.</p>
+                </div>
+            `;
     }
 
-    lucide.createIcons();
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 let dragSourceIndex = null;

@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+    input[type="date"],
     input[type="month"] {
         display: block;
         width: 100%;
@@ -10,6 +11,12 @@
         max-width: 100%;
         box-sizing: border-box;
         cursor: pointer;
+    }
+
+    input[type="date"]::-webkit-date-and-time-value,
+    input[type="month"]::-webkit-date-and-time-value {
+        min-width: 0;
+        text-align: left;
     }
 }
 
@@ -24,7 +31,8 @@
     }
 
     .transaction-date-amount-row,
-    .loan-date-amount-row {
+    .loan-date-amount-row,
+    .loan-due-date-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         width: 100%;
@@ -37,75 +45,71 @@
     .loan-due-date-field {
         min-width: 0;
         max-width: 100%;
+        overflow: hidden;
     }
 
-    .arah-date-control {
-        position: relative;
+    .arah-date-input {
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 2.75rem !important;
+        min-height: 2.75rem !important;
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+        margin: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        box-sizing: border-box;
+        overflow: hidden;
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+
+    .arah-date-input::-webkit-date-and-time-value {
+        min-width: 0;
+        padding: 0;
+        text-align: left;
+    }
+
+    .arah-date-input::-webkit-datetime-edit {
+        min-width: 0;
+        padding: 0;
+    }
+
+    .arah-date-input::-webkit-calendar-picker-indicator {
+        flex: 0 0 auto;
+        margin: 0;
+    }
+
+    .arah-date-input.loan-date-inactive {
+        opacity: 0.5;
+        pointer-events: none;
+        cursor: default;
+    }
+
+    .loan-no-due-label {
         display: flex;
         align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
         width: 100%;
         min-width: 0;
         max-width: 100%;
         height: 2.75rem;
         min-height: 2.75rem;
-        padding: 0 2.25rem 0 0.75rem;
+        padding: 0 0.75rem;
         box-sizing: border-box;
-    }
-
-    .arah-date-control-display {
-        display: block;
-        min-width: 0;
         overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 0.75rem;
+        font-size: 0.8125rem;
         line-height: 1rem;
-        color: rgb(148 163 184);
-        pointer-events: none;
     }
 
-    .arah-date-control.has-value .arah-date-control-display {
-        color: rgb(51 65 85);
+    .loan-no-due-label input {
+        flex: 0 0 auto;
     }
-
-    .dark .arah-date-control.has-value .arah-date-control-display {
-        color: rgb(226 232 240);
-    }
-
-    .arah-date-control-icon {
-        position: absolute;
-        right: 0.75rem;
-        top: 50%;
-        width: 0.875rem;
-        height: 0.875rem;
-        transform: translateY(-50%);
-        color: rgb(100 116 139);
-        pointer-events: none;
-    }
-
-    .arah-date-native {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        display: block;
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        height: 100%;
-        min-height: 100%;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        opacity: 0;
-        cursor: pointer;
-        box-sizing: border-box;
-    }
-
-    .arah-date-control:focus-within {
-        border-color: #0056a3;
-    }
-
-
 
     .loan-field-label-aligned {
         display: flex;
@@ -119,6 +123,17 @@
     }
 }
 
+@supports (-webkit-touch-callout: none) {
+    .arah-date-input {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+    }
+}
+
 @keyframes arahLogoFadeIn {
     from {
         opacity: 0;
@@ -128,5 +143,57 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/*
+ * Native iOS/Safari date inputs have an intrinsic minimum width that can
+ * overflow a two-column grid. The shell owns the layout width; the native
+ * date input is absolutely contained inside it so it cannot push or collide
+ * with the neighboring Nominal field.
+ */
+@layer components {
+    .arah-date-shell {
+        position: relative;
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: 2.75rem;
+        min-height: 2.75rem;
+        overflow: hidden;
+        border-radius: 0.75rem;
+        box-sizing: border-box;
+    }
+
+    .arah-date-shell > .arah-date-input {
+        position: absolute !important;
+        inset: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+    }
+}
+
+@supports (-webkit-touch-callout: none) {
+    .arah-date-shell {
+        contain: layout paint;
+    }
+
+    .arah-date-shell > .arah-date-input {
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        overflow: hidden !important;
     }
 }
