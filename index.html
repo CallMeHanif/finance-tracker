@@ -113,7 +113,7 @@
 
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+<body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-[#0b1220] dark:text-slate-100 flex flex-col transition-colors duration-200">
 
     <header class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
         <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between relative">
@@ -632,7 +632,7 @@
 
         <!-- ================= PAGE 2: TRANSACTIONS ================= -->
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-            <div class="md:hidden col-span-full sticky top-16 z-30 -mx-1 px-1 pt-2 pb-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
+            <div class="md:hidden col-span-full sticky top-16 z-30 -mx-1 -mt-6 px-1 pt-8 pb-3 bg-slate-50/95 dark:bg-[#0b1220]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
                 <div class="px-1">
                     <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
                     <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
@@ -1420,7 +1420,7 @@
             data-transaction-type="Transfer"
             onclick="setTransactionType('Transfer')"
             class="
-                transaction-type-buttons
+                transaction-type-button
                 rounded-lg py-2 px-2
                 text-xs font-semibold
                 transition-all
@@ -1441,7 +1441,7 @@
         type="text"
         id="form-name"
         required
-        class="
+        class="arah-form-control 
             w-full
             bg-slate-50 dark:bg-slate-900
             border border-slate-200 dark:border-slate-800
@@ -1460,21 +1460,15 @@
             Tanggal
         </label>
 
-        <input
-            type="date"
-            id="form-date"
-            required
-            onclick="openPickerSafely(this)"
-            class="
-                transaction-main-date-input
-                block w-full min-w-0 max-w-full
-                bg-slate-50 dark:bg-slate-900
-                border border-slate-200 dark:border-slate-800
-                rounded-xl px-3 py-2
-                text-xs text-slate-800 dark:text-white
-                cursor-pointer box-border overflow-hidden
-            "
-        >
+        <div class="ios-date-shell arah-form-control-shell">
+            <input
+                type="date"
+                id="form-date"
+                required
+                onclick="openPickerSafely(this)"
+                class="arah-form-control transaction-main-date-input bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-800 dark:text-white cursor-pointer"
+            >
+        </div>
     </div>
 
     <!-- Nominal -->
@@ -1491,7 +1485,7 @@
             autocomplete="off"
             oninput="formatInputNominal(this)"
             placeholder="Contoh: 100.000"
-            class="
+            class="arah-form-control 
                 block w-full min-w-0 max-w-full
                 bg-slate-50 dark:bg-slate-900
                 border border-slate-200 dark:border-slate-800
@@ -1519,7 +1513,7 @@
                     <select
                         id="form-account"
                         required
-                        class="
+                        class="arah-form-control 
                             block w-full min-w-0 max-w-full
                             bg-slate-50 dark:bg-slate-900
                             border border-slate-200 dark:border-slate-800
@@ -1540,7 +1534,7 @@
 
                     <select
                         id="form-category"
-                        class="
+                        class="arah-form-control 
                             block w-full min-w-0 max-w-full
                             bg-slate-50 dark:bg-slate-900
                             border border-slate-200 dark:border-slate-800
@@ -1561,7 +1555,7 @@
 
                     <select
                         id="form-target-account"
-                        class="
+                        class="arah-form-control 
                             block w-full min-w-0 max-w-full
                             bg-slate-50 dark:bg-slate-900
                             border border-slate-200 dark:border-slate-800
@@ -1583,7 +1577,7 @@
                 <input
                     type="text"
                     id="form-notes"
-                    class="
+                    class="arah-form-control 
                         w-full
                         bg-slate-50 dark:bg-slate-900
                         border border-slate-200 dark:border-slate-800
@@ -2024,7 +2018,7 @@
                     id="loanNameInput"
                     type="text"
                     placeholder="Contoh : Makan Siang"
-                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                    class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
                     required
                 >
             </div>
@@ -2032,13 +2026,15 @@
             <div class="loan-date-amount-row">
                 <div class="loan-date-amount-field">
                     <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                    <input
-                        id="loanDateInput"
-                        type="date"
-                        onclick="openPickerSafely(this)"
-                        class="loan-main-date-input bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
-                        required
-                    >
+                    <div class="ios-date-shell arah-form-control-shell">
+                        <input
+                            id="loanDateInput"
+                            type="date"
+                            onclick="openPickerSafely(this)"
+                            class="arah-form-control loan-main-date-input bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                            required
+                        >
+                    </div>
                 </div>
 
                 <div class="loan-date-amount-field">
@@ -2049,7 +2045,7 @@
                         inputmode="decimal"
                         placeholder="0"
                         oninput="formatInputNominal(this)"
-                        class="w-full min-w-0 max-w-full box-border bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                        class="arah-form-control w-full min-w-0 max-w-full box-border bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
                         required
                     >
                 </div>
@@ -2058,15 +2054,17 @@
             <div class="loan-due-date-row">
                 <div class="loan-due-date-field">
                     <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
-                    <input
-                        id="loanDueDateInput"
-                        type="date"
-                        onclick="openPickerSafely(this)"
-                        class="loan-due-date-input w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
-                    >
+                    <div class="ios-date-shell arah-form-control-shell">
+                        <input
+                            id="loanDueDateInput"
+                            type="date"
+                            onclick="openPickerSafely(this)"
+                            class="arah-form-control loan-due-date-input w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                        >
+                    </div>
                 </div>
 
-                <label class="loan-no-due-label rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                <label class="arah-form-control loan-no-due-label rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
                     <input
                         id="loanNoDueDateInput"
                         type="checkbox"
@@ -2092,7 +2090,7 @@
                         id="loanPartyInput"
                         type="text"
                         placeholder="Nama Orang / Toko"
-                        class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
+                        class="arah-form-control w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500"
                     >
                 </div>
 
@@ -2109,7 +2107,7 @@
 
                     <div
                         id="loanOriginModeSelector"
-                        class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 p-1"
+                        class="arah-form-control grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-900 p-1"
                     >
                         <button
                             id="loanOriginYesButton"
@@ -2138,7 +2136,7 @@
                 <label for="loanOriginAccountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun Keuangan</label>
                 <select
                     id="loanOriginAccountInput"
-                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                    class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
                 ></select>
             </div>
 
@@ -2636,7 +2634,7 @@
                         placeholder="Cari nama, akun, atau catatan..."
                         autocomplete="off"
                         oninput="handleLoanRepaymentSearch()"
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blueSystem-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                        class="arah-form-control w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blueSystem-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                     >
                 </div>
 
@@ -2661,23 +2659,23 @@
 
                 <div>
                     <label for="loanRepaymentNameInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Transaksi</label>
-                    <input id="loanRepaymentNameInput" type="text" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
+                    <input id="loanRepaymentNameInput" type="text" class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                        <input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required>
+                        <div class="ios-date-shell arah-form-control-shell"><input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="arah-form-control w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required></div>
                     </div>
                     <div>
                         <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
-                        <input id="loanRepaymentAmountInput" type="text" inputmode="decimal" placeholder="0" oninput="formatInputNominal(this)" class="w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
+                        <input id="loanRepaymentAmountInput" type="text" inputmode="decimal" placeholder="0" oninput="formatInputNominal(this)" class="arah-form-control w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blueSystem-500" required>
                     </div>
                 </div>
 
                 <div>
                     <label for="loanRepaymentAccountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun Keuangan</label>
-                    <select id="loanRepaymentAccountInput" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required></select>
+                    <select id="loanRepaymentAccountInput" class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required></select>
                 </div>
 
                 <div>

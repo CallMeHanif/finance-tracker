@@ -776,68 +776,53 @@ function formatTransactionMonthLabel(
 }
 
 function populateTransactionMonthFilter() {
-    const monthSelect =
-        document.getElementById(
-            'txMonthFilter'
-        );
+    const desktopSelect = document.getElementById('txMonthFilter');
+    const mobileSelect = document.getElementById('txMonthFilterMobile');
 
-    if (!monthSelect) return;
+    if (!desktopSelect && !mobileSelect) return;
 
     const previousValue =
-        monthSelect.value;
+        mobileSelect?.value ||
+        desktopSelect?.value ||
+        '';
 
-    const availableMonths =
-        new Set([
-            getCurrentYearMonth()
-        ]);
+    const availableMonths = new Set([
+        getCurrentYearMonth()
+    ]);
 
     transactions.forEach(transaction => {
-        const transactionMonth =
-            getLocalMonth(
-                transaction.date
-            );
-
+        const transactionMonth = getLocalMonth(transaction.date);
         if (transactionMonth) {
-            availableMonths.add(
-                transactionMonth
-            );
+            availableMonths.add(transactionMonth);
         }
     });
 
-    const sortedMonths =
-        [...availableMonths]
-            .sort((a, b) =>
-                b.localeCompare(a)
-            );
+    const sortedMonths = [...availableMonths]
+        .sort((a, b) => b.localeCompare(a));
 
-    monthSelect.innerHTML = `
-        <option value="">
-            Semua Tanggal
-        </option>
-
+    const optionsHtml = `
+        <option value="">Semua Tanggal</option>
         ${sortedMonths
             .map(month => `
                 <option value="${month}">
-                    ${escapeHtml(
-                        formatTransactionMonthLabel(
-                            month
-                        )
-                    )}
+                    ${escapeHtml(formatTransactionMonthLabel(month))}
                 </option>
             `)
             .join('')}
     `;
 
-    const previousValueExists =
-        previousValue === '' ||
-        sortedMonths.includes(
-            previousValue
-        );
+    [desktopSelect, mobileSelect].forEach(select => {
+        if (!select) return;
+        select.innerHTML = optionsHtml;
 
-    monthSelect.value =
-        previousValueExists
+        const valueExists =
+            previousValue === '' ||
+            sortedMonths.includes(previousValue);
+
+        select.value = valueExists
             ? previousValue
             : getCurrentYearMonth();
+    });
 }
 
 function populateFormDropdowns() {
@@ -856,6 +841,12 @@ function populateFormDropdowns() {
     const filterCategorySelect =
         document.getElementById('txFilterCategory');
 
+    const mobileFilterAccountSelect =
+        document.getElementById('txFilterAccountMobile');
+
+    const mobileFilterCategorySelect =
+        document.getElementById('txFilterCategoryMobile');
+
     /*
      * Simpan pilihan user sebelum isi dropdown
      * dibuat ulang saat refresh cloud.
@@ -870,7 +861,12 @@ function populateFormDropdowns() {
         filterAccountSelect?.value || '';
 
     const selectedFilterCategory =
+        mobileFilterCategorySelect?.value ||
         filterCategorySelect?.value || '';
+
+    const selectedMobileFilterAccount =
+        mobileFilterAccountSelect?.value ||
+        filterAccountSelect?.value || '';
 
     const accountHtml = userAccounts.length > 0
         ? userAccounts
@@ -894,11 +890,17 @@ function populateFormDropdowns() {
         targetAccountSelect.innerHTML = accountHtml;
     }
 
+    const accountFilterHtml = `
+        <option value="">Semua Akun</option>
+        ${accountHtml}
+    `;
+
     if (filterAccountSelect) {
-        filterAccountSelect.innerHTML = `
-            <option value="">Semua Akun</option>
-            ${accountHtml}
-        `;
+        filterAccountSelect.innerHTML = accountFilterHtml;
+    }
+
+    if (mobileFilterAccountSelect) {
+        mobileFilterAccountSelect.innerHTML = accountFilterHtml;
     }
 
     const allCategories = [
@@ -910,17 +912,23 @@ function populateFormDropdowns() {
     const uniqueCategories =
         [...new Set(allCategories)];
 
+    const categoryFilterHtml = `
+        <option value="">Semua Kategori</option>
+        ${uniqueCategories
+            .map(category => `
+                <option value="${escapeHtml(category)}">
+                    ${escapeHtml(category)}
+                </option>
+            `)
+            .join('')}
+    `;
+
     if (filterCategorySelect) {
-        filterCategorySelect.innerHTML = `
-            <option value="">Semua Kategori</option>
-            ${uniqueCategories
-                .map(category => `
-                    <option value="${escapeHtml(category)}">
-                        ${escapeHtml(category)}
-                    </option>
-                `)
-                .join('')}
-        `;
+        filterCategorySelect.innerHTML = categoryFilterHtml;
+    }
+
+    if (mobileFilterCategorySelect) {
+        mobileFilterCategorySelect.innerHTML = categoryFilterHtml;
     }
 
     /*
@@ -960,8 +968,18 @@ function populateFormDropdowns() {
     );
 
     restoreValue(
-    filterCategorySelect,
-    selectedFilterCategory
+        filterCategorySelect,
+        selectedFilterCategory
+    );
+
+    restoreValue(
+        mobileFilterAccountSelect,
+        selectedMobileFilterAccount
+    );
+
+    restoreValue(
+        mobileFilterCategorySelect,
+        selectedFilterCategory
     );
 
     populateTransactionMonthFilter();
@@ -2198,6 +2216,41 @@ if (ctx) {
     }
 }
 
+function syncTransactionSearch(source = 'desktop') {
+    const desktopInput = document.getElementById('txSearchBar');
+    const mobileInput = document.getElementById('txSearchBarMobile');
+    const sourceInput = source === 'mobile' ? mobileInput : desktopInput;
+    const targetInput = source === 'mobile' ? desktopInput : mobileInput;
+
+    if (sourceInput && targetInput) {
+        targetInput.value = sourceInput.value;
+    }
+
+    scheduleTransactionSearch();
+}
+
+function syncTransactionFilters(source = 'desktop') {
+    const pairs = [
+        ['txMonthFilter', 'txMonthFilterMobile'],
+        ['txFilterAccount', 'txFilterAccountMobile'],
+        ['txFilterCategory', 'txFilterCategoryMobile']
+    ];
+
+    pairs.forEach(([desktopId, mobileId]) => {
+        const desktop = document.getElementById(desktopId);
+        const mobile = document.getElementById(mobileId);
+        const from = source === 'mobile' ? mobile : desktop;
+        const to = source === 'mobile' ? desktop : mobile;
+
+        if (from && to) {
+            to.value = from.value;
+        }
+    });
+
+    const selectedMonth = document.getElementById('txMonthFilter')?.value || '';
+    renderTransactionsPage(selectedMonth);
+}
+
 function scheduleTransactionSearch() {
     clearTimeout(
         transactionSearchTimer
@@ -2234,9 +2287,8 @@ function renderTransactionsPage(selectedMonth) {
     }
 
     const searchInput =
-    document.getElementById(
-        'txSearchBar'
-    );
+        document.getElementById('txSearchBar') ||
+        document.getElementById('txSearchBarMobile');
 
 const kw =
     normalizeText(
@@ -2899,8 +2951,6 @@ function updateLoanDueDateField() {
     const hasNoDueDate =
         noDueDateInput.checked;
 
-    // Keep the native date input enabled so iOS Safari does not
-    // change its intrinsic width when the checkbox state changes.
     dueDateInput.disabled = false;
     dueDateInput.readOnly = false;
     dueDateInput.required = !hasNoDueDate;
