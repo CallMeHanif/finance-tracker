@@ -1466,6 +1466,7 @@
             <input
                 type="date"
                 id="form-date"
+                onclick="openPickerSafely(this)"
                 required
                 class="arah-date-native"
             >
@@ -2033,6 +2034,7 @@
                         <input
                             id="loanDateInput"
                             type="date"
+                            onclick="openPickerSafely(this)"
                             class="arah-date-native"
                             required
                         >
@@ -2061,6 +2063,7 @@
                     <input
                         id="loanDueDateInput"
                         type="date"
+                        onclick="openPickerSafely(this)"
                         class="arah-date-native"
                     >
                 </div>
@@ -2659,7 +2662,7 @@
                         <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
                             <span class="arah-date-control-display" data-date-display-for="loanRepaymentDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
                             <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
-                            <input id="loanRepaymentDateInput" type="date" class="arah-date-native" required>
+                            <input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="arah-date-native" required>
                         </div>
                     </div>
                     <div>

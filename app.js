@@ -125,26 +125,25 @@ function openPickerSafely(input) {
     if (
         !input ||
         input.disabled ||
-        input.getAttribute('aria-disabled') === 'true'
+        input.readOnly
     ) {
         return;
     }
 
-    if (typeof input.showPicker === 'function') {
-        try {
+    try {
+        if (
+            typeof input.showPicker ===
+            'function'
+        ) {
             input.showPicker();
             return;
-        } catch (error) {
-            // Browser tertentu tetap membuka date picker
-            // melalui perilaku native setelah event click.
         }
+    } catch (error) {
+        // Fallback ke focus jika browser
+        // tidak mengizinkan showPicker.
     }
 
-    try {
-        input.focus({ preventScroll: true });
-    } catch (error) {
-        input.focus();
-    }
+    input.focus();
 }
 
 function normalizeDateValue(value) {
