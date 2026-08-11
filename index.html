@@ -26,7 +26,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=20260811-ios1">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260811-finalui1">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -594,7 +594,6 @@
                     <div id="dashCategoriesContainer" class="flex flex-col justify-start max-h-[170px] overflow-y-auto pr-1 custom-scrollbar"></div>
                 </div>
             </div>
-
             <!-- Pengingat jatuh tempo Hutang -->
             <section
                 id="dashboardDebtReminderSection"
@@ -633,14 +632,42 @@
 
         <!-- ================= PAGE 2: TRANSACTIONS ================= -->
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-            <div class="lg:col-span-4 space-y-3 lg:space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
+            <div class="md:hidden col-span-full sticky top-16 z-30 -mx-1 px-1 pt-2 pb-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
+                <div class="px-1">
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
+                </div>
+
+                <div class="relative mt-3">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input
+                        type="text"
+                        id="txSearchBarMobile"
+                        oninput="syncTransactionSearch('mobile')"
+                        placeholder="Cari transaksi..."
+                        class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 shadow-sm rounded-xl pl-10 pr-3 py-3.5 text-sm focus:outline-none focus:border-blueSystem-500 focus:ring-1 focus:ring-blueSystem-500/30"
+                    >
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mt-2.5">
+                    <select id="txMonthFilterMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter tanggal transaksi" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none">
+                        <option value="">Semua Tanggal</option>
+                    </select>
+                    <select id="txFilterAccountMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter akun" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none"></select>
+                    <select id="txFilterCategoryMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter kategori" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none"></select>
+                </div>
+            </div>
+
+            <div class="hidden md:block lg:col-span-4 space-y-3 lg:space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
                 <div class="px-1">
                     <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
                         Transaksi
                     </h1>
 
-                    <p class="lg:block mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                         Kelola seluruh transaksi keuanganmu.
                     </p>
                 </div>
@@ -668,13 +695,12 @@
 
             <div class="lg:col-span-8 space-y-4">
                 <div class="
-    space-y-3
+    hidden md:flex md:flex-col md:space-y-3
     lg:space-y-0
     lg:bg-white lg:dark:bg-slate-950
     lg:border lg:border-slate-200 lg:dark:border-slate-800
     lg:p-4 lg:rounded-2xl lg:shadow-sm
-    lg:flex lg:flex-row
-    lg:gap-3 lg:items-center
+    lg:flex-row lg:gap-3 lg:items-center
     lg:justify-between
 ">
     <!-- Pencarian -->
@@ -1149,8 +1175,8 @@
 </div>
 
         <!-- ================= PAGE 4 : REPORTS ================= -->
-        <div id="page-reports" class="page-content hidden space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="page-reports" class="page-content hidden space-y-5">
+            <div class="grid grid-cols-1 gap-5">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="line-chart" class="text-blueSystem-500 w-4 h-4"></i> Tren Pendapatan & Pengeluaran</h3>
                     <div class="w-full h-72"><canvas id="chartIncomeExpense"></canvas></div>
@@ -1177,107 +1203,80 @@
 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-slate-100 dark:border-slate-800">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rincian Riwayat Akumulasi Bulanan</h3>
+        </div>
+
+        <!-- ================= PAGE 5 : SETTINGS ================= -->
+        <div id="page-settings" class="page-content hidden space-y-4">
+            <div class="px-1">
+                <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Pengaturan</h1>
+                <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Atur akun, kategori, database, dan data ARAH.</p>
+            </div>
+
+            <div class="space-y-3">
+                <p class="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Keuangan</p>
+                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    <button type="button" onclick="switchPage('settings-accounts')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-blueSystem-50 dark:bg-blueSystem-900/30 text-blueSystem-500 flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Akun Keuangan</span><span class="mt-0.5 block text-[11px] text-slate-400">Kelola rekening, cash, e-wallet, dan tabungan.</span></span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                    <button type="button" onclick="switchPage('settings-categories')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-500 flex items-center justify-center"><i data-lucide="tags" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Kategori Transaksi</span><span class="mt-0.5 block text-[11px] text-slate-400">Atur kategori uang masuk, keluar, dan netral.</span></span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs border-collapse">
-                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
-                            <tr>
-                                <th class="py-3 px-4">Bulan / Periode</th>
-                                <th class="py-3 px-4 text-emerald-600 dark:text-emerald-400">Total Pendapatan</th>
-                                <th class="py-3 px-4 text-rose-600 dark:text-rose-400">Total Pengeluaran</th>
-                                <th class="py-3 px-4">Net Perubahan Saldo</th>
-                            </tr>
-                        </thead>
-                        <tbody id="reportsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+            </div>
+
+            <div class="space-y-3">
+                <p class="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Data</p>
+                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    <button type="button" onclick="toggleSettingsModal()" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><i data-lucide="database" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Database & Sinkronisasi</span><span class="mt-0.5 block text-[11px] text-slate-400">Kelola koneksi penyimpanan data ARAH.</span></span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                    <button type="button" onclick="openWipeModal()" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 flex items-center justify-center"><i data-lucide="trash-2" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-rose-600 dark:text-rose-400">Hapus Seluruh Data</span><span class="mt-0.5 block text-[11px] text-slate-400">Kosongkan seluruh data workspace dan mulai dari awal.</span></span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-settings-accounts" class="page-content hidden space-y-4">
+            <div class="flex items-center justify-between gap-3 px-1">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                    <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Akun Keuangan</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola seluruh akun yang digunakan di ARAH.</p></div>
+                </div>
+                <button type="button" onclick="openSettingsModal('account')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Akun</span><span class="sm:hidden">Tambah</span></button>
+            </div>
+            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500"><tr><th class="py-2.5 px-3 w-8"></th><th class="py-2.5 px-3 font-semibold">Nama Akun</th><th class="py-2.5 px-3 font-semibold">Jenis</th><th class="py-2.5 px-3 text-center font-semibold">Aksi</th></tr></thead>
+                        <tbody id="setupAccountsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- ================= PAGE 5 : SETTINGS ================= -->
-        <div id="page-settings" class="page-content hidden space-y-6">
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <!-- Kelola Akun -->
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5"><i data-lucide="wallet" class="w-4 h-4 text-blueSystem-500"></i> Kelola Akun Keuangan</h3>
-                        <button onclick="openSettingsModal('account')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-1.5 px-3 rounded-lg text-[11px] transition-all flex items-center gap-1"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Akun</button>
-                    </div>
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500">
-                                <tr>
-                                    <th class="py-2.5 px-3 w-8"></th>
-                                    <th class="py-2.5 px-3 font-semibold">Nama Akun</th>
-                                    <th class="py-2.5 px-3 font-semibold">Jenis</th>
-                                    <th class="py-2.5 px-3 text-center font-semibold">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="setupAccountsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                        </table>
-                    </div>
+        <div id="page-settings-categories" class="page-content hidden space-y-4">
+            <div class="flex items-center justify-between gap-3 px-1">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                    <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Kategori Transaksi</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola kategori uang masuk, keluar, dan netral.</p></div>
                 </div>
-
-                <!-- Kelola Kategori -->
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5"><i data-lucide="tag" class="w-4 h-4 text-blueSystem-500"></i> Kelola Kategori Transaksi</h3>
-                        <button onclick="openSettingsModal('category')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-1.5 px-3 rounded-lg text-[11px] transition-all flex items-center gap-1"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Kategori</button>
-                    </div>
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500">
-                                <tr>
-                                    <th class="py-2.5 px-3 font-semibold">Nama Kategori</th>
-                                    <th class="py-2.5 px-3 font-semibold">Arus Dana</th>
-                                    <th class="py-2.5 px-3 text-center font-semibold">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="setupCategoriesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <button type="button" onclick="openSettingsModal('category')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Kategori</span><span class="sm:hidden">Tambah</span></button>
             </div>
-
-            <!-- CSV & Danger Zone -->
-            <div class="grid grid-cols-1 gap-6">
-                <!-- ================= DEV ONLY: IMPORT CSV =================
-
-                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-                    <label class="block text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-1.5">
-                        <i data-lucide="upload" class="w-4 h-4 text-blueSystem-500"></i>
-                        Import Transaksi (CSV)
-                    </label>
-
-                    <input
-                        type="file"
-                        id="csvFileInput"
-                        accept=".csv"
-                        class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blueSystem-50 file:text-blueSystem-700 hover:file:bg-blueSystem-100 mb-3"
-                    >
-
-                    <p class="text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <strong>Format CSV:</strong>
-                        Tanggal (YYYY-MM-DD), Nama, Kredit, Debit, Kategori, Akun, Akun Tujuan, Catatan.
-                    </p>
-                </div>
-
-                ================= END DEV ONLY ================= -->
-
-                <div class="bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/20 rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4">
-                    <div>
-                        <h3 class="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                            <i data-lucide="shield-alert" class="w-4 h-4"></i> Hapus Seluruh Data
-                        </h3>
-                        <p class="text-[11px] text-slate-400 mt-1">Gunakan opsi ini jika ingin membersihkan seluruh data (akun, kategori, dan transaksi) untuk mulai kembali dari nol.</p>
-                    </div>
-                    <button onclick="openWipeModal()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 font-semibold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> <span>Hapus Semua Data Workspace</span>
-                    </button>
+            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500"><tr><th class="py-2.5 px-3 font-semibold">Nama Kategori</th><th class="py-2.5 px-3 font-semibold">Arus Dana</th><th class="py-2.5 px-3 text-center font-semibold">Aksi</th></tr></thead>
+                        <tbody id="setupCategoriesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1453,10 +1452,10 @@
 </div>
 
 <!-- Tanggal dan Nominal -->
-<div class="grid grid-cols-2 gap-3">
+<div class="transaction-date-amount-row">
 
     <!-- Tanggal -->
-    <div class="min-w-0 overflow-hidden space-y-1">
+    <div class="transaction-date-amount-field space-y-1">
         <label class="text-[10px] font-bold text-slate-400 uppercase">
             Tanggal
         </label>
@@ -1467,6 +1466,7 @@
             required
             onclick="openPickerSafely(this)"
             class="
+                transaction-main-date-input
                 block w-full min-w-0 max-w-full
                 bg-slate-50 dark:bg-slate-900
                 border border-slate-200 dark:border-slate-800
@@ -1478,7 +1478,7 @@
     </div>
 
     <!-- Nominal -->
-    <div class="min-w-0 space-y-1">
+    <div class="transaction-date-amount-field space-y-1">
         <label class="text-[10px] font-bold text-slate-400 uppercase">
             Nominal
         </label>
@@ -2749,13 +2749,9 @@
         <p>&copy; 2026 ARAH by Hanif Alkhairi</p>
     </footer>
 
-    <div id="globalLoader" class="hidden fixed inset-0 z-[100] bg-white dark:bg-slate-950 flex flex-col items-center justify-center">
-        <div class="relative w-16 h-16">
-            <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
-            <div class="absolute inset-0 rounded-full border-4 border-blueSystem-500 border-t-transparent animate-spin"></div>
-        </div>
-        <p class="mt-4 text-sm font-bold text-slate-700 dark:text-slate-300">Memuat Database...</p>
-        <p class="text-[10px] text-slate-400 mt-1">Mengambil data terbaru dari Cloud</p>
+    <div id="globalLoader" class="hidden fixed inset-0 z-[100] bg-white dark:bg-slate-950 flex items-center justify-center">
+        <img src="./assets/wordmark-bl.png" alt="ARAH" class="arah-loader-logo block dark:hidden h-8 w-auto object-contain">
+        <img src="./assets/wordmark-wh.png" alt="ARAH" class="arah-loader-logo hidden dark:block h-8 w-auto object-contain">
     </div>
 
     <div id="successModal" class="hidden fixed inset-0 z-[90] bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2782,6 +2778,6 @@
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js?v=20260811-ios1"></script>
+    <script src="app.js?v=20260811-finalui1"></script>
 </body>
 </html>

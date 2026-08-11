@@ -21,34 +21,6 @@
 }
 
 @layer components {
-    .loan-date-amount-row {
-        display: flex;
-        width: 100%;
-        min-width: 0;
-        align-items: flex-end;
-        gap: 0.75rem;
-    }
-
-    .loan-date-amount-field {
-        flex: 1 1 0%;
-        width: 0;
-        min-width: 0;
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    .loan-main-date-input {
-        display: block;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        inline-size: 100% !important;
-        min-inline-size: 0 !important;
-        max-inline-size: 100% !important;
-        box-sizing: border-box;
-        overflow: hidden;
-    }
-
     .loan-due-date-row {
         display: flex;
         width: 100%;
@@ -111,21 +83,116 @@
 }
 
 @supports (-webkit-touch-callout: none) {
-    .loan-main-date-input,
     .loan-due-date-input {
         -webkit-appearance: none;
         appearance: none;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
         inline-size: 100% !important;
         min-inline-size: 0 !important;
         max-inline-size: 100% !important;
     }
+}
 
-    .loan-main-date-input::-webkit-date-and-time-value {
-        min-width: 0;
+@layer components {
+    .loan-date-amount-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         width: 100%;
+        min-width: 0;
+        gap: 0.75rem;
+    }
+
+    .loan-date-amount-field {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .loan-main-date-input {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@supports (-webkit-touch-callout: none) {
+    #loanFormModal .loan-date-amount-field,
+    #loanFormModal .loan-main-date-input {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    #loanFormModal .loan-main-date-input {
+        width: 100%;
+        inline-size: 100%;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+    }
+
+    #loanFormModal .loan-main-date-input::-webkit-date-and-time-value {
+        min-width: 0;
+        text-align: left;
+    }
+}
+
+@layer components {
+    .transaction-date-amount-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        width: 100%;
+        min-width: 0;
+        gap: 0.75rem;
+    }
+
+    .transaction-date-amount-field {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    #transactionModal .transaction-main-date-input {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .arah-loader-logo {
+        opacity: 0;
+        animation: arahLogoFadeIn 700ms ease-out forwards;
+    }
+}
+
+@keyframes arahLogoFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@supports (-webkit-touch-callout: none) {
+    #transactionModal .transaction-date-amount-field,
+    #transactionModal .transaction-main-date-input {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    #transactionModal .transaction-main-date-input {
+        width: 100%;
+        inline-size: 100%;
+        min-inline-size: 0;
+        max-inline-size: 100%;
+    }
+
+    #transactionModal .transaction-main-date-input::-webkit-date-and-time-value {
+        min-width: 0;
         text-align: left;
     }
 }

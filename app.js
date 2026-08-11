@@ -669,89 +669,62 @@ function toggleDarkMode() {
 function switchPage(pageId) {
     activePage = pageId;
 
-    document
-        .querySelectorAll('.page-content')
-        .forEach(element => {
-            element.classList.add('hidden');
-        });
+    document.querySelectorAll('.page-content').forEach(element => {
+        element.classList.add('hidden');
+    });
 
-    const targetPage =
-        document.getElementById(
-            'page-' + pageId
-        );
-
+    const targetPage = document.getElementById('page-' + pageId);
     if (!targetPage) {
-        console.error(
-            `Halaman "${pageId}" tidak ditemukan.`
-        );
-
+        console.error(`Halaman "${pageId}" tidak ditemukan.`);
         return;
     }
 
     targetPage.classList.remove('hidden');
 
-    document
-        .querySelectorAll('header nav button')
-        .forEach(button => {
-            button.className = `
-                px-4 py-1.5
-                rounded-lg
-                transition-all
-                text-slate-500
-                dark:text-slate-400
-                hover:text-slate-900
-            `;
-        });
+    document.querySelectorAll('header nav button').forEach(button => {
+        button.className = `
+            px-4 py-1.5 rounded-lg transition-all
+            text-slate-500 dark:text-slate-400 hover:text-slate-900
+        `;
+    });
 
-    const activeDesktopButton =
-        document.getElementById(
-            'nav-' + pageId
-        );
+    const navPageId = pageId.startsWith('settings-')
+        ? 'settings'
+        : pageId;
 
+    const activeDesktopButton = document.getElementById('nav-' + navPageId);
     if (activeDesktopButton) {
         activeDesktopButton.className = `
-            px-4 py-1.5
-            rounded-lg
-            transition-all
-            bg-white
-            dark:bg-slate-800
-            text-blueSystem-500
-            dark:text-white
-            shadow-sm
+            px-4 py-1.5 rounded-lg transition-all
+            bg-white dark:bg-slate-800
+            text-blueSystem-500 dark:text-white shadow-sm
         `;
     }
 
-    document
-        .querySelectorAll(
-            '#bottomMobileNav .bottom-nav-item'
-        )
-        .forEach(button => {
-            button.classList.remove(
-                'is-active'
-            );
-        });
+    document.querySelectorAll(
+        '#bottomMobileNav .bottom-nav-item'
+    ).forEach(button => {
+        button.classList.remove('is-active');
+    });
 
     const bottomPageId =
         pageId === 'loans'
             ? 'dashboard'
-            : pageId;
+            : pageId.startsWith('settings-')
+                ? 'settings'
+                : pageId;
 
-    const activeBottomButton =
-        document.getElementById(
-            'nav-bottom-' + bottomPageId
-        );
+    const activeBottomButton = document.getElementById(
+        'nav-bottom-' + bottomPageId
+    );
 
     if (activeBottomButton) {
-        activeBottomButton.classList.add(
-            'is-active'
-        );
+        activeBottomButton.classList.add('is-active');
     }
 
     renderDashboard();
 
-    requestAnimationFrame(
-        updateFloatingTransactionButton
-    );
+    requestAnimationFrame(updateFloatingTransactionButton);
 }
 function escapeHtml(value) {
     return String(value ?? '')
@@ -1242,7 +1215,11 @@ function renderDashboard() {
         renderLoansPage();
     } else if (activePage === 'reports') {
         renderReportsPage();
-    } else if (activePage === 'settings') {
+    } else if (
+        activePage === 'settings' ||
+        activePage === 'settings-accounts' ||
+        activePage === 'settings-categories'
+    ) {
         renderSettingsPage();
     }
     lucide.createIcons();
@@ -1761,7 +1738,7 @@ function renderDashboardActiveDebts(activeDebts) {
                         data-lucide="hand-coins"
                         class="w-4 h-4 text-rose-500"
                     ></i>
-                    Yang Masih Harus Dibayar
+                    Kamu Punya Hutang
                 </h3>
             </div>
 
@@ -2491,199 +2468,150 @@ document.getElementById(
     }
 }
 
-function renderMobileTransactionCards(
-    transactionList
-) {
-    const container =
-        document.getElementById(
-            'txMobileCards'
-        );
-
+function renderMobileTransactionCards(transactionList) {
+    const container = document.getElementById('txMobileCards');
     if (!container) return;
 
     let html = '';
     let currentDate = '';
 
     transactionList.forEach(transaction => {
-        let colorClass =
-            'text-rose-600 ' +
-            'dark:text-rose-400 ' +
-            'font-bold';
+        let amountClass = 'text-rose-600 dark:text-rose-400';
+        let amount = Number(transaction.credit) || 0;
+        let icon = 'arrow-up-right';
+        let iconClass = [
+            'bg-rose-50',
+            'text-rose-600',
+            'dark:bg-rose-950/30',
+            'dark:text-rose-400'
+        ].join(' ');
 
-        let amount =
-            transaction.credit;
-
-        let displayCategory =
-            transaction.category || '-';
-
-        let displayAccount =
-            transaction.account || '-';
+        let displayCategory = transaction.category || '-';
+        let displayAccount = transaction.account || '-';
 
         if (transaction.isTransfer) {
-            colorClass =
-                'text-blueSystem-500 ' +
-                'dark:text-blueSystem-100 ' +
-                'font-bold';
-
-            amount =
-                transaction.credit ||
-                transaction.debit;
-
-            displayCategory =
-                'Transfer Dana';
-
-            displayAccount =
-                `${transaction.account} ➔ ` +
-                `${transaction.targetAccount}`;
-        } else if (
-            Number(transaction.debit) > 0
-        ) {
-            colorClass =
-                'text-emerald-600 ' +
-                'dark:text-emerald-400 ' +
-                'font-bold';
-
-            amount =
-                transaction.debit;
+            amount = Number(transaction.credit) || Number(transaction.debit) || 0;
+            amountClass = 'text-blueSystem-500 dark:text-blueSystem-100';
+            icon = 'repeat-2';
+            iconClass = [
+                'bg-blueSystem-50',
+                'text-blueSystem-500',
+                'dark:bg-blueSystem-900/30',
+                'dark:text-blueSystem-100'
+            ].join(' ');
+            displayCategory = 'Transfer Dana';
+            displayAccount = `${transaction.account} ➔ ${transaction.targetAccount}`;
+        } else if (Number(transaction.debit) > 0) {
+            amount = Number(transaction.debit) || 0;
+            amountClass = 'text-emerald-600 dark:text-emerald-400';
+            icon = 'arrow-down-left';
+            iconClass = [
+                'bg-emerald-50',
+                'text-emerald-600',
+                'dark:bg-emerald-900/30',
+                'dark:text-emerald-400'
+            ].join(' ');
         }
 
-        /*
-         * Buat judul tanggal baru ketika
-         * tanggal transaksi berubah.
-         */
-        if (
-            transaction.date !== currentDate
-        ) {
+        if (transaction.date !== currentDate) {
             if (currentDate !== '') {
-                html += `
-                    </div>
-                </section>
-                `;
+                html += `</div></section>`;
             }
 
-            currentDate =
-                transaction.date;
-
+            currentDate = transaction.date;
             html += `
-                <section class="space-y-2">
+                <section>
                     <h3 class="
-                        px-1
+                        px-1 pb-1.5 pt-1
                         text-xs font-bold
-                        text-slate-500
-                        dark:text-slate-400
+                        text-slate-500 dark:text-slate-400
                     ">
-                        ${escapeHtml(
-                            formatTanggalIndo(
-                                transaction.date
-                            )
-                        )}
+                        ${escapeHtml(formatTanggalIndo(transaction.date))}
                     </h3>
 
-                    <div class="space-y-2">
+                    <div class="
+                        divide-y divide-slate-200
+                        dark:divide-slate-800
+                    ">
             `;
         }
+
+        const encodedId = encodeActionValue(transaction.id);
+        const note = normalizeText(transaction.notes);
 
         html += `
             <button
                 type="button"
                 onclick="openTransactionDetailModal(
-                    decodeActionValue(
-                        '${encodeActionValue(
-                            transaction.id
-                        )}'
-                    )
+                    decodeActionValue('${encodedId}')
                 )"
                 class="
-                    w-full
-                    bg-white dark:bg-slate-950
-                    border border-slate-200
-                    dark:border-slate-800
-                    rounded-2xl
-                    p-3.5 shadow-sm
-                    flex items-start
-                    justify-between gap-3
+                    w-full py-3.5 px-1
+                    flex items-center gap-3
                     text-left
+                    active:bg-slate-100/70
+                    dark:active:bg-slate-900/70
                     transition-colors
-                    active:bg-slate-50
-                    dark:active:bg-slate-900
                 "
             >
-                <div class="min-w-0 flex-1">
-                    <p class="
-                        font-semibold text-sm
-                        text-slate-900
-                        dark:text-white
+                <span class="
+                    shrink-0 w-9 h-9 rounded-xl
+                    flex items-center justify-center
+                    ${iconClass}
+                ">
+                    <i data-lucide="${icon}" class="w-4 h-4"></i>
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="
+                        block text-sm font-semibold
+                        text-slate-900 dark:text-white
                         truncate
                     ">
-                        ${escapeHtml(
-                            transaction.name
-                        )}
-                    </p>
+                        ${escapeHtml(transaction.name || '-')}
+                    </span>
 
-                    <div class="
-                        mt-2 flex flex-wrap
-                        gap-1.5
+                    <span class="
+                        mt-1 block text-[10px]
+                        text-slate-400 truncate
                     ">
-                        <span class="
-                            inline-flex
-                            max-w-[145px]
-                            truncate rounded-full
-                            bg-slate-100
-                            dark:bg-slate-800
-                            px-2 py-0.5
-                            text-[10px]
-                            font-medium
-                            text-slate-600
-                            dark:text-slate-300
-                        ">
-                            ${escapeHtml(
-                                displayCategory
-                            )}
-                        </span>
+                        ${escapeHtml(displayCategory)}
+                        ${note ? `
+                            <span class="mx-1">•</span>
+                            ${escapeHtml(note)}
+                        ` : ''}
+                    </span>
+                </span>
 
-                        <span class="
-                            inline-flex
-                            max-w-[145px]
-                            truncate rounded-full
-                            bg-slate-100
-                            dark:bg-slate-800
-                            border border-slate-200
-                            dark:border-slate-700
-                            px-2 py-0.5
-                            text-[10px]
-                            font-medium
-                            text-slate-600
-                            dark:text-slate-300
-                        ">
-                            ${escapeHtml(displayAccount)}
-                        </span>
-                    </div>
-                </div>
+                <span class="shrink-0 text-right" style="max-width: 44%;">
+                    <span class="
+                        block text-sm font-bold
+                        whitespace-nowrap
+                        ${amountClass}
+                    ">
+                        ${formatRupiah(amount, true)}
+                    </span>
 
-                <p class="
-                    shrink-0
-                    whitespace-nowrap
-                    text-sm
-                    ${colorClass}
-                ">
-                    ${formatRupiah(
-                        amount,
-                        true
-                    )}
-                </p>
+                    <span class="
+                        mt-1 inline-block max-w-full
+                        truncate rounded
+                        bg-slate-100 dark:bg-slate-800
+                        px-1.5 py-0.5
+                        text-[9px] font-medium
+                        text-slate-500 dark:text-slate-300
+                    ">
+                        ${escapeHtml(displayAccount)}
+                    </span>
+                </span>
             </button>
         `;
     });
 
     if (currentDate !== '') {
-        html += `
-                </div>
-            </section>
-        `;
+        html += `</div></section>`;
     }
 
-    container.innerHTML =
-        html || emptyStateHTML;
+    container.innerHTML = html || emptyStateHTML;
 }
 
 function getTodayLocalDate() {
@@ -5314,12 +5242,6 @@ function renderReportsPage() {
     }
 
     const sortedMonths = Object.keys(monthlyTotals).sort();
-    const tableBody = document.getElementById('reportsTableBody');
-    tableBody.innerHTML = '';
-
-    if (sortedMonths.length === 0) {
-        tableBody.innerHTML = emptyTableRowHTML(4);
-    }
 
     const chartLabels = [];
     const incomeDataset = [];
@@ -5343,13 +5265,7 @@ function renderReportsPage() {
             categoryDatasetsInfo[c].push((monthlyCategories[m] && monthlyCategories[m][c]) ? monthlyCategories[m][c] : 0);
         });
 
-        tableBody.innerHTML += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">${readableLabel}</td>
-                <td class="py-3 px-4 text-emerald-600 font-medium">${formatRupiah(inc, true)}</td>
-                <td class="py-3 px-4 text-rose-600 font-medium">${formatRupiah(exp, true)}</td>
-                <td class="py-3 px-4 ${net >= 0 ? 'text-emerald-600 font-bold':'text-rose-600 font-bold'}">${formatRupiah(net, true)}</td>
-            </tr>`;
+
     });
 
     const isDark = document.documentElement.classList.contains('dark');
@@ -5520,9 +5436,9 @@ function renderReportsPage() {
 
 function renderSettingsPage() {
     const accBody = document.getElementById('setupAccountsTableBody');
-    if (userAccounts.length === 0) {
+    if (accBody && userAccounts.length === 0) {
         accBody.innerHTML = emptyTableRowHTML(4);
-    } else {
+    } else if (accBody) {
         accBody.innerHTML = userAccounts.map((a, index) => `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60 draggable-row transition-colors" 
                 draggable="true" ondragstart="handleDragStart(event, ${index})" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${index})">
@@ -5572,7 +5488,10 @@ function renderSettingsPage() {
         </tr>`;
     });
 
-    catBody.innerHTML = catHtml === '' ? emptyTableRowHTML(3) : catHtml;
+    if (catBody) {
+        catBody.innerHTML = catHtml === '' ? emptyTableRowHTML(3) : catHtml;
+    }
+
     lucide.createIcons();
 }
 
@@ -7104,7 +7023,7 @@ function closeNoAccountModal() {
 
 function goToSettingsFromModal() {
     closeNoAccountModal();
-    switchPage('settings');
+    switchPage('settings-accounts');
 }
 
 /* ================= DEV ONLY: IMPORT CSV =================
