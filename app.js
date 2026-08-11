@@ -635,14 +635,34 @@ window.addEventListener('DOMContentLoaded', async () => {
     populateFormDropdowns();
     initializeDateControls();
 
+    const savedTransactionMonth =
+    localStorage.getItem(
+        'arahTransactionMonthFilter'
+    );
+
     const transactionMonthFilter =
         document.getElementById(
             'txMonthFilter'
         );
 
+    const transactionMonthFilterMobile =
+        document.getElementById(
+            'txMonthFilterMobile'
+        );
+
+    const initialTransactionMonth =
+        savedTransactionMonth !== null
+            ? savedTransactionMonth
+            : currentYearMonth;
+
     if (transactionMonthFilter) {
         transactionMonthFilter.value =
-            currentYearMonth;
+            initialTransactionMonth;
+    }
+
+    if (transactionMonthFilterMobile) {
+        transactionMonthFilterMobile.value =
+            initialTransactionMonth;
     }
 
     switchPage('dashboard');
@@ -828,10 +848,19 @@ function populateTransactionMonthFilter() {
 
     if (!desktopSelect && !mobileSelect) return;
 
+    const storedValue =
+    localStorage.getItem(
+        'arahTransactionMonthFilter'
+    );
+
     const previousValue =
-        mobileSelect?.value ||
-        desktopSelect?.value ||
-        '';
+        storedValue !== null
+            ? storedValue
+            : (
+                desktopSelect?.value ||
+                mobileSelect?.value ||
+                getCurrentYearMonth()
+            );
 
     const availableMonths = new Set([
         getCurrentYearMonth()
@@ -2294,8 +2323,19 @@ function syncTransactionFilters(source = 'desktop') {
         }
     });
 
-    const selectedMonth = document.getElementById('txMonthFilter')?.value || '';
-    renderTransactionsPage(selectedMonth);
+    const selectedMonth =
+    document.getElementById(
+        'txMonthFilter'
+    )?.value ?? '';
+
+    localStorage.setItem(
+        'arahTransactionMonthFilter',
+        selectedMonth
+    );
+
+    renderTransactionsPage(
+        selectedMonth
+    );
 }
 
 function scheduleTransactionSearch() {
