@@ -26,7 +26,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=20260811-finalui1">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260811-date-final">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -1460,13 +1460,14 @@
             Tanggal
         </label>
 
-        <div class="ios-date-shell arah-form-control-shell">
+        <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+            <span class="arah-date-control-display" data-date-display-for="form-date" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
+            <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
             <input
                 type="date"
                 id="form-date"
                 required
-                onclick="openPickerSafely(this)"
-                class="arah-form-control transaction-main-date-input bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-800 dark:text-white cursor-pointer"
+                class="arah-date-native"
             >
         </div>
     </div>
@@ -2026,12 +2027,13 @@
             <div class="loan-date-amount-row">
                 <div class="loan-date-amount-field">
                     <label for="loanDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                    <div class="ios-date-shell arah-form-control-shell">
+                    <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                        <span class="arah-date-control-display" data-date-display-for="loanDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
+                        <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
                         <input
                             id="loanDateInput"
                             type="date"
-                            onclick="openPickerSafely(this)"
-                            class="arah-form-control loan-main-date-input bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
+                            class="arah-date-native"
                             required
                         >
                     </div>
@@ -2051,29 +2053,18 @@
                 </div>
             </div>
 
-            <div class="loan-due-date-row">
-                <div class="loan-due-date-field">
-                    <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
-                    <div class="ios-date-shell arah-form-control-shell">
-                        <input
-                            id="loanDueDateInput"
-                            type="date"
-                            onclick="openPickerSafely(this)"
-                            class="arah-form-control loan-due-date-input w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500"
-                        >
-                    </div>
-                </div>
-
-                <label class="arah-form-control loan-no-due-label rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+            <div class="loan-due-date-field">
+                <label for="loanDueDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</label>
+                <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span class="arah-date-control-display" data-date-display-for="loanDueDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
+                    <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
                     <input
-                        id="loanNoDueDateInput"
-                        type="checkbox"
-                        checked
-                        onchange="updateLoanDueDateField()"
-                        class="h-4 w-4 rounded border-slate-300 text-blueSystem-500 focus:ring-blueSystem-500"
+                        id="loanDueDateInput"
+                        type="date"
+                        class="arah-date-native"
                     >
-                    Tanpa jatuh tempo
-                </label>
+                </div>
+                <p class="mt-1.5 text-[10px] text-slate-400">Kosongkan jika tidak ada jatuh tempo.</p>
             </div>
 
             <div id="loanPartyOriginGrid" class="grid grid-cols-2 gap-3">
@@ -2665,7 +2656,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label for="loanRepaymentDateInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
-                        <div class="ios-date-shell arah-form-control-shell"><input id="loanRepaymentDateInput" type="date" onclick="openPickerSafely(this)" class="arah-form-control w-full min-w-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blueSystem-500" required></div>
+                        <div class="arah-date-control bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                            <span class="arah-date-control-display" data-date-display-for="loanRepaymentDateInput" data-placeholder="dd/mm/tttt">dd/mm/tttt</span>
+                            <i data-lucide="calendar-days" class="arah-date-control-icon"></i>
+                            <input id="loanRepaymentDateInput" type="date" class="arah-date-native" required>
+                        </div>
                     </div>
                     <div>
                         <label for="loanRepaymentAmountInput" class="block mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</label>
@@ -2776,6 +2771,6 @@
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js?v=20260811-finalui1"></script>
+    <script src="app.js?v=20260811-no-due-checkbox"></script>
 </body>
 </html>

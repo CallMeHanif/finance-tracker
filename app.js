@@ -74,6 +74,53 @@ function normalizeText(value) {
     return value === null || value === undefined ? '' : String(value).trim();
 }
 
+function syncDateControlDisplay(inputOrId) {
+    const input = typeof inputOrId === 'string'
+        ? document.getElementById(inputOrId)
+        : inputOrId;
+
+    if (!input || !input.id) return;
+
+    const display = document.querySelector(
+        `[data-date-display-for="${input.id}"]`
+    );
+
+    if (!display) return;
+
+    const control = display.closest('.arah-date-control');
+    const value = normalizeDateValue(input.value);
+    const placeholder = display.dataset.placeholder || 'dd/mm/tttt';
+
+    display.textContent = value
+        ? formatTanggalIndo(value)
+        : placeholder;
+
+    control?.classList.toggle('has-value', Boolean(value));
+}
+
+function setDateControlValue(inputOrId, value) {
+    const input = typeof inputOrId === 'string'
+        ? document.getElementById(inputOrId)
+        : inputOrId;
+
+    if (!input) return;
+
+    input.value = normalizeDateValue(value);
+    syncDateControlDisplay(input);
+}
+
+function initializeDateControls() {
+    document.querySelectorAll('.arah-date-native').forEach(input => {
+        if (input.dataset.dateControlReady !== 'true') {
+            input.addEventListener('input', () => syncDateControlDisplay(input));
+            input.addEventListener('change', () => syncDateControlDisplay(input));
+            input.dataset.dateControlReady = 'true';
+        }
+
+        syncDateControlDisplay(input);
+    });
+}
+
 function openPickerSafely(input) {
     if (
         !input ||
@@ -587,6 +634,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateHeaderCloudIndicator();
     updateObscureUI();
     populateFormDropdowns();
+    initializeDateControls();
 
     const transactionMonthFilter =
         document.getElementById(
@@ -2930,45 +2978,6 @@ function setLoanFormTypeLocked(isLocked) {
     updateLoanTypeButtons();
 }
 
-function updateLoanDueDateField() {
-    const noDueDateInput =
-        document.getElementById(
-            'loanNoDueDateInput'
-        );
-
-    const dueDateInput =
-        document.getElementById(
-            'loanDueDateInput'
-        );
-
-    if (
-        !noDueDateInput ||
-        !dueDateInput
-    ) {
-        return;
-    }
-
-    const hasNoDueDate =
-        noDueDateInput.checked;
-
-    dueDateInput.disabled = false;
-    dueDateInput.readOnly = false;
-    dueDateInput.required = !hasNoDueDate;
-    dueDateInput.tabIndex = hasNoDueDate ? -1 : 0;
-    dueDateInput.setAttribute(
-        'aria-disabled',
-        hasNoDueDate ? 'true' : 'false'
-    );
-    dueDateInput.classList.toggle(
-        'loan-due-date-disabled',
-        hasNoDueDate
-    );
-
-    if (hasNoDueDate) {
-        dueDateInput.value = '';
-    }
-}
-
 function showLoanNoticeModal(title, message) {
     const modal = document.getElementById('loanNoticeModal');
     const titleElement = document.getElementById('loanNoticeTitle');
@@ -3203,7 +3212,6 @@ function openLoanFormModal() {
     const editIdInput = document.getElementById('loanFormEditId');
     const dateInput = document.getElementById('loanDateInput');
     const modeInput = document.getElementById('loanOriginModeInput');
-    const noDueDateInput = document.getElementById('loanNoDueDateInput');
     const dueDateInput = document.getElementById('loanDueDateInput');
 
     if (editIdInput) {
@@ -3211,22 +3219,18 @@ function openLoanFormModal() {
     }
 
     if (dateInput) {
-        dateInput.value = getTodayLocalDate();
+        setDateControlValue(dateInput, getTodayLocalDate());
     }
 
     if (modeInput) {
         modeInput.value = 'none';
     }
 
-    if (noDueDateInput) {
-        noDueDateInput.checked = true;
-    }
 
     if (dueDateInput) {
-        dueDateInput.value = '';
+        setDateControlValue(dueDateInput, '');
     }
 
-    updateLoanDueDateField();
     setLoanFormTypeLocked(false);
     setLoanFormType('Piutang', { force: true });
     updateLoanFormLayout({ editing: false });
@@ -3265,8 +3269,7 @@ function openLoanEditModal(loanId) {
     document.getElementById('loanNameInput').value =
         loan.name || '';
 
-    document.getElementById('loanDateInput').value =
-        loan.date || '';
+    setDateControlValue('loanDateInput', loan.date || '');
 
     document.getElementById('loanPrincipalInput').value =
         new Intl.NumberFormat('id-ID', {
@@ -3281,19 +3284,14 @@ function openLoanEditModal(loanId) {
     document.getElementById('loanNotesInput').value =
         loan.notes || '';
 
-    const noDueDateInput = document.getElementById('loanNoDueDateInput');
     const dueDateInput = document.getElementById('loanDueDateInput');
     const dueDate = normalizeDateValue(loan.dueDate);
 
-    if (noDueDateInput) {
-        noDueDateInput.checked = !dueDate;
-    }
 
     if (dueDateInput) {
-        dueDateInput.value = dueDate;
+        setDateControlValue(dueDateInput, dueDate);
     }
 
-    updateLoanDueDateField();
     setLoanFormType(loan.type, { force: true });
     setLoanFormTypeLocked(true);
     updateLoanFormLayout({ editing: true });
@@ -3369,15 +3367,9 @@ function submitLoanForm(event) {
         document.getElementById('loanNotesInput')?.value
     );
 
-    const hasNoDueDate = Boolean(
-        document.getElementById('loanNoDueDateInput')?.checked
+    const dueDate = normalizeDateValue(
+        document.getElementById('loanDueDateInput')?.value
     );
-
-    const dueDate = hasNoDueDate
-        ? ''
-        : normalizeDateValue(
-            document.getElementById('loanDueDateInput')?.value
-        );
 
     if (!['Hutang', 'Piutang'].includes(type)) {
         showLoanNoticeModal('Jenis Tidak Valid', 'Pilih Hutang atau Piutang.');
@@ -3394,10 +3386,6 @@ function submitLoanForm(event) {
         return;
     }
 
-    if (!hasNoDueDate && !dueDate) {
-        showLoanNoticeModal('Jatuh Tempo Belum Dipilih', 'Pilih tanggal jatuh tempo atau aktifkan opsi tanpa jatuh tempo.');
-        return;
-    }
 
     if (dueDate && dueDate < date) {
         showLoanNoticeModal('Jatuh Tempo Tidak Valid', 'Tanggal jatuh tempo tidak boleh lebih awal daripada tanggal pencatatan.');
@@ -3916,7 +3904,7 @@ function openLoanRepaymentModal(loanId) {
     );
 
     if (dateInput) {
-        dateInput.value = getTodayLocalDate();
+        setDateControlValue(dateInput, getTodayLocalDate());
     }
 
     if (amountInput) {
@@ -5773,12 +5761,13 @@ function openTransactionModal() {
     document.getElementById('form-name').value = '';
     document.getElementById('form-amount').value = '';
     document.getElementById('form-notes').value = '';
-    setTransactionType('Credit');
 
     const now = new Date();
-    document.getElementById('form-date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    setDateControlValue(
+        'form-date',
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    );
 
-    populateFormDropdowns();
     populateFormDropdowns();
     setTransactionType('Credit');
 
@@ -6244,7 +6233,7 @@ function editTransaction(id) {
     `;
 
     document.getElementById('form-edit-id').value = transaction.id;
-    document.getElementById('form-date').value = transaction.date;
+    setDateControlValue('form-date', transaction.date);
 
     let flowValue = 'Credit';
 
@@ -6355,9 +6344,7 @@ function duplicateTransaction(id) {
         );
     }
 
-    document.getElementById(
-        'form-date'
-    ).value = transaction.date || '';
+    setDateControlValue('form-date', transaction.date || '');
 
     document.getElementById(
         'form-name'
