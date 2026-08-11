@@ -5470,7 +5470,7 @@ function renderSettingsPage() {
     if (accountList) {
         if (userAccounts.length === 0) {
             accountList.innerHTML = `
-                <div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
+                <div class="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
                     <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500">
                         <i data-lucide="wallet-cards" class="h-5 w-5"></i>
                     </div>
@@ -5479,52 +5479,90 @@ function renderSettingsPage() {
                 </div>
             `;
         } else {
-            accountList.innerHTML = userAccounts.map((account, index) => `
-                <article
-                    class="draggable-row group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
-                    draggable="true"
-                    ondragstart="handleDragStart(event, ${index})"
-                    ondragover="handleDragOver(event)"
-                    ondragleave="handleDragLeave(event)"
-                    ondrop="handleDrop(event, ${index})"
-                >
-                    <div class="flex items-start gap-3">
-                        <div
-                            class="mt-0.5 flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-xl bg-blueSystem-50 text-blueSystem-500 active:cursor-grabbing dark:bg-blueSystem-900/30 dark:text-blue-400"
-                            title="Tarik untuk mengurutkan"
-                        >
-                            <i data-lucide="wallet-cards" class="h-4 w-4"></i>
-                        </div>
+            const accountGroups = [];
+            const accountGroupMap = new Map();
 
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">
-                                ${escapeHtml(account.name)}
-                            </p>
-                            <span class="mt-1.5 inline-flex max-w-full items-center rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-700 dark:text-slate-300">
-                                ${escapeHtml(account.type)}
-                            </span>
-                        </div>
+            userAccounts.forEach((account, index) => {
+                const type = normalizeText(account.type) || 'Lainnya';
 
-                        <div class="flex shrink-0 items-center gap-1">
-                            <button
-                                type="button"
-                                onclick="editSetupAccount(decodeActionValue('${encodeActionValue(account.name)}'))"
-                                aria-label="Edit ${escapeHtml(account.name)}"
-                                class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blueSystem-50 hover:text-blueSystem-500 dark:hover:bg-blueSystem-900/30"
-                            >
-                                <i data-lucide="edit-2" class="h-3.5 w-3.5"></i>
-                            </button>
-                            <button
-                                type="button"
-                                onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(account.name)}'), 'account')"
-                                aria-label="Hapus ${escapeHtml(account.name)}"
-                                class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-                            >
-                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                            </button>
+                if (!accountGroupMap.has(type)) {
+                    const group = {
+                        type,
+                        items: []
+                    };
+
+                    accountGroupMap.set(type, group);
+                    accountGroups.push(group);
+                }
+
+                accountGroupMap.get(type).items.push({
+                    account,
+                    index
+                });
+            });
+
+            const formatAccountGroupTitle = type => {
+                if (type === 'E Wallet') return 'E-Wallet';
+                return type;
+            };
+
+            accountList.innerHTML = accountGroups.map(group => `
+                <section class="mb-5 last:mb-0">
+                    <h3 class="px-1 pb-2 pt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                        ${escapeHtml(formatAccountGroupTitle(group.type))}
+                    </h3>
+
+                    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
+                        <div class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${group.items.map(({ account, index }) => `
+                                <article
+                                    class="draggable-row group w-full py-3.5 px-3 md:px-4 flex items-center gap-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
+                                    draggable="true"
+                                    ondragstart="handleDragStart(event, ${index})"
+                                    ondragover="handleDragOver(event)"
+                                    ondragleave="handleDragLeave(event)"
+                                    ondrop="handleDrop(event, ${index})"
+                                >
+                                    <span
+                                        class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-blueSystem-50 text-blueSystem-500 dark:bg-blueSystem-900/30 dark:text-blue-400 cursor-grab active:cursor-grabbing"
+                                        title="Tarik untuk mengurutkan"
+                                    >
+                                        <i data-lucide="wallet-cards" class="w-4 h-4"></i>
+                                    </span>
+
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                                            ${escapeHtml(account.name)}
+                                        </p>
+                                        <p class="mt-1 truncate text-[10px] text-slate-400">
+                                            ${escapeHtml(formatAccountGroupTitle(group.type))}
+                                        </p>
+                                    </div>
+
+                                    <div class="flex shrink-0 items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onclick="editSetupAccount(decodeActionValue('${encodeActionValue(account.name)}'))"
+                                            aria-label="Edit ${escapeHtml(account.name)}"
+                                            class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-blueSystem-50 hover:text-blueSystem-500 dark:hover:bg-blueSystem-900/30"
+                                        >
+                                            <i data-lucide="edit-2" class="h-3.5 w-3.5"></i>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(account.name)}'), 'account')"
+                                            aria-label="Hapus ${escapeHtml(account.name)}"
+                                            class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                                        >
+                                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                        </button>
+                                    </div>
+                                </article>
+                            `).join('')}
                         </div>
                     </div>
-                </article>
+                </section>
             `).join('');
         }
     }
@@ -5532,84 +5570,36 @@ function renderSettingsPage() {
     const categoryList = document.getElementById('setupCategoriesCardList');
 
     if (categoryList) {
-        const categoryCards = [];
+        const categoryGroups = [
+            {
+                title: 'Uang Masuk',
+                subtitle: 'Masuk',
+                items: userCategories.income,
+                deleteType: 'category_in',
+                icon: 'arrow-down-left',
+                iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+            },
+            {
+                title: 'Uang Keluar',
+                subtitle: 'Keluar',
+                items: userCategories.expense,
+                deleteType: 'category_out',
+                icon: 'arrow-up-right',
+                iconClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
+            },
+            {
+                title: 'Netral',
+                subtitle: 'Netral',
+                items: userCategories.neutral,
+                deleteType: 'category_neutral',
+                icon: 'minus',
+                iconClass: 'bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300'
+            }
+        ].filter(group => group.items.length > 0);
 
-        userCategories.income.forEach(category => {
-            categoryCards.push(`
-                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                            <i data-lucide="arrow-down-left" class="h-4 w-4"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
-                            <span class="mt-1.5 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Masuk</span>
-                        </div>
-                        <button
-                            type="button"
-                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_in')"
-                            aria-label="Hapus ${escapeHtml(category)}"
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-                        >
-                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                        </button>
-                    </div>
-                </article>
-            `);
-        });
-
-        userCategories.expense.forEach(category => {
-            categoryCards.push(`
-                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
-                            <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
-                            <span class="mt-1.5 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Keluar</span>
-                        </div>
-                        <button
-                            type="button"
-                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_out')"
-                            aria-label="Hapus ${escapeHtml(category)}"
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-                        >
-                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                        </button>
-                    </div>
-                </article>
-            `);
-        });
-
-        userCategories.neutral.forEach(category => {
-            categoryCards.push(`
-                <article class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300">
-                            <i data-lucide="minus" class="h-4 w-4"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-semibold text-slate-950 dark:text-white">${escapeHtml(category)}</p>
-                            <span class="mt-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">Netral</span>
-                        </div>
-                        <button
-                            type="button"
-                            onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), 'category_neutral')"
-                            aria-label="Hapus ${escapeHtml(category)}"
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-                        >
-                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
-                        </button>
-                    </div>
-                </article>
-            `);
-        });
-
-        categoryList.innerHTML = categoryCards.length > 0
-            ? categoryCards.join('')
-            : `
-                <div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
+        if (categoryGroups.length === 0) {
+            categoryList.innerHTML = `
+                <div class="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-5 py-10 text-center shadow-sm">
                     <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500">
                         <i data-lucide="tags" class="h-5 w-5"></i>
                     </div>
@@ -5617,6 +5607,45 @@ function renderSettingsPage() {
                     <p class="mt-1 text-[11px] text-slate-400">Tambahkan kategori untuk mengelompokkan transaksi.</p>
                 </div>
             `;
+        } else {
+            categoryList.innerHTML = categoryGroups.map(group => `
+                <section class="mb-5 last:mb-0">
+                    <h3 class="px-1 pb-2 pt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                        ${escapeHtml(group.title)}
+                    </h3>
+
+                    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
+                        <div class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${group.items.map(category => `
+                                <article class="group w-full py-3.5 px-3 md:px-4 flex items-center gap-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900">
+                                    <span class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${group.iconClass}">
+                                        <i data-lucide="${group.icon}" class="w-4 h-4"></i>
+                                    </span>
+
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                                            ${escapeHtml(category)}
+                                        </p>
+                                        <p class="mt-1 truncate text-[10px] text-slate-400">
+                                            ${escapeHtml(group.subtitle)}
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onclick="triggerDeleteConfirm(decodeActionValue('${encodeActionValue(category)}'), '${group.deleteType}')"
+                                        aria-label="Hapus ${escapeHtml(category)}"
+                                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                                    >
+                                        <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                                    </button>
+                                </article>
+                            `).join('')}
+                        </div>
+                    </div>
+                </section>
+            `).join('');
+        }
     }
 
     if (window.lucide) {
@@ -5631,7 +5660,21 @@ function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
 function handleDrop(e, targetIndex) {
     e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
-    if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
+
+    if (dragSourceIndex === null || dragSourceIndex === targetIndex) {
+        dragSourceIndex = null;
+        return;
+    }
+
+    const sourceAccount = userAccounts[dragSourceIndex];
+    const targetAccount = userAccounts[targetIndex];
+
+    // Setelah akun dikelompokkan berdasarkan jenis, urutan hanya
+    // boleh dipindahkan di dalam group yang sama.
+    if (sourceAccount?.type !== targetAccount?.type) {
+        dragSourceIndex = null;
+        return;
+    }
 
     const movedItem = userAccounts.splice(dragSourceIndex, 1)[0];
     userAccounts.splice(targetIndex, 0, movedItem);
