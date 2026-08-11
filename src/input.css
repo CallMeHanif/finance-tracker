@@ -68,19 +68,37 @@
     }
 
     .arah-date-input::-webkit-date-and-time-value {
+        display: flex;
+        align-items: center;
         min-width: 0;
+        height: 100%;
         padding: 0;
+        margin: 0;
         text-align: left;
     }
 
     .arah-date-input::-webkit-datetime-edit {
+        display: flex;
+        align-items: center;
         min-width: 0;
+        height: 100%;
         padding: 0;
+        margin: 0;
+    }
+
+    .arah-date-input::-webkit-datetime-edit-fields-wrapper {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        height: 100%;
+        padding: 0;
+        margin: 0;
     }
 
     .arah-date-input::-webkit-calendar-picker-indicator {
         flex: 0 0 auto;
         margin: 0;
+        padding: 0;
     }
 
     .arah-date-input.loan-date-inactive {
@@ -143,57 +161,5 @@
     to {
         opacity: 1;
         transform: scale(1);
-    }
-}
-
-/*
- * Native iOS/Safari date inputs have an intrinsic minimum width that can
- * overflow a two-column grid. The shell owns the layout width; the native
- * date input is absolutely contained inside it so it cannot push or collide
- * with the neighboring Nominal field.
- */
-@layer components {
-    .arah-date-shell {
-        position: relative;
-        display: block;
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        height: 2.75rem;
-        min-height: 2.75rem;
-        overflow: hidden;
-        border-radius: 0.75rem;
-        box-sizing: border-box;
-    }
-
-    .arah-date-shell > .arah-date-input {
-        position: absolute !important;
-        inset: 0 !important;
-        display: block !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        height: 100% !important;
-        min-height: 100% !important;
-        max-height: 100% !important;
-        inline-size: 100% !important;
-        min-inline-size: 0 !important;
-        max-inline-size: 100% !important;
-        box-sizing: border-box !important;
-        margin: 0 !important;
-    }
-}
-
-@supports (-webkit-touch-callout: none) {
-    .arah-date-shell {
-        contain: layout paint;
-    }
-
-    .arah-date-shell > .arah-date-input {
-        left: 0 !important;
-        right: 0 !important;
-        top: 0 !important;
-        bottom: 0 !important;
-        overflow: hidden !important;
     }
 }
