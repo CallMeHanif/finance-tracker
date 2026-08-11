@@ -2605,6 +2605,8 @@ document.getElementById(
                 </tr>`;
         });
     }
+
+    lucide.createIcons();
 }
 
 function renderMobileTransactionCards(transactionList) {
