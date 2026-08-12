@@ -1554,7 +1554,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase">Jenis Akun</label>
-                        <select id="setup-acc-type" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
+                        <select id="setup-acc-type" required class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none">
                             <option value="Bank">Bank</option>
                             <option value="Tabungan">Tabungan / Investasi</option>
                             <option value="Cash">Cash (Uang Fisik)</option>
@@ -1562,9 +1562,40 @@
                         </select>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Saldo Awal</label>
-                        <input type="number" id="setup-acc-balance" placeholder="0" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Saldo Acuan</label>
+                        <input type="number" id="setup-acc-balance" placeholder="0" required class="arah-form-control w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none">
                     </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label for="setup-acc-initial-date" class="text-[10px] font-bold text-slate-400 uppercase">
+                        Tanggal Saldo Acuan
+                    </label>
+
+                    <div class="arah-date-shell bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                        <span
+                            class="arah-date-display"
+                            data-date-display-for="setup-acc-initial-date"
+                            aria-hidden="true"
+                        ></span>
+
+                        <i
+                            data-lucide="calendar-days"
+                            class="arah-date-icon"
+                            aria-hidden="true"
+                        ></i>
+
+                        <input
+                            type="date"
+                            id="setup-acc-initial-date"
+                            onclick="openPickerSafely(this)"
+                            class="arah-date-native"
+                        >
+                    </div>
+
+                    <p class="mt-1.5 text-[10px] text-slate-400">
+                        Transaksi sebelum tanggal ini tetap masuk histori dan laporan, tetapi tidak mengubah saldo setelah tanggal acuan.
+                    </p>
                 </div>
                 <div class="pt-2 flex gap-2">
                     <button type="button" onclick="closeSettingsModal('account')" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold py-2 rounded-xl text-xs transition-all">Batal</button>
@@ -2709,6 +2740,6 @@
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js?v=20260811-unified-transaction-list"></script>
+    <script src="app.js?v=20260812-saldo-acuan"></script>
 </body>
 </html>

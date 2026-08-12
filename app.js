@@ -207,7 +207,10 @@ function normalizeAccounts(input) {
         result.push({
             name,
             type: normalizeText(account.type) || 'Cash',
-            initial: normalizeMoney(account.initial)
+            initial: normalizeMoney(account.initial),
+            initialDate: normalizeDateValue(
+                account.initialDate
+            )
         });
     });
 
@@ -1142,20 +1145,155 @@ function formatInputNominal(input) {
         : `${formattedInteger},${decimalPart}`;
 }
 
+function getAccountTransactionDelta(transaction, accountName) {
+    if (!transaction || !accountName) {
+        return 0;
+    }
+
+    let delta = 0;
+
+    if (transaction.account === accountName) {
+        delta +=
+            (Number(transaction.debit) || 0) -
+            (Number(transaction.credit) || 0);
+    }
+
+    if (
+        transaction.isTransfer &&
+        transaction.targetAccount === accountName
+    ) {
+        delta +=
+            Number(transaction.credit) ||
+            Number(transaction.debit) ||
+            0;
+    }
+
+    return delta;
+}
+
+function getBalanceTargetDate(selectedMonthIso = null) {
+    const monthValue = normalizeText(selectedMonthIso);
+
+    if (!monthValue) {
+        return '9999-12-31';
+    }
+
+    const match = monthValue.match(/^(\d{4})-(\d{2})$/);
+
+    if (!match) {
+        return normalizeDateValue(monthValue) || '9999-12-31';
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const lastDay = new Date(year, month, 0).getDate();
+
+    return `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`;
+}
+
 function calculateBalancesUntil(selectedMonthIso = null) {
     const balances = {};
-    userAccounts.forEach(a => balances[a.name] = a.initial);
+    const targetDate = getBalanceTargetDate(selectedMonthIso);
 
-    transactions.forEach(t => {
-        if (selectedMonthIso && getLocalMonth(t.date) > selectedMonthIso) return;
-        
-        if (balances[t.account] !== undefined) {
-            balances[t.account] += (Number(t.debit) || 0) - (Number(t.credit) || 0);
+    userAccounts.forEach(account => {
+        const accountName = normalizeText(account.name);
+        const referenceBalance = normalizeMoney(account.initial);
+        const referenceDate = normalizeDateValue(account.initialDate);
+
+        if (!accountName) {
+            return;
         }
-        if (t.isTransfer && t.targetAccount && balances[t.targetAccount] !== undefined) {
-            balances[t.targetAccount] += (Number(t.credit) || Number(t.debit) || 0);
+
+        /*
+         * Akun lama tanpa tanggal saldo acuan tetap memakai
+         * perilaku lama agar saldo yang sudah ada tidak berubah.
+         */
+        if (!referenceDate) {
+            let balance = referenceBalance;
+
+            transactions.forEach(transaction => {
+                const transactionDate = normalizeDateValue(
+                    transaction.date
+                );
+
+                if (
+                    !transactionDate ||
+                    transactionDate > targetDate
+                ) {
+                    return;
+                }
+
+                balance += getAccountTransactionDelta(
+                    transaction,
+                    accountName
+                );
+            });
+
+            balances[accountName] = balance;
+            return;
         }
+
+        /*
+         * Jika tanggal yang dihitung berada pada / setelah saldo acuan,
+         * mulai dari saldo acuan lalu hitung hanya transaksi pada atau
+         * setelah tanggal acuan. Transaksi yang lebih lama tetap ada
+         * untuk histori dan laporan, tetapi tidak mengubah saldo ini.
+         */
+        if (targetDate >= referenceDate) {
+            let balance = referenceBalance;
+
+            transactions.forEach(transaction => {
+                const transactionDate = normalizeDateValue(
+                    transaction.date
+                );
+
+                if (
+                    !transactionDate ||
+                    transactionDate < referenceDate ||
+                    transactionDate > targetDate
+                ) {
+                    return;
+                }
+
+                balance += getAccountTransactionDelta(
+                    transaction,
+                    accountName
+                );
+            });
+
+            balances[accountName] = balance;
+            return;
+        }
+
+        /*
+         * Untuk bulan sebelum saldo acuan, saldo direkonstruksi mundur
+         * dari checkpoint. Ini membuat histori saldo lama tetap bisa
+         * dihitung tanpa mengubah checkpoint saldo yang sudah benar.
+         */
+        let historicalBalance = referenceBalance;
+
+        transactions.forEach(transaction => {
+            const transactionDate = normalizeDateValue(
+                transaction.date
+            );
+
+            if (
+                !transactionDate ||
+                transactionDate <= targetDate ||
+                transactionDate >= referenceDate
+            ) {
+                return;
+            }
+
+            historicalBalance -= getAccountTransactionDelta(
+                transaction,
+                accountName
+            );
+        });
+
+        balances[accountName] = historicalBalance;
     });
+
     return balances;
 }
 
@@ -5679,6 +5817,15 @@ function openSettingsModal(type) {
         document.getElementById('setup-acc-edit-id').value = '';
         document.getElementById('setup-acc-name').value = '';
         document.getElementById('setup-acc-balance').value = '';
+
+        const initialDateInput = document.getElementById(
+            'setup-acc-initial-date'
+        );
+
+        if (initialDateInput) {
+            setDateControlValue(initialDateInput, '');
+        }
+
         document.getElementById('setupAccountModal').classList.remove('hidden');
         document.getElementById('setupAccountModal').style.display = 'flex';
     } else {
@@ -5702,10 +5849,39 @@ function closeSettingsModal(type) {
 
 function saveSetupAccount(e) {
     e.preventDefault();
-    const editId = normalizeText(document.getElementById('setup-acc-edit-id').value);
-    const name = normalizeText(document.getElementById('setup-acc-name').value);
-    const type = normalizeText(document.getElementById('setup-acc-type').value);
-    const initBal = normalizeMoney(document.getElementById('setup-acc-balance').value);
+
+    const editId = normalizeText(
+        document.getElementById('setup-acc-edit-id').value
+    );
+
+    const name = normalizeText(
+        document.getElementById('setup-acc-name').value
+    );
+
+    const type = normalizeText(
+        document.getElementById('setup-acc-type').value
+    );
+
+    const initBal = normalizeMoney(
+        document.getElementById('setup-acc-balance').value
+    );
+
+    const initialDateInput = document.getElementById(
+        'setup-acc-initial-date'
+    );
+
+    const existingAccount = editId
+        ? userAccounts.find(account => account.name === editId)
+        : null;
+
+    /*
+     * Jika field tanggal saldo acuan tersedia di modal, gunakan nilainya.
+     * Jika HTML lama belum punya field tersebut, tanggal yang sudah ada
+     * tetap dipertahankan saat edit agar tidak hilang.
+     */
+    const initialDate = initialDateInput
+        ? normalizeDateValue(initialDateInput.value)
+        : normalizeDateValue(existingAccount?.initialDate);
 
     if (!name) {
         alert('Nama akun wajib diisi.');
@@ -5713,8 +5889,10 @@ function saveSetupAccount(e) {
     }
 
     const duplicate = userAccounts.some(a =>
-        a.name.toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID') && a.name !== editId
+        a.name.toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID') &&
+        a.name !== editId
     );
+
     if (duplicate) {
         alert('Nama akun ini sudah terdaftar.');
         return;
@@ -5722,18 +5900,31 @@ function saveSetupAccount(e) {
 
     if (editId) {
         const index = userAccounts.findIndex(a => a.name === editId);
+
         if (index === -1) {
             alert('Akun yang diedit tidak ditemukan.');
             return;
         }
-        userAccounts[index] = { name, type, initial: initBal };
+
+        userAccounts[index] = {
+            name,
+            type,
+            initial: initBal,
+            initialDate
+        };
+
         transactions = transactions.map(t => ({
             ...t,
             account: t.account === editId ? name : t.account,
             targetAccount: t.targetAccount === editId ? name : t.targetAccount
         }));
     } else {
-        userAccounts.push({ name, type, initial: initBal });
+        userAccounts.push({
+            name,
+            type,
+            initial: initBal,
+            initialDate
+        });
     }
 
     closeSettingsModal('account');
@@ -5742,13 +5933,26 @@ function saveSetupAccount(e) {
 
 function editSetupAccount(name) {
     const acc = userAccounts.find(a => a.name === name);
-    if(!acc) return;
+
+    if (!acc) return;
+
     document.getElementById('setupAccTitle').innerHTML = `<i data-lucide="edit-2" class="text-blueSystem-500 w-4 h-4"></i> Edit Akun Keuangan`;
     document.getElementById('setup-acc-edit-id').value = acc.name;
     document.getElementById('setup-acc-name').value = acc.name;
     document.getElementById('setup-acc-type').value = acc.type;
     document.getElementById('setup-acc-balance').value = acc.initial;
-    
+
+    const initialDateInput = document.getElementById(
+        'setup-acc-initial-date'
+    );
+
+    if (initialDateInput) {
+        setDateControlValue(
+            initialDateInput,
+            acc.initialDate || ''
+        );
+    }
+
     document.getElementById('setupAccountModal').classList.remove('hidden');
     document.getElementById('setupAccountModal').style.display = 'flex';
     lucide.createIcons();
