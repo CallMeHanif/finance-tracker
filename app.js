@@ -1,26 +1,13 @@
-// ==========================================
-// Developed by Hanif Alkhairi
-// ==========================================
 
-let userAccounts = [
-    { name: "Cash", type: "Cash", initial: 1200500 },
-    { name: "BCA", type: "Bank", initial: 2200100 },
-    { name: "Bank Jago", type: "Bank", initial: 1000000 },
-    { name: "Gopay", type: "E Wallet", initial: 55499 },
-];
+let userAccounts = [];
 
 let userCategories = {
-    income: ['Gaji', 'Hadiah', 'Profit'],
-    expense: ['Makan', 'Kebutuhan', 'Belanja', 'Langganan', 'Donasi', 'Otomotif',],
-    neutral: ['Hutang', 'Piutang', 'Lainnya']
+    income: [],
+    expense: [],
+    neutral: []
 };
 
-let transactions = [
-    { id: "1", date: "2026-06-15", name: "Gaji", credit: 0, debit: 6500000, category: "Gaji", account: "BCA", notes: "Transfer Bulanan" },
-    { id: "2", date: "2026-06-18", name: "Makan Siang", credit: 45000, debit: 0, category: "Makan", account: "Cash", notes: "" },
-    { id: "3", date: "2026-07-02", name: "Belanja", credit: 52600, debit: 0, category: "Belanja", account: "Cash", notes: "" }
-];
-
+let transactions = [];
 let userLoans = [];
 
 let activePage = 'dashboard';
@@ -34,10 +21,13 @@ let dashboardChartAnimationPending = false;
 let dashboardChartAnimationPlayed = false;
 let isBalanceObscured = false;
 let isInitialLoading = false;
-let cloudSyncTimer = null;
-let cloudSyncInFlight = false;
-let cloudSyncQueued = false;
-let cloudFetchInFlight = false;
+let saveTimer = null;
+let saveInFlight = false;
+let saveQueued = false;
+let loadInFlight = false;
+let saveBlocked = false;
+let realtimeRefreshTimer = null;
+let lastLocalSaveAt = 0;
 let localMutationVersion = 0;
 let transactionSearchTimer = null;
 let loanTypeFilter = 'all';
@@ -48,22 +38,18 @@ let loanRepaymentTargetId = null;
 let loanRepaymentMode = 'existing';
 let loanRepaymentSearchQuery = '';
 let loanRepaymentSelectedIds = new Set();
-let loanRepaymentSwipeState = null;
-let loanRepaymentSwipeSuppressClickUntil = 0;
 
 let loanDetailTargetId = null;
 let loanUnlinkTargetTransactionId = null;
 let loanDeleteTargetId = null;
 
-const LOAN_REPAYMENT_SWIPE_DISTANCE = 88;
 
-const CLOUD_SYNC_DELAY = 650;
+const SAVE_DELAY = 650;
 const emptyStateHTML = `<div class="p-6 flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 w-full col-span-full">
     <i data-lucide="inbox" class="w-10 h-10 mb-2 stroke-[1.5]"></i>
     <span class="text-xs text-slate-400 italic">Data Tidak Tersedia</span>
 </div>`;
 
-const emptyTableRowHTML = (colspan) => `<tr><td colspan="${colspan}" class="py-8 text-center text-xs text-slate-400 italic"><i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 stroke-[1.5] text-slate-300 dark:text-slate-700"></i>Data Tidak Tersedia</td></tr>`;
 
 function normalizeMoney(value) {
     const number = Number(value);
@@ -140,8 +126,6 @@ function openPickerSafely(input) {
             input.showPicker();
             return;
         } catch (error) {
-            // Browser tertentu tetap membuka date picker
-            // melalui perilaku native setelah event click.
         }
     }
 
@@ -522,48 +506,17 @@ function commitDataChange({
     }
 
     if (sync) {
-        triggerCloudPush();
+        scheduleSave();
     }
 }
 
-function setSyncStatus(message) {
-    const statusEl = document.getElementById('syncStatus');
-    if (statusEl) statusEl.innerText = message;
-}
 
-function getCloudConfig() {
+function buildWorkspacePayload() {
     return {
-        mode: localStorage.getItem('dbMode') || 'sheets',
-        url: (localStorage.getItem('sheetsUrl') || '').trim()
-    };
-}
-
-function buildCloudPayload() {
-    return {
-        action: 'syncAll',
-
-        userAccounts:
-            normalizeAccounts(
-                userAccounts
-            ),
-
-        userCategories:
-            normalizeCategories(
-                userCategories
-            ),
-
-        transactions:
-            normalizeTransactions(
-                transactions
-            ),
-
-        userLoans:
-            normalizeLoans(
-                userLoans
-            ),
-
-        clientUpdatedAt:
-            new Date().toISOString()
+        userAccounts: normalizeAccounts(userAccounts),
+        userCategories: normalizeCategories(userCategories),
+        transactions: normalizeTransactions(transactions),
+        userLoans: normalizeLoans(userLoans)
     };
 }
 
@@ -623,6 +576,14 @@ function parseNominal(value) {
 window.addEventListener('DOMContentLoaded', async () => {
 
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+
+    if (!window.ARAHAuth?.ready || !window.ARAHAuth?.requireSession) {
+        console.error('Modul autentikasi ARAH tidak tersedia.');
+        return;
+    }
+
+    await window.ARAHAuth.ready;
+    await window.ARAHAuth.requireSession();
     if (localStorage.getItem('isBalanceObscured') === 'true') isBalanceObscured = true;
 
     const now = new Date();
@@ -631,15 +592,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     'dashboardMonthFilter'
 ).value = currentYearMonth;
 
-    document.getElementById('dbMode').value = 'sheets';
-    localStorage.setItem(
-        'dbMode',
-        'sheets'
-    );
-    document.getElementById('sheetsUrl').value = localStorage.getItem('sheetsUrl') || '';
-
-    changeDbMode();
-    updateHeaderCloudIndicator();
     updateObscureUI();
     populateFormDropdowns();
     initializeDateControls();
@@ -677,25 +629,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     switchPage('dashboard');
     initializeFloatingTransactionButton();
 
-    const { mode, url } = getCloudConfig();
-    if (mode === 'sheets' && url) {
-        await fetchFromGoogleSheets();
-    }
-
-    setInterval(() => {
-    const { mode, url } = getCloudConfig();
-
-        if (
-            mode === 'sheets' &&
-            url &&
-            !cloudFetchInFlight &&
-            !cloudSyncInFlight
-        ) {
-            fetchFromGoogleSheets({
-                silent: true
-            });
-        }
-    }, 60000);
+    await loadWorkspace();
+    await initializeRealtime();
+    initializeRefreshFallback();
 
     lucide.createIcons();
 });
@@ -932,10 +868,7 @@ function populateFormDropdowns() {
     const mobileFilterCategorySelect =
         document.getElementById('txFilterCategoryMobile');
 
-    /*
-     * Simpan pilihan user sebelum isi dropdown
-     * dibuat ulang saat refresh cloud.
-     */
+    
     const selectedAccount =
         accountSelect?.value || '';
 
@@ -1016,10 +949,7 @@ function populateFormDropdowns() {
         mobileFilterCategorySelect.innerHTML = categoryFilterHtml;
     }
 
-    /*
-     * Kembalikan pilihan user jika akun atau
-     * kategorinya masih tersedia.
-     */
+    
     const restoreValue = (
         selectElement,
         previousValue
@@ -1204,10 +1134,7 @@ function calculateBalancesUntil(selectedMonthIso = null) {
             return;
         }
 
-        /*
-         * Akun lama tanpa tanggal saldo acuan tetap memakai
-         * perilaku lama agar saldo yang sudah ada tidak berubah.
-         */
+        
         if (!referenceDate) {
             let balance = referenceBalance;
 
@@ -1233,12 +1160,7 @@ function calculateBalancesUntil(selectedMonthIso = null) {
             return;
         }
 
-        /*
-         * Jika tanggal yang dihitung berada pada / setelah saldo acuan,
-         * mulai dari saldo acuan lalu hitung hanya transaksi pada atau
-         * setelah tanggal acuan. Transaksi yang lebih lama tetap ada
-         * untuk histori dan laporan, tetapi tidak mengubah saldo ini.
-         */
+        
         if (targetDate >= referenceDate) {
             let balance = referenceBalance;
 
@@ -1265,11 +1187,7 @@ function calculateBalancesUntil(selectedMonthIso = null) {
             return;
         }
 
-        /*
-         * Untuk bulan sebelum saldo acuan, saldo direkonstruksi mundur
-         * dari checkpoint. Ini membuat histori saldo lama tetap bisa
-         * dihitung tanpa mengubah checkpoint saldo yang sudah benar.
-         */
+        
         let historicalBalance = referenceBalance;
 
         transactions.forEach(transaction => {
@@ -4257,143 +4175,6 @@ function submitNewLoanRepayment(event) {
     commitDataChange();
 }
 
-function resetLoanRepaymentSwipeCard(card) {
-    if (!card) return;
-
-    card.style.transition = 'transform 180ms ease-out';
-    card.style.transform = 'translate3d(0, 0, 0)';
-
-    window.setTimeout(() => {
-        card.style.transition = '';
-    }, 200);
-}
-
-function startLoanRepaymentSwipe(event, loanId) {
-    if (window.matchMedia('(min-width: 768px)').matches) {
-        return;
-    }
-
-    if (event.pointerType === 'mouse' && event.button !== 0) {
-        return;
-    }
-
-    const loan = getLoanById(loanId);
-
-    if (!loan || getLoanProgress(loan).status === 'paid') {
-        return;
-    }
-
-    const card = event.currentTarget;
-
-    loanRepaymentSwipeState = {
-        loanId: loan.id,
-        card,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        currentX: 0,
-        isDragging: false
-    };
-
-    card.style.transition = 'none';
-
-    try {
-        card.setPointerCapture(event.pointerId);
-    } catch (error) {
-    }
-}
-
-function moveLoanRepaymentSwipe(event) {
-    const state = loanRepaymentSwipeState;
-
-    if (
-        !state ||
-        state.card !== event.currentTarget ||
-        state.pointerId !== event.pointerId
-    ) {
-        return;
-    }
-
-    const distanceX = event.clientX - state.startX;
-    const distanceY = event.clientY - state.startY;
-
-    if (!state.isDragging) {
-        if (Math.abs(distanceX) < 6 && Math.abs(distanceY) < 6) {
-            return;
-        }
-
-        if (Math.abs(distanceY) > Math.abs(distanceX)) {
-            resetLoanRepaymentSwipeCard(state.card);
-            loanRepaymentSwipeState = null;
-            return;
-        }
-
-        state.isDragging = true;
-    }
-
-    const maximumDistance = Math.min(
-        140,
-        state.card.clientWidth * 0.46
-    );
-
-    state.currentX = Math.min(
-        maximumDistance,
-        Math.max(0, distanceX)
-    );
-
-    state.card.style.transform =
-        `translate3d(${state.currentX}px, 0, 0)`;
-
-    event.preventDefault();
-}
-
-function finishLoanRepaymentSwipe(event) {
-    const state = loanRepaymentSwipeState;
-
-    if (
-        !state ||
-        state.card !== event.currentTarget ||
-        state.pointerId !== event.pointerId
-    ) {
-        return;
-    }
-
-    const requiredDistance = Math.min(
-        LOAN_REPAYMENT_SWIPE_DISTANCE,
-        state.card.clientWidth * 0.3
-    );
-
-    const shouldOpenModal =
-        state.isDragging &&
-        state.currentX >= requiredDistance;
-
-    if (state.isDragging) {
-        loanRepaymentSwipeSuppressClickUntil = Date.now() + 450;
-    }
-
-    resetLoanRepaymentSwipeCard(state.card);
-
-    const loanId = state.loanId;
-    loanRepaymentSwipeState = null;
-
-    if (shouldOpenModal) {
-        window.setTimeout(() => {
-            openLoanRepaymentModal(loanId);
-        }, 180);
-    }
-}
-
-function cancelLoanRepaymentSwipe(event) {
-    const state = loanRepaymentSwipeState;
-
-    if (!state || state.card !== event.currentTarget) {
-        return;
-    }
-
-    resetLoanRepaymentSwipeCard(state.card);
-    loanRepaymentSwipeState = null;
-}
-
 function getLoanStatusClasses(status) {
     if (status === 'paid') {
         return [
@@ -5379,10 +5160,7 @@ function renderReportsPage() {
         localStorage.getItem('reportCategoryFilter') ||
         'all';
 
-    /*
-    * Jika kategori yang sebelumnya dipilih sudah dihapus,
-    * otomatis kembali ke Semua Kategori.
-    */
+    
     if (
         selectedCategory !== 'all' &&
         !availableCategories.includes(selectedCategory)
@@ -5798,8 +5576,6 @@ function handleDrop(e, targetIndex) {
     const sourceAccount = userAccounts[dragSourceIndex];
     const targetAccount = userAccounts[targetIndex];
 
-    // Setelah akun dikelompokkan berdasarkan jenis, urutan hanya
-    // boleh dipindahkan di dalam group yang sama.
     if (sourceAccount?.type !== targetAccount?.type) {
         dragSourceIndex = null;
         return;
@@ -5874,11 +5650,7 @@ function saveSetupAccount(e) {
         ? userAccounts.find(account => account.name === editId)
         : null;
 
-    /*
-     * Jika field tanggal saldo acuan tersedia di modal, gunakan nilainya.
-     * Jika HTML lama belum punya field tersebut, tanggal yang sudah ada
-     * tetap dipertahankan saat edit agar tidak hilang.
-     */
+    
     const initialDate = initialDateInput
         ? normalizeDateValue(initialDateInput.value)
         : normalizeDateValue(existingAccount?.initialDate);
@@ -6613,119 +6385,6 @@ function editTransaction(id) {
     lucide.createIcons();
 }
 
-function duplicateTransaction(id) {
-    const transaction =
-        transactions.find(
-            item =>
-                item.id === String(id)
-        );
-
-    if (!transaction) return;
-
-    document.getElementById(
-        'modalTxTitle'
-    ).innerHTML = `
-        <i
-            data-lucide="copy"
-            class="text-violet-500 w-4 h-4"
-        ></i>
-
-        Duplikat Transaksi
-    `;
-
-    /*
-     * Kosongkan ID agar saat disimpan
-     * menjadi transaksi baru.
-     */
-    document.getElementById(
-        'form-edit-id'
-    ).value = '';
-
-    populateFormDropdowns();
-
-    let flowValue = 'Credit';
-
-    if (transaction.isTransfer) {
-        flowValue = 'Transfer';
-    } else if (
-        Number(transaction.debit) > 0
-    ) {
-        flowValue = 'Debit';
-    }
-
-    if (
-        typeof setTransactionType ===
-        'function'
-    ) {
-        setTransactionType(
-            flowValue,
-            transaction.category || ''
-        );
-    } else {
-        document.getElementById(
-            'form-type'
-        ).value = flowValue;
-
-        adjustFormInputs();
-
-        updateCategoryDropdown(
-            transaction.category || ''
-        );
-    }
-
-    setDateControlValue('form-date', transaction.date || '');
-
-    document.getElementById(
-        'form-name'
-    ).value = transaction.name || '';
-
-    const transactionAmount =
-        Number(transaction.debit) > 0
-            ? Number(transaction.debit)
-            : Number(transaction.credit) || 0;
-
-    document.getElementById(
-        'form-amount'
-    ).value = new Intl.NumberFormat(
-        'id-ID',
-        {
-            minimumFractionDigits:
-                Number.isInteger(
-                    transactionAmount
-                )
-                    ? 0
-                    : 2,
-
-            maximumFractionDigits: 2
-        }
-    ).format(transactionAmount);
-
-    document.getElementById(
-        'form-account'
-    ).value = transaction.account || '';
-
-    if (transaction.isTransfer) {
-        document.getElementById(
-            'form-target-account'
-        ).value =
-            transaction.targetAccount || '';
-    }
-
-    document.getElementById(
-        'form-notes'
-    ).value = transaction.notes || '';
-
-    const modal =
-        document.getElementById(
-            'transactionModal'
-        );
-
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-
-    lucide.createIcons();
-}
-
 function triggerDeleteConfirm(id, type) {
     deleteTargetId = id;
     deleteTypeContext = type;
@@ -6887,447 +6546,115 @@ function executeWipeAllData() {
 
     closeWipeModal();
     commitDataChange({ sync: false, render: true });
-
-    const { mode, url } = getCloudConfig();
-    if (mode === 'sheets' && url) {
-        setSyncStatus('🔄 Mengosongkan cloud...');
-        triggerCloudPush({ immediate: true });
-    }
+    scheduleSave({ immediate: true });
 }
 
-function toggleSettingsModal() { document.getElementById('cloudModal').classList.toggle('hidden'); }
-function changeDbMode() { document.getElementById('urlInputContainer').classList.toggle('hidden', document.getElementById('dbMode').value !== 'sheets'); }
-
-function normalizeAppsScriptUrl(rawValue) {
-    const value = normalizeText(rawValue);
-
-    if (!value) {
-        throw new Error(
-            'Masukkan URL Web App Google Apps Script.'
-        );
-    }
-
-    let parsedUrl;
-
-    try {
-        parsedUrl = new URL(value);
-    } catch {
-        throw new Error(
-            'Format URL tidak valid.'
-        );
-    }
-
-    const validProtocol =
-        parsedUrl.protocol === 'https:';
-
-    const validHostname =
-        parsedUrl.hostname === 'script.google.com';
-
-    const validPath =
-        /^\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?$/
-            .test(parsedUrl.pathname);
-
-    if (
-        !validProtocol ||
-        !validHostname ||
-        !validPath
-    ) {
-        throw new Error(
-            'Gunakan URL Web App Apps Script yang ' +
-            'berasal dari script.google.com dan ' +
-            'berakhir dengan /exec.'
-        );
-    }
-
-    parsedUrl.search = '';
-    parsedUrl.hash = '';
-
-    return parsedUrl
-        .toString()
-        .replace(/\/$/, '');
-}
-
-async function testAppsScriptConnection(url) {
-    const separator =
-        url.includes('?') ? '&' : '?';
-
-    const response = await fetch(
-        `${url}${separator}_=${Date.now()}`,
-        {
-            method: 'GET',
-            cache: 'no-store'
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(
-            `Apps Script merespons dengan HTTP ${response.status}.`
-        );
-    }
-
-    const result = await response.json();
-
-    if (
-        !result ||
-        result.status !== 'success' ||
-        !Array.isArray(result.userAccounts) ||
-        !Array.isArray(result.transactions)
-    ) {
-        throw new Error(
-            result?.message ||
-            'URL tersebut bukan database ARAH yang valid.'
-        );
-    }
-
-    return result;
-}
-
-async function saveSettings() {
-    const mode =
-        document.getElementById('dbMode').value;
-
-    let url =
-        document.getElementById('sheetsUrl')
-            .value
-            .trim();
-
-    try {
-        url = normalizeAppsScriptUrl(url);
-
-        setSyncStatus(
-            '🔍 Memeriksa koneksi Apps Script...'
-        );
-
-        await testAppsScriptConnection(url);
-    } catch (error) {
-        console.error(
-            'Pemeriksaan koneksi gagal:',
-            error
-        );
-
-        setSyncStatus(
-            '⚠️ URL tidak dapat digunakan.'
-        );
-
-        alert(
-            error.message ||
-            'Koneksi Apps Script gagal.'
-        );
-
-        return;
-    }
-
-    localStorage.setItem('dbMode', 'sheets');
-    localStorage.setItem('sheetsUrl', url);
-
-    document.getElementById('sheetsUrl').value =
-        url;
-
-    await fetchFromGoogleSheets();
-
-    updateHeaderCloudIndicator();
-    toggleSettingsModal();
-}
-
-function updateHeaderCloudIndicator() {
-    const mode = localStorage.getItem('dbMode');
-    const url = localStorage.getItem('sheetsUrl');
-    const btn = document.getElementById('cloudIndicatorBtn');
-    const dot = document.getElementById('cloudIndicatorDot');
-    
-    if(mode === 'sheets' && url) {
-        btn.className = "p-2 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all relative";
-        dot.className = "absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-    } else {
-        btn.className = "p-2 bg-slate-100 dark:bg-slate-900 text-slate-400 rounded-xl transition-all relative";
-        dot.className = "absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400";
-    }
-}
-
-function triggerCloudPush({
+function scheduleSave({
     immediate = false
 } = {}) {
-    const { mode, url } = getCloudConfig();
-
     if (
-    mode !== 'sheets' ||
-    !url ||
-    isInitialLoading ||
-    cloudSyncBlocked
+        isInitialLoading ||
+        saveBlocked ||
+        !window.ARAHData?.saveWorkspace
     ) {
         return;
     }
 
-    clearTimeout(cloudSyncTimer);
+    clearTimeout(saveTimer);
 
     if (immediate) {
-        cloudSyncTimer = null;
-
-        void flushCloudPush();
+        saveTimer = null;
+        void persistWorkspace();
         return;
     }
 
-    cloudSyncTimer = setTimeout(() => {
-        cloudSyncTimer = null;
-
-        void flushCloudPush();
-    }, CLOUD_SYNC_DELAY);
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        void persistWorkspace();
+    }, SAVE_DELAY);
 }
 
+async function persistWorkspace() {
+    if (isInitialLoading || !window.ARAHData?.saveWorkspace) return;
 
-async function flushCloudPush() {
-    const { mode, url } = getCloudConfig();
-    if (mode !== 'sheets' || !url || isInitialLoading) return;
-
-    if (cloudSyncInFlight) {
-        cloudSyncQueued = true;
+    if (saveInFlight) {
+        saveQueued = true;
         return;
     }
 
-    cloudSyncInFlight = true;
-    cloudSyncQueued = false;
+    saveInFlight = true;
+    saveQueued = false;
+
     const mutationVersionAtStart = localMutationVersion;
-    const payload = buildCloudPayload();
-    const expectedSignature = getWorkspaceSignature(payload);
-    setSyncStatus('⬆️ Menyinkronkan...');
+    const payload = buildWorkspacePayload();
+
+    lastLocalSaveAt = Date.now();
 
     try {
-        await fetch(url, {
-            method: 'POST',
-            mode: 'no-cors',
-            cache: 'no-store',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-        });
+        const savedData = await window.ARAHData.saveWorkspace(payload);
+        const expectedSignature = getWorkspaceSignature(payload);
+        const savedSignature = getWorkspaceSignature(savedData);
 
-        const verified = await verifyCloudSnapshot(url, expectedSignature);
-        if (verified) {
-            setSyncStatus('✅ Tersinkron.');
-        } else {
-            setSyncStatus('⚠️ Data terkirim, tetapi verifikasi cloud belum cocok.');
+        if (savedSignature !== expectedSignature) {
+            console.warn('Hasil penyimpanan berbeda. Memuat ulang data.');
+            await loadWorkspace({ silent: true });
         }
-    } catch (error) {
-    console.error(
-        'Gagal menyinkronkan data:',
-        error
-    );
 
-    setSyncStatus(
-        '⚠️ Sinkronisasi gagal. Hubungkan ulang sebelum menutup halaman.'
-    );
+        saveBlocked = false;
+    } catch (error) {
+        console.error('Gagal menyimpan data:', error);
+        alert('Perubahan belum tersimpan. Periksa koneksi internet lalu coba lagi.');
     } finally {
-    cloudSyncInFlight = false;
+        lastLocalSaveAt = Date.now();
+        saveInFlight = false;
 
-    const hasNewerChanges =
-        cloudSyncQueued ||
-        mutationVersionAtStart !==
-            localMutationVersion;
+        const hasNewerChanges =
+            saveQueued ||
+            mutationVersionAtStart !== localMutationVersion;
 
-    cloudSyncQueued = false;
+        saveQueued = false;
 
-    if (hasNewerChanges) {
-        triggerCloudPush();
+        if (hasNewerChanges) {
+            scheduleSave();
         }
     }
 }
 
-async function verifyCloudSnapshot(url, expectedSignature) {
-    try {
-        const separator = url.includes('?') ? '&' : '?';
-        const response = await fetch(`${url}${separator}_=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) return false;
-        const cloudData = await response.json();
-        if (!cloudData || cloudData.status !== 'success') return false;
-
-        const signature =
-    getWorkspaceSignature({
-        userAccounts:
-            cloudData.userAccounts || [],
-
-        userCategories:
-            cloudData.userCategories ||
-            userCategories,
-
-        transactions:
-            cloudData.transactions || [],
-
-        userLoans:
-            cloudData.userLoans || []
-    });
-        return signature === expectedSignature;
-    } catch (error) {
-        console.warn('Verifikasi cloud gagal:', error);
-        return false;
-    }
+function applyWorkspaceData(data = {}) {
+    userAccounts = normalizeAccounts(data.userAccounts || []);
+    userCategories = normalizeCategories(data.userCategories || {});
+    transactions = normalizeTransactions(data.transactions || []);
+    userLoans = normalizeLoans(data.userLoans || []);
 }
 
-function fetchFromGoogleSheets({
+async function loadWorkspace({
     silent = false
 } = {}) {
+    if (loadInFlight || !window.ARAHData?.loadWorkspace) return;
+
+    loadInFlight = true;
     isInitialLoading = true;
-    cloudSyncBlocked = true;
-
-    const url = localStorage.getItem('sheetsUrl');
-
-    if (!url) {
-        isInitialLoading = false;
-        return;
-    }
+    saveBlocked = true;
 
     if (!silent) {
-    showLoader();
+        showLoader();
     }
 
-    const statusEl = document.getElementById('syncStatus');
-
-    if (statusEl && !silent) {
-    statusEl.innerText =
-        '🔄 Memuat cloud database...';
-    }
-
-    return fetch(url, {
-    method: 'GET',
-    cache: 'no-store'
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(
-                `HTTP error ${response.status}`
-            );
+    try {
+        const resData = await window.ARAHData.loadWorkspace();
+        applyWorkspaceData(resData);
+        saveBlocked = false;
+    } catch (error) {
+        console.error('Gagal memuat data:', error);
+        if (!silent) {
+            alert('Data belum dapat dimuat. Periksa koneksi internet lalu coba lagi.');
         }
-
-        return response.json();
-    })
-    .then(resData => {
-        if (
-            !resData ||
-            resData.status !== 'success'
-        ) {
-            throw new Error(
-                resData?.message ||
-                'Respons cloud tidak valid.'
-            );
-        }
-
-        if (resData.initialized === false) {
-            if (statusEl) {
-        statusEl.innerText =
-            '⬆️ Menyiapkan database cloud...';
-            }
-
-            cloudSyncBlocked = false;
-            isInitialLoading = false;
-
-            triggerCloudPush({
-                immediate: true
-            });
-
-            return;
-        }
-
-        cloudSyncBlocked = false;
-
-        transactions =
-    normalizeTransactions(
-        Array.isArray(
-            resData.transactions
-        )
-            ? resData.transactions
-            : []
-    );
-
-userAccounts =
-    normalizeAccounts(
-        Array.isArray(
-            resData.userAccounts
-        )
-            ? resData.userAccounts
-            : []
-    );
-
-userLoans =
-    normalizeLoans(
-        Array.isArray(
-            resData.userLoans
-        )
-            ? resData.userLoans
-            : []
-    );
-        if (
-            resData.userCategories &&
-            typeof resData.userCategories === 'object'
-        ) {
-            userCategories = {
-                income: Array.isArray(
-                    resData.userCategories.income
-                )
-                    ? resData.userCategories.income
-                        .map(category =>
-                            String(category).trim()
-                        )
-                        .filter(Boolean)
-                    : [],
-
-                expense: Array.isArray(
-                    resData.userCategories.expense
-                )
-                    ? resData.userCategories.expense
-                        .map(category =>
-                            String(category).trim()
-                        )
-                        .filter(Boolean)
-                    : [],
-
-                neutral: Array.isArray(
-                    resData.userCategories.neutral
-                )
-                    ? resData.userCategories.neutral
-                        .map(category =>
-                            String(category).trim()
-                        )
-                        .filter(Boolean)
-                    : []
-            };
-        }
-
-        populateFormDropdowns();
-
-        if (statusEl) {
-            statusEl.innerText =
-                "✅ Cloud database dimuat.";
-        }
-    })
-    .catch(error => {
-        console.error(
-            'Gagal memuat cloud database:',
-            error
-        );
-
-        cloudSyncBlocked = true;
-
-        userAccounts = [];
-
-        userCategories = {
-            income: [],
-            expense: [],
-            neutral: []
-        };
-
-        transactions = [];
-        userLoans = [];
-
-        populateFormDropdowns();
-
-        if (statusEl) {
-            statusEl.innerText =
-                '⚠️ Database cloud gagal dimuat. Data tidak dapat diubah sampai koneksi berhasil.';
-        }
-    })
-    .finally(() => {
+    } finally {
+        loadInFlight = false;
         isInitialLoading = false;
 
         if (!silent) {
-        hideLoader();
+            hideLoader();
         }
 
         if (!silent && !dashboardChartAnimationPlayed) {
@@ -7336,7 +6663,68 @@ userLoans =
 
         populateFormDropdowns();
         renderDashboard();
+    }
+}
+
+function scheduleRealtimeRefresh() {
+    clearTimeout(realtimeRefreshTimer);
+
+    realtimeRefreshTimer = setTimeout(() => {
+        realtimeRefreshTimer = null;
+
+        if (saveInFlight || loadInFlight || document.hidden) {
+            scheduleRealtimeRefresh();
+            return;
+        }
+
+        void loadWorkspace({ silent: true });
+    }, 350);
+}
+
+async function initializeRealtime() {
+    if (!window.ARAHData?.subscribeRealtime) return;
+
+    try {
+        await window.ARAHData.subscribeRealtime(() => {
+            if (Date.now() - lastLocalSaveAt < 1400) return;
+            scheduleRealtimeRefresh();
+        });
+    } catch (error) {
+        console.warn('Sinkronisasi realtime belum aktif:', error);
+    }
+}
+
+function initializeRefreshFallback() {
+    const refreshIfVisible = () => {
+        if (
+            document.hidden ||
+            saveInFlight ||
+            loadInFlight
+        ) {
+            return;
+        }
+
+        void loadWorkspace({ silent: true });
+    };
+
+    window.addEventListener('focus', refreshIfVisible);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            refreshIfVisible();
+        }
     });
+}
+
+function openCsvImportPicker(type) {
+    const inputMap = {
+        account: 'accountCsvFileInput',
+        category: 'categoryCsvFileInput',
+        transaction: 'transactionCsvFileInput'
+    };
+
+    const input = document.getElementById(inputMap[type]);
+    if (input) input.click();
 }
 
 function formatTanggalIndo(stringIso) {
@@ -7392,23 +6780,34 @@ function goToSettingsFromModal() {
     switchPage('settings-accounts');
 }
 
-/* ================= DEV ONLY: IMPORT CSV =================
+const csvImportBindings = [
+    ['accountCsvFileInput', processAccountCSV],
+    ['categoryCsvFileInput', processCategoryCSV],
+    ['transactionCsvFileInput', processTransactionCSV]
+];
 
-document.getElementById('csvFileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+csvImportBindings.forEach(([inputId, processor]) => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
 
-    const reader = new FileReader();
+    input.addEventListener('change', event => {
+        const file = event.target.files?.[0];
+        if (!file) return;
 
-    reader.onload = function(event) {
-        const text = event.target.result;
-        processCSV(text);
-    };
-
-    reader.readAsText(file);
+        const reader = new FileReader();
+        reader.onload = async loadEvent => {
+            try {
+                await processor(String(loadEvent.target?.result || ''));
+            } catch (error) {
+                console.error('Import CSV gagal:', error);
+                alert(`CSV gagal diimpor. ${error?.message || 'Pastikan format file sudah benar.'}`);
+            } finally {
+                input.value = '';
+            }
+        };
+        reader.readAsText(file);
+    });
 });
-
-================= END DEV ONLY ================= */
 
 function getTransactionContentSignature(transaction) {
     return simpleHash(JSON.stringify([
@@ -7433,18 +6832,18 @@ function detectCSVDelimiter(csvText) {
     let semicolonCount = 0;
     let insideQuotes = false;
 
-    for (let i = 0; i < firstLine.length; i++) {
+    for (let i = 0; i < firstLine.length; i += 1) {
         const char = firstLine[i];
 
         if (char === '"') {
             if (insideQuotes && firstLine[i + 1] === '"') {
-                i++;
+                i += 1;
             } else {
                 insideQuotes = !insideQuotes;
             }
         } else if (!insideQuotes) {
-            if (char === ',') commaCount++;
-            if (char === ';') semicolonCount++;
+            if (char === ',') commaCount += 1;
+            if (char === ';') semicolonCount += 1;
         }
     }
 
@@ -7457,18 +6856,17 @@ function parseCSVRows(csvText, delimiter) {
     let value = '';
     let insideQuotes = false;
 
-    for (let i = 0; i < csvText.length; i++) {
+    for (let i = 0; i < csvText.length; i += 1) {
         const char = csvText[i];
         const nextChar = csvText[i + 1];
 
         if (char === '"') {
             if (insideQuotes && nextChar === '"') {
                 value += '"';
-                i++;
+                i += 1;
             } else {
                 insideQuotes = !insideQuotes;
             }
-
             continue;
         }
 
@@ -7479,16 +6877,9 @@ function parseCSVRows(csvText, delimiter) {
         }
 
         if ((char === '\n' || char === '\r') && !insideQuotes) {
-            if (char === '\r' && nextChar === '\n') {
-                i++;
-            }
-
+            if (char === '\r' && nextChar === '\n') i += 1;
             row.push(value.trim());
-
-            if (row.some(cell => cell !== '')) {
-                rows.push(row);
-            }
-
+            if (row.some(cell => cell !== '')) rows.push(row);
             row = [];
             value = '';
             continue;
@@ -7498,11 +6889,7 @@ function parseCSVRows(csvText, delimiter) {
     }
 
     row.push(value.trim());
-
-    if (row.some(cell => cell !== '')) {
-        rows.push(row);
-    }
-
+    if (row.some(cell => cell !== '')) rows.push(row);
     return rows;
 }
 
@@ -7515,9 +6902,7 @@ function normalizeCSVHeader(value) {
 }
 
 function parseCSVAmount(value) {
-    if (value === null || value === undefined || value === '') {
-        return 0;
-    }
+    if (value === null || value === undefined || value === '') return 0;
 
     let text = String(value)
         .trim()
@@ -7525,74 +6910,219 @@ function parseCSVAmount(value) {
         .replace(/rp/gi, '')
         .replace(/[^\d,.\-]/g, '');
 
-    if (!text || text === '-') {
-        return 0;
-    }
+    if (!text || text === '-') return 0;
 
     const lastComma = text.lastIndexOf(',');
     const lastDot = text.lastIndexOf('.');
 
     if (lastComma !== -1 && lastDot !== -1) {
-        if (lastComma > lastDot) {
-            text = text.replace(/\./g, '').replace(',', '.');
-        } else {
-            text = text.replace(/,/g, '');
-        }
+        text = lastComma > lastDot
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
     } else if (lastComma !== -1) {
-        const decimalLength = text.length - lastComma - 1;
-
-        if (decimalLength === 1 || decimalLength === 2) {
-            text = text.replace(/\./g, '').replace(',', '.');
-        } else {
-            text = text.replace(/,/g, '');
-        }
+        const decimals = text.length - lastComma - 1;
+        text = decimals === 1 || decimals === 2
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
     } else if (lastDot !== -1) {
-        const dotParts = text.split('.');
-        const decimalLength = text.length - lastDot - 1;
-
-        if (dotParts.length > 2 || decimalLength === 3) {
-            text = text.replace(/\./g, '');
-        }
+        const parts = text.split('.');
+        const decimals = text.length - lastDot - 1;
+        if (parts.length > 2 || decimals === 3) text = text.replace(/\./g, '');
     }
 
     const amount = Number.parseFloat(text);
-
     return Number.isFinite(amount) ? amount : 0;
 }
 
-function processCSV(csvText) {
-    try {
-        const delimiter = detectCSVDelimiter(csvText);
-        const rows = parseCSVRows(csvText, delimiter);
+function parseCSVDate(value) {
+    const raw = normalizeText(value);
+    if (!raw) return '';
 
-        if (rows.length === 0) {
-            alert('File CSV kosong atau tidak dapat dibaca.');
-            return;
+    const iso = raw.match(/^(\d{4})[-\/]([01]?\d)[-\/]([0-3]?\d)/);
+    if (iso) {
+        return `${iso[1]}-${String(Number(iso[2])).padStart(2, '0')}-${String(Number(iso[3])).padStart(2, '0')}`;
+    }
+
+    const indo = raw.match(/^([0-3]?\d)[-\/]([01]?\d)[-\/](\d{4})$/);
+    if (indo) {
+        return `${indo[3]}-${String(Number(indo[2])).padStart(2, '0')}-${String(Number(indo[1])).padStart(2, '0')}`;
+    }
+
+    return normalizeDateValue(raw);
+}
+
+function findCSVColumn(headers, aliases) {
+    return headers.findIndex(header => aliases.includes(header));
+}
+
+function getCSVValue(row, index) {
+    if (index === -1 || index === undefined) return '';
+    return String(row[index] ?? '').trim();
+}
+
+function getCSVRows(csvText) {
+    const delimiter = detectCSVDelimiter(csvText);
+    const rows = parseCSVRows(csvText, delimiter);
+    if (rows.length === 0) throw new Error('File CSV kosong atau tidak dapat dibaca.');
+    return rows;
+}
+
+async function persistCSVImport(workspaceBeforeImport, successMessage) {
+    try {
+        commitDataChange({ sync: false, render: true });
+
+        if (!window.ARAHData?.saveWorkspace) {
+            throw new Error('Penyimpanan data belum siap.');
         }
 
-        const normalizedFirstRow = rows[0].map(normalizeCSVHeader);
+        lastLocalSaveAt = Date.now();
+        const savedWorkspace = await window.ARAHData.saveWorkspace(buildWorkspacePayload());
+        applyWorkspaceData(savedWorkspace);
+        populateFormDropdowns();
+        renderDashboard();
+        openSuccessModal(successMessage);
+    } catch (error) {
+        applyWorkspaceData(workspaceBeforeImport);
+        populateFormDropdowns();
+        renderDashboard();
+        throw error;
+    } finally {
+        lastLocalSaveAt = Date.now();
+    }
+}
 
-        const hasHeader = normalizedFirstRow.some(header =>
-            [
-                'tanggal',
-                'date',
-                'nama',
-                'name',
-                'credit',
-                'kredit',
-                'debit',
-                'kategori',
-                'category',
-                'akun',
-                'account',
-                'targetakun',
-                'akuntujuan',
-                'catatan',
-                'notes'
-            ].includes(header)
-        );
+async function processAccountCSV(csvText) {
+    const workspaceBeforeImport = buildWorkspacePayload();
+    const rows = getCSVRows(csvText);
+    const headers = rows[0].map(normalizeCSVHeader);
+    const hasHeader = headers.some(header => [
+        'namaakun', 'akun', 'klasifikasi', 'saldoawal', 'saldoacuan', 'tanggalsaldoawal', 'tanggalsaldoacuan'
+    ].includes(header));
 
-        let columnMap = {
+    const columns = hasHeader
+        ? {
+            name: findCSVColumn(headers, ['namaakun', 'akun', 'nama', 'name']),
+            type: findCSVColumn(headers, ['klasifikasi', 'tipe', 'type', 'jenis']),
+            initial: findCSVColumn(headers, ['saldoawal', 'saldoacuan', 'initial', 'initialbalance', 'anchorbalance']),
+            initialDate: findCSVColumn(headers, ['tanggalsaldoawal', 'tanggalsaldoacuan', 'initialdate', 'anchordate'])
+        }
+        : { name: 0, type: 1, initial: 2, initialDate: 3 };
+
+    const startIndex = hasHeader ? 1 : 0;
+    const imported = [];
+    let skipped = 0;
+
+    for (let i = startIndex; i < rows.length; i += 1) {
+        const row = rows[i];
+        const name = getCSVValue(row, columns.name);
+        if (!name) {
+            skipped += 1;
+            continue;
+        }
+
+        imported.push({
+            name,
+            type: getCSVValue(row, columns.type) || 'Cash',
+            initial: parseCSVAmount(getCSVValue(row, columns.initial)),
+            initialDate: parseCSVDate(getCSVValue(row, columns.initialDate))
+        });
+    }
+
+    if (imported.length === 0) throw new Error('Tidak ada akun yang valid di dalam file CSV.');
+
+    const accountMap = new Map(
+        userAccounts.map(account => [normalizeText(account.name).toLocaleLowerCase('id-ID'), account])
+    );
+
+    imported.forEach(account => {
+        accountMap.set(account.name.toLocaleLowerCase('id-ID'), account);
+    });
+
+    userAccounts = Array.from(accountMap.values());
+
+    let message = `${imported.length} akun berhasil diimpor.`;
+    if (skipped > 0) message += ` ${skipped} baris dilewati.`;
+    await persistCSVImport(workspaceBeforeImport, message);
+}
+
+function normalizeImportedCategoryType(value) {
+    const type = normalizeText(value).toLocaleLowerCase('id-ID').replace(/[^a-z]/g, '');
+    if (['income', 'masuk', 'uangmasuk', 'pendapatan', 'pemasukan'].includes(type)) return 'income';
+    if (['expense', 'keluar', 'uangkeluar', 'pengeluaran'].includes(type)) return 'expense';
+    if (['neutral', 'netral'].includes(type)) return 'neutral';
+    return '';
+}
+
+async function processCategoryCSV(csvText) {
+    const workspaceBeforeImport = buildWorkspacePayload();
+    const rows = getCSVRows(csvText);
+    const headers = rows[0].map(normalizeCSVHeader);
+    const hasHeader = headers.some(header => ['namakategori', 'kategori', 'tipe', 'type'].includes(header));
+
+    const columns = hasHeader
+        ? {
+            name: findCSVColumn(headers, ['namakategori', 'kategori', 'nama', 'name']),
+            type: findCSVColumn(headers, ['tipe', 'type', 'jenis'])
+        }
+        : { name: 0, type: 1 };
+
+    const startIndex = hasHeader ? 1 : 0;
+    const imported = [];
+    let skipped = 0;
+
+    for (let i = startIndex; i < rows.length; i += 1) {
+        const row = rows[i];
+        const name = getCSVValue(row, columns.name);
+        const type = normalizeImportedCategoryType(getCSVValue(row, columns.type));
+
+        if (!name || !type) {
+            skipped += 1;
+            continue;
+        }
+
+        imported.push({ name, type });
+    }
+
+    if (imported.length === 0) throw new Error('Tidak ada kategori yang valid di dalam file CSV.');
+
+    imported.forEach(category => {
+        ['income', 'expense', 'neutral'].forEach(type => {
+            userCategories[type] = userCategories[type].filter(
+                name => name.toLocaleLowerCase('id-ID') !== category.name.toLocaleLowerCase('id-ID')
+            );
+        });
+        userCategories[category.type].push(category.name);
+    });
+
+    let message = `${imported.length} kategori berhasil diimpor.`;
+    if (skipped > 0) message += ` ${skipped} baris dilewati.`;
+    await persistCSVImport(workspaceBeforeImport, message);
+}
+
+async function processTransactionCSV(csvText) {
+    const workspaceBeforeImport = buildWorkspacePayload();
+    const rows = getCSVRows(csvText);
+    const headers = rows[0].map(normalizeCSVHeader);
+    const hasHeader = headers.some(header => [
+        'id', 'tanggal', 'nama', 'credit', 'kredit', 'debit', 'kategori', 'akun', 'targetakun', 'catatan', 'loanid', 'loanrole'
+    ].includes(header));
+
+    const columns = hasHeader
+        ? {
+            id: findCSVColumn(headers, ['id']),
+            date: findCSVColumn(headers, ['tanggal', 'date', 'tgl']),
+            name: findCSVColumn(headers, ['nama', 'name', 'deskripsi', 'description', 'item']),
+            credit: findCSVColumn(headers, ['credit', 'kredit', 'uangkeluar', 'pengeluaran', 'keluar']),
+            debit: findCSVColumn(headers, ['debit', 'uangmasuk', 'pendapatan', 'masuk']),
+            category: findCSVColumn(headers, ['kategori', 'category']),
+            account: findCSVColumn(headers, ['akun', 'account', 'akunasal']),
+            targetAccount: findCSVColumn(headers, ['targetakun', 'targetaccount', 'akuntujuan', 'tujuanakun']),
+            notes: findCSVColumn(headers, ['catatan', 'notes', 'note', 'keterangan']),
+            loanId: findCSVColumn(headers, ['loanid', 'pinjamanid']),
+            loanRole: findCSVColumn(headers, ['loanrole', 'peranpinjaman'])
+        }
+        : {
+            id: -1,
             date: 0,
             name: 1,
             credit: 2,
@@ -7600,187 +7130,113 @@ function processCSV(csvText) {
             category: 4,
             account: 5,
             targetAccount: 6,
-            notes: 7
+            notes: 7,
+            loanId: 8,
+            loanRole: 9
         };
 
-        let startIndex = 0;
+    const startIndex = hasHeader ? 1 : 0;
+    const existingSignatures = new Set(transactions.map(getTransactionContentSignature));
+    const existingIds = new Set(transactions.map(transaction => normalizeText(transaction.id)).filter(Boolean));
+    const importedSignatures = new Set();
+    const importedTransactions = [];
+    const missingAccounts = new Set();
+    const missingCategories = new Set();
+    const accountNames = new Set(
+        userAccounts.map(account => normalizeText(account.name).toLocaleLowerCase('id-ID'))
+    );
+    const categoryNames = new Set(
+        ['income', 'expense', 'neutral'].flatMap(type => userCategories[type])
+            .map(name => normalizeText(name).toLocaleLowerCase('id-ID'))
+    );
+    let skipped = 0;
+    let duplicates = 0;
 
-        if (hasHeader) {
-            startIndex = 1;
+    for (let i = startIndex; i < rows.length; i += 1) {
+        const row = rows[i];
+        const date = parseCSVDate(getCSVValue(row, columns.date));
+        const name = getCSVValue(row, columns.name);
+        const credit = parseCSVAmount(getCSVValue(row, columns.credit));
+        const debit = parseCSVAmount(getCSVValue(row, columns.debit));
+        const category = getCSVValue(row, columns.category);
+        const account = getCSVValue(row, columns.account);
+        const targetAccount = getCSVValue(row, columns.targetAccount);
+        const notes = getCSVValue(row, columns.notes);
+        const rawId = getCSVValue(row, columns.id);
+        const loanId = getCSVValue(row, columns.loanId);
+        const loanRole = getCSVValue(row, columns.loanRole).toLocaleLowerCase('id-ID');
 
-            const findColumn = aliases => {
-                return normalizedFirstRow.findIndex(header =>
-                    aliases.includes(header)
-                );
-            };
-
-            columnMap = {
-                date: findColumn([
-                    'tanggal',
-                    'date',
-                    'tgl'
-                ]),
-                name: findColumn([
-                    'nama',
-                    'name',
-                    'deskripsi',
-                    'description',
-                    'item'
-                ]),
-                credit: findColumn([
-                    'credit',
-                    'kredit',
-                    'uangkeluar',
-                    'pengeluaran',
-                    'keluar'
-                ]),
-                debit: findColumn([
-                    'debit',
-                    'uangmasuk',
-                    'pendapatan',
-                    'masuk'
-                ]),
-                category: findColumn([
-                    'kategori',
-                    'category'
-                ]),
-                account: findColumn([
-                    'akun',
-                    'account',
-                    'akunasal'
-                ]),
-                targetAccount: findColumn([
-                    'targetakun',
-                    'targetaccount',
-                    'akuntujuan',
-                    'tujuanakun'
-                ]),
-                notes: findColumn([
-                    'catatan',
-                    'notes',
-                    'note',
-                    'keterangan'
-                ])
-            };
+        if (!date || !name || !account || (credit <= 0 && debit <= 0)) {
+            skipped += 1;
+            continue;
         }
 
-        const getColumnValue = (row, index) => {
-            if (index === -1 || index === undefined) return '';
-            return String(row[index] || '').trim();
+        const isTransfer = Boolean(targetAccount && targetAccount !== account);
+        const accountKey = account.toLocaleLowerCase('id-ID');
+        const targetKey = targetAccount.toLocaleLowerCase('id-ID');
+        const categoryKey = category.toLocaleLowerCase('id-ID');
+
+        if (!accountNames.has(accountKey)) missingAccounts.add(account);
+        if (isTransfer && !accountNames.has(targetKey)) missingAccounts.add(targetAccount);
+        if (!isTransfer && category && !categoryNames.has(categoryKey)) missingCategories.add(category);
+
+        const candidate = {
+            id: rawId || createTransactionId(),
+            date,
+            name,
+            credit,
+            debit,
+            category: isTransfer ? '' : category,
+            account,
+            targetAccount: isTransfer ? targetAccount : '',
+            notes,
+            loanId: loanId || '',
+            loanRole: loanId && ['principal', 'repayment'].includes(loanRole) ? loanRole : '',
+            isTransfer
         };
 
-        const importedTransactions = [];
-        let skippedRows = 0;
+        const signature = getTransactionContentSignature(candidate);
 
-        for (let i = startIndex; i < rows.length; i++) {
-            const row = rows[i];
-
-            let localMap = { ...columnMap };
-
-            if (!hasHeader && row.length === 7) {
-                const sourceAccount = normalizeText(row[5]);
-                const lastColumnValue = normalizeText(row[6]);
-
-                const targetAccountExists = userAccounts.some(account =>
-                    normalizeText(account.name).toLocaleLowerCase('id-ID') ===
-                    lastColumnValue.toLocaleLowerCase('id-ID')
-                );
-
-                const isDifferentAccount =
-                    sourceAccount.toLocaleLowerCase('id-ID') !==
-                    lastColumnValue.toLocaleLowerCase('id-ID');
-
-                if (
-                    lastColumnValue &&
-                    targetAccountExists &&
-                    isDifferentAccount
-                ) {
-                    localMap.targetAccount = 6;
-                    localMap.notes = -1;
-                } else {
-                    localMap.targetAccount = -1;
-                    localMap.notes = 6;
-                }
-            }
-            const date = getColumnValue(row, localMap.date);
-            const name = getColumnValue(row, localMap.name);
-            const credit = parseCSVAmount(
-                getColumnValue(row, localMap.credit)
-            );
-            const debit = parseCSVAmount(
-                getColumnValue(row, localMap.debit)
-            );
-            const category = getColumnValue(row, localMap.category);
-            const account = getColumnValue(row, localMap.account);
-            const targetAccount = getColumnValue(
-                row,
-                localMap.targetAccount
-            );
-            const notes = getColumnValue(row, localMap.notes);
-
-            if (!date || !name) {
-                skippedRows++;
-                continue;
-            }
-
-            const isTransfer =
-                targetAccount !== '' &&
-                account !== '' &&
-                targetAccount !== account;
-
-            importedTransactions.push({
-                id: createTransactionId(i),
-                date: date,
-                name: name,
-                credit: credit,
-                debit: debit,
-                category: isTransfer ? '' : category,
-                account: account,
-                targetAccount: isTransfer ? targetAccount : '',
-                notes: notes,
-                isTransfer: isTransfer
-            });
+        if (existingIds.has(candidate.id) || existingSignatures.has(signature) || importedSignatures.has(signature)) {
+            duplicates += 1;
+            continue;
         }
 
-        if (importedTransactions.length === 0) {
-            alert(
-                'Tidak ada transaksi valid yang ditemukan di dalam file CSV.'
-            );
-            return;
-        }
-
-        transactions.push(...importedTransactions);
-
-        document.getElementById('csvFileInput').value = '';
-
-        let successMessage =
-            `${importedTransactions.length} transaksi berhasil diimpor.`;
-
-        if (skippedRows > 0) {
-            successMessage +=
-                ` ${skippedRows} baris dilewati karena tidak memiliki tanggal atau nama.`;
-        }
-
-        openSuccessModal(successMessage);
-
-        commitDataChange();
-    } catch (error) {
-        console.error('Gagal mengimpor CSV:', error);
-
-        alert(
-            'CSV gagal diimpor. Pastikan format kolom dan isi file sudah benar.'
-        );
+        importedSignatures.add(signature);
+        importedTransactions.push(candidate);
     }
+
+    if (missingAccounts.size > 0 || missingCategories.size > 0) {
+        const issues = [];
+        if (missingAccounts.size > 0) issues.push(`akun: ${Array.from(missingAccounts).slice(0, 6).join(', ')}`);
+        if (missingCategories.size > 0) issues.push(`kategori: ${Array.from(missingCategories).slice(0, 6).join(', ')}`);
+        throw new Error(`Import Akun Keuangan dan Kategori Transaksi terlebih dahulu. Belum ditemukan ${issues.join(' · ')}.`);
+    }
+
+    if (importedTransactions.length === 0) {
+        throw new Error('Tidak ada transaksi baru yang valid di dalam file CSV.');
+    }
+
+    transactions.push(...importedTransactions);
+
+    let message = `${importedTransactions.length} transaksi berhasil diimpor.`;
+    if (duplicates > 0) message += ` ${duplicates} duplikat dilewati.`;
+    if (skipped > 0) message += ` ${skipped} baris tidak valid dilewati.`;
+    await persistCSVImport(workspaceBeforeImport, message);
 }
 
-// ================= LOADING & SUCCESS MODAL =================
 function showLoader() {
     const loader = document.getElementById('globalLoader');
     if (loader) loader.classList.remove('hidden');
 }
 function hideLoader() {
     const loader = document.getElementById('globalLoader');
-    if (loader) loader.classList.add('hidden');
+    if (!loader) return;
+
+    const startedAt = Number(window.ARAH_BOOT_STARTED_AT) || Date.now();
+    const elapsed = Date.now() - startedAt;
+    const delay = Math.max(0, 850 - elapsed);
+    window.setTimeout(() => loader.classList.add('hidden'), delay);
 }
 
 function openSuccessModal(message) {

@@ -1,10 +1,12 @@
-/** @type {import('tailwindcss').Config} */
+
 module.exports = {
     darkMode: 'class',
 
     content: [
         './index.html',
-        './app.js'
+        './app.js',
+        './supabase-auth.js',
+        './supabase-data.js'
     ],
 
     theme: {

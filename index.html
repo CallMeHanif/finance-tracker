@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
-<!-- 
-    ======================================
-    Finance Tracker System
-    Developed by Hanif Alkhairi
-    ======================================
--->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,7 +21,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=20260811-native-date-final">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260812-privacy">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -77,6 +72,103 @@
 </head>
 <body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-[#0b1220] dark:text-slate-100 flex flex-col transition-colors duration-200">
 
+    <div id="globalLoader" class="fixed inset-0 z-[300] bg-white dark:bg-slate-950 flex items-center justify-center">
+        <img src="./assets/wordmark-bl.png" alt="ARAH" class="arah-loader-logo block dark:hidden h-8 w-auto object-contain">
+        <img src="./assets/wordmark-wh.png" alt="ARAH" class="arah-loader-logo hidden dark:block h-8 w-auto object-contain">
+    </div>
+
+    <div id="authGate" class="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="mb-7 text-center">
+                <img src="./assets/wordmark-bl.png" alt="ARAH" class="mx-auto block dark:hidden h-8 w-auto object-contain">
+                <img src="./assets/wordmark-wh.png" alt="ARAH" class="mx-auto hidden dark:block h-8 w-auto object-contain">
+                <p class="mt-2 text-xs text-slate-400">Atur Rupiah, Arahkan Hidup</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 sm:p-6">
+                <div class="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-5">
+                    <button id="authTabLogin" type="button" onclick="ARAHAuth.showMode('login')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all">Masuk</button>
+                    <button id="authTabRegister" type="button" onclick="ARAHAuth.showMode('register')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all">Daftar</button>
+                </div>
+
+                <div id="authMessage" class="hidden mb-4 rounded-xl border px-3 py-2.5 text-[11px] leading-relaxed"></div>
+
+                <form id="authLoginForm" class="space-y-4">
+                    <div>
+                        <label for="authLoginEmail" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+                        <input id="authLoginEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <div>
+                        <label for="authLoginPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
+                        <input id="authLoginPassword" type="password" autocomplete="current-password" required placeholder="Masukkan password" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <button id="authLoginButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all">Masuk</button>
+                </form>
+
+                <form id="authRegisterForm" class="hidden space-y-4">
+                    <div>
+                        <label for="authRegisterName" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama</label>
+                        <input id="authRegisterName" type="text" autocomplete="name" required placeholder="Nama kamu" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <div>
+                        <label for="authRegisterEmail" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+                        <input id="authRegisterEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <div>
+                        <label for="authRegisterPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
+                        <input id="authRegisterPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Minimal 8 karakter" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <div>
+                        <label for="authRegisterPasswordConfirm" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Konfirmasi Password</label>
+                        <input id="authRegisterPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Ulangi password" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <button id="authRegisterButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all">Buat Akun</button>
+                    <p class="text-center text-[10px] leading-relaxed text-slate-400">Setelah daftar, cek email untuk mengonfirmasi akun sebelum masuk.</p>
+                </form>
+            </div>
+
+            <p class="mt-4 text-center text-[10px] text-slate-400">ARAH Beta</p>
+        </div>
+    </div>
+
+    <div id="privacyVaultGate" class="hidden fixed inset-0 z-[200] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <div class="mb-6 text-center">
+                <img src="./assets/wordmark-bl.png" alt="ARAH" class="mx-auto block dark:hidden h-8 w-auto object-contain">
+                <img src="./assets/wordmark-wh.png" alt="ARAH" class="mx-auto hidden dark:block h-8 w-auto object-contain">
+            </div>
+            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 sm:p-6">
+                <div id="privacyVaultBusy" class="text-center space-y-3">
+                    <div class="mx-auto w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                        <i data-lucide="lock-keyhole" class="w-5 h-5 text-blueSystem-500"></i>
+                    </div>
+                    <h2 class="font-bold text-sm text-slate-900 dark:text-white">Menyiapkan data privat</h2>
+                    <p class="text-xs leading-relaxed text-slate-400">Data keuangan akan dilindungi di perangkat sebelum disimpan.</p>
+                </div>
+                <div id="privacyVaultCreated" class="hidden space-y-4">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-900 dark:text-white">Simpan Kunci Pemulihan</h2>
+                        <p class="mt-1.5 text-xs leading-relaxed text-slate-400">Kunci ini diperlukan saat membuka data di perangkat baru. ARAH tidak menyimpan salinannya dan tidak dapat memulihkan data tanpa kunci ini.</p>
+                    </div>
+                    <div id="privacyVaultRecoveryCode" class="rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs font-semibold leading-relaxed break-all text-slate-700 dark:text-slate-200 select-all"></div>
+                    <button id="privacyVaultCopy" type="button" onclick="ARAHVault.copyRecoveryCode()" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-xs font-bold">Salin Kunci</button>
+                    <button id="privacyVaultConfirmSaved" type="button" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold">Saya Sudah Menyimpannya</button>
+                </div>
+                <div id="privacyVaultUnlock" class="hidden space-y-4">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-900 dark:text-white">Buka Data Privat</h2>
+                        <p class="mt-1.5 text-xs leading-relaxed text-slate-400">Perangkat ini belum memiliki kunci untuk membuka data keuanganmu. Masukkan Kunci Pemulihan satu kali untuk mempercayai perangkat ini.</p>
+                    </div>
+                    <div id="privacyVaultMessage" class="hidden rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2.5 text-[11px] leading-relaxed text-rose-700 dark:text-rose-300"></div>
+                    <form id="privacyVaultUnlockForm" class="space-y-3">
+                        <input id="privacyVaultRecoveryInput" type="text" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <button type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold">Buka Data</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <header class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
         <div class="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between relative">
             <div class="flex items-center gap-6">
@@ -90,14 +182,14 @@
 
                     <div class="leading-tight">
                         <div class="flex items-center">
-                            <!-- Light mode -->
+                            
                             <img
                                 src="./assets/wordmark-bl.png"
                                 alt="ARAH"
                                 class="block dark:hidden h-6 w-auto object-contain"
                             >
 
-                            <!-- Dark mode -->
+                            
                             <img
                                 src="./assets/wordmark-wh.png"
                                 alt="ARAH"
@@ -127,10 +219,6 @@
                 <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
                     <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
-                </button>
-                <button onclick="toggleSettingsModal()" id="cloudIndicatorBtn" class="p-2 bg-slate-100 dark:bg-slate-900 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition-all relative" title="Status Database Cloud">
-                    <i data-lucide="cloud" class="w-4 h-4"></i>
-                    <span id="cloudIndicatorDot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-400"></span>
                 </button>
             </div>
         </div>
@@ -216,9 +304,11 @@
 </nav>
 
     <main class="max-w-[1600px] mx-auto w-full px-6 py-6 pb-32 md:pb-6 flex-1">
-        <!-- ================= PAGE 1: DASHBOARD ================= -->
+        
         <div id="page-dashboard" class="page-content hidden space-y-5">
-            
+            <div class="px-1">
+                <h1 id="dashboardGreeting" class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Halo</h1>
+            </div>
             <div class="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 shadow-sm">
                 <div class="flex items-center gap-2">
                     <i data-lucide="calendar" class="w-4 h-4 text-blueSystem-500"></i>
@@ -246,7 +336,7 @@
         overflow-hidden md:overflow-visible
     "
 >
-    <!-- Total Saldo -->
+    
 <div
     class="
         col-span-2 md:col-span-1
@@ -260,7 +350,7 @@
         md:shadow-sm
     "
 >
-    <!-- Informasi saldo -->
+    
     <div class="flex items-center gap-4 min-w-0">
         <div
             class="
@@ -322,7 +412,7 @@
     </button>
 </div>
 
-    <!-- Total Pendapatan -->
+    
     <div
         class="
             min-w-0
@@ -375,7 +465,7 @@
         </div>
     </div>
 
-    <!-- Total Pengeluaran -->
+    
     <div
         class="
             min-w-0
@@ -428,7 +518,7 @@
     </div>
 </div>
 
-<!-- Fitur ARAH Mobile -->
+
 <div class="
     md:hidden
     bg-white dark:bg-slate-950
@@ -556,14 +646,14 @@
                     <div id="dashCategoriesContainer" class="flex flex-col justify-start max-h-[170px] overflow-y-auto pr-1 custom-scrollbar"></div>
                 </div>
             </div>
-            <!-- Pengingat jatuh tempo Hutang -->
+            
             <section
                 id="dashboardDebtReminderSection"
                 class="hidden"
                 aria-live="polite"
             ></section>
 
-            <!-- Rincian hutang yang masih perlu dibayar -->
+            
             <section
                 id="dashboardActiveDebtSection"
                 class="hidden"
@@ -592,12 +682,14 @@
             </section>
         </div>
 
-        <!-- ================= PAGE 2: TRANSACTIONS ================= -->
+        
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
             <div class="md:hidden col-span-full sticky top-16 z-30 -mx-1 -mt-6 px-1 pt-8 pb-3 bg-slate-50/95 dark:bg-[#0b1220]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
-                <div class="px-1">
-                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
+                <div class="px-1 flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
+                        <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
+                    </div>
                 </div>
 
                 <div class="relative mt-3">
@@ -624,14 +716,11 @@
 
             <div class="hidden md:block lg:col-span-4 space-y-3 lg:space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
-                <div class="px-1">
-                    <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">
-                        Transaksi
-                    </h1>
-
-                    <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                        Kelola seluruh transaksi keuanganmu.
-                    </p>
+                <div class="px-1 flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
+                        <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
+                    </div>
                 </div>
 
                 <div class="hidden md:block bg-slate-950 text-white rounded-2xl p-4 shadow-md">
@@ -665,7 +754,7 @@
     lg:flex-row lg:gap-3 lg:items-center
     lg:justify-between
 ">
-    <!-- Pencarian -->
+    
     <div class="relative w-full lg:w-64">
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
             <i data-lucide="search" class="w-3.5 h-3.5"></i>
@@ -691,7 +780,7 @@
         >
     </div>
 
-    <!-- Filter -->
+    
     <div class="
         grid grid-cols-3 gap-2
         w-full
@@ -822,12 +911,12 @@
 
         </div>
 
-        <!-- ================= PAGE 3: LOANS ================= -->
+        
 <div
     id="page-loans"
     class="page-content hidden space-y-4"
 >
-    <!-- Header -->
+    
 <div class="
     px-1
     flex items-start
@@ -882,14 +971,14 @@
     </button>
 </div>
 
-    <!-- Ringkasan -->
+    
 <div class="
     grid grid-cols-1
     md:grid-cols-2
     gap-4
     min-w-0
 ">
-    <!-- Hutang -->
+    
     <div class="
         min-w-0
         overflow-hidden
@@ -943,7 +1032,7 @@
         </div>
     </div>
 
-    <!-- Piutang -->
+    
     <div class="
         min-w-0
         overflow-hidden
@@ -999,7 +1088,7 @@
     </div>
 </div>
 
-    <!-- Filter Pinjaman -->
+    
 <div class="
     bg-white dark:bg-slate-950
     border border-slate-200 dark:border-slate-800
@@ -1011,7 +1100,7 @@
         grid grid-cols-3
         gap-2
     ">
-        <!-- Filter Jenis -->
+        
         <div class="min-w-0">
             <select
                 id="loanTypeFilter"
@@ -1044,7 +1133,7 @@
             </select>
         </div>
 
-        <!-- Filter Status -->
+        
         <div class="min-w-0">
             <select
                 id="loanStatusFilter"
@@ -1077,7 +1166,7 @@
             </select>
         </div>
 
-        <!-- Filter Bulan -->
+        
         <div class="min-w-0">
             <select
                 id="loanMonthFilter"
@@ -1104,14 +1193,14 @@
     </div>
 </div>
 
-    <!-- Daftar Hutang dan Piutang -->
+    
     <div
         id="loanListContainer"
         class="space-y-5"
     ></div>
 </div>
 
-        <!-- ================= PAGE 4 : REPORTS ================= -->
+        
         <div id="page-reports" class="page-content hidden space-y-5">
             <div class="grid grid-cols-1 gap-5">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
@@ -1142,11 +1231,11 @@
 
         </div>
 
-        <!-- ================= PAGE 5 : SETTINGS ================= -->
+        
         <div id="page-settings" class="page-content hidden space-y-4">
             <div class="px-1">
                 <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Pengaturan</h1>
-                <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Atur akun, kategori, database, dan data ARAH.</p>
+                <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Atur akun, kategori, dan data ARAH.</p>
             </div>
 
             <div class="space-y-3">
@@ -1168,15 +1257,45 @@
             <div class="space-y-3">
                 <p class="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Data</p>
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                    <button type="button" onclick="toggleSettingsModal()" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
-                        <span class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><i data-lucide="database" class="w-4 h-4"></i></span>
-                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Database & Sinkronisasi</span><span class="mt-0.5 block text-[11px] text-slate-400">Kelola koneksi penyimpanan data ARAH.</span></span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    <button type="button" onclick="openCsvImportPicker('account')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-blueSystem-50 dark:bg-blueSystem-900/30 text-blueSystem-500 flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Akun CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan data akun keuangan dari file CSV.</span></span>
+                        <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                    <button type="button" onclick="openCsvImportPicker('category')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-500 flex items-center justify-center"><i data-lucide="tags" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Kategori CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan kategori transaksi dari file CSV.</span></span>
+                        <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                    <button type="button" onclick="openCsvImportPicker('transaction')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center"><i data-lucide="receipt-text" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Transaksi CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan riwayat transaksi dari file CSV.</span></span>
+                        <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
                     </button>
                     <button type="button" onclick="openWipeModal()" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition-colors">
                         <span class="w-9 h-9 shrink-0 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 flex items-center justify-center"><i data-lucide="trash-2" class="w-4 h-4"></i></span>
                         <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-rose-600 dark:text-rose-400">Hapus Seluruh Data</span><span class="mt-0.5 block text-[11px] text-slate-400">Kosongkan seluruh data workspace dan mulai dari awal.</span></span>
                         <i data-lucide="chevron-right" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    </button>
+                </div>
+                <input id="accountCsvFileInput" type="file" accept=".csv,text/csv" class="hidden">
+                <input id="categoryCsvFileInput" type="file" accept=".csv,text/csv" class="hidden">
+                <input id="transactionCsvFileInput" type="file" accept=".csv,text/csv" class="hidden">
+            </div>
+
+            <div class="space-y-3">
+                <p class="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun</p>
+                <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    <div class="w-full px-4 py-4 flex items-center gap-3">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-blueSystem-50 dark:bg-blueSystem-900/30 text-blueSystem-500 flex items-center justify-center"><i data-lucide="user" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1">
+                            <span id="authUserName" class="block text-sm font-semibold text-slate-900 dark:text-white">Pengguna ARAH</span>
+                            <span id="authUserEmail" class="mt-0.5 block text-[11px] text-slate-400 truncate">-</span>
+                        </span>
+                    </div>
+                    <button type="button" onclick="ARAHAuth.signOut()" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-rose-50/60 dark:hover:bg-rose-950/20 transition-colors">
+                        <span class="w-9 h-9 shrink-0 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 flex items-center justify-center"><i data-lucide="log-out" class="w-4 h-4"></i></span>
+                        <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-rose-600 dark:text-rose-400">Keluar</span><span class="mt-0.5 block text-[11px] text-slate-400">Keluar dari akun ARAH di perangkat ini.</span></span>
                     </button>
                 </div>
             </div>
@@ -1188,7 +1307,9 @@
                     <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
                     <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Akun Keuangan</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola seluruh akun yang digunakan di ARAH.</p></div>
                 </div>
-                <button type="button" onclick="openSettingsModal('account')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Akun</span><span class="sm:hidden">Tambah</span></button>
+                <div class="shrink-0 flex items-center gap-2">
+                    <button type="button" onclick="openSettingsModal('account')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Akun</span><span class="sm:hidden">Tambah</span></button>
+                </div>
             </div>
             <div
                 id="setupAccountsCardList"
@@ -1202,7 +1323,9 @@
                     <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
                     <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Kategori Transaksi</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola kategori uang masuk, keluar, dan netral.</p></div>
                 </div>
-                <button type="button" onclick="openSettingsModal('category')" class="shrink-0 bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Kategori</span><span class="sm:hidden">Tambah</span></button>
+                <div class="shrink-0 flex items-center gap-2">
+                    <button type="button" onclick="openSettingsModal('category')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Kategori</span><span class="sm:hidden">Tambah</span></button>
+                </div>
             </div>
             <div
                 id="setupCategoriesCardList"
@@ -1211,50 +1334,9 @@
         </div>
     </main>
 
-    <!-- ================= MODALS ================= -->
+    
 
-    <!-- Modal Eksternal DB -->
-    <div id="cloudModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 class="font-semibold text-sm flex items-center gap-2 text-blueSystem-500 dark:text-white"><i data-lucide="database" class="w-4 h-4"></i> Eksternal Database</h3>
-                <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div class="p-5 space-y-4">
-                <div class="grid grid-cols-1 gap-3">
-    <label class="text-[10px] font-bold text-slate-400 uppercase">
-        Mode Penyimpanan
-    </label>
-
-    <input
-        type="hidden"
-        id="dbMode"
-        value="sheets"
-    >
-
-    <div
-        class="w-full bg-slate-50 dark:bg-slate-900
-               border border-slate-200 dark:border-slate-800
-               rounded-xl px-3 py-2
-               text-xs text-slate-800 dark:text-white"
-    >
-        Google Sheets Sync
-    </div>
-</div>
-                <div id="urlInputContainer" class="hidden grid grid-cols-1 gap-2">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Web App URL (Google Apps Script)</label>
-                    <input type="url" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white">
-                </div>
-                <div id="syncStatus" class="text-[11px] text-slate-400 italic"></div>
-                <div class="pt-2 flex gap-2 justify-end">
-                    <button type="button" onclick="toggleSettingsModal()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Tutup</button>
-                    <button type="button" onclick="saveSettings()" class="bg-blueSystem-500 text-white px-5 py-2 rounded-xl text-xs font-semibold hover:bg-blueSystem-600">Hubungkan</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Tambah Transaksi -->
+    
 <div
     id="transactionModal"
     onclick="if (event.target === this) closeTransactionModal()"
@@ -1298,7 +1380,7 @@
                 id="form-edit-id"
             >
 
-            <!-- Jenis Aliran -->
+            
 <div class="space-y-1.5">
     <label class="text-[10px] font-bold text-slate-400 uppercase">
         Jenis Aliran
@@ -1360,7 +1442,7 @@
     </div>
 </div>
 
-            <!-- Nama Item -->
+            
 <div class="space-y-1">
     <label class="text-[10px] font-bold text-slate-400 uppercase">
         Nama Item
@@ -1380,10 +1462,10 @@
     >
 </div>
 
-<!-- Tanggal dan Nominal -->
+
 <div class="transaction-date-amount-row">
 
-    <!-- Tanggal -->
+    
     <div class="transaction-date-amount-field space-y-1">
         <label for="form-date" class="text-[10px] font-bold text-slate-400 uppercase">
             Tanggal
@@ -1402,7 +1484,7 @@
         </div>
     </div>
 
-    <!-- Nominal -->
+    
     <div class="transaction-date-amount-field space-y-1">
         <label class="text-[10px] font-bold text-slate-400 uppercase">
             Nominal
@@ -1427,7 +1509,7 @@
         >
     </div>
 </div>
-            <!-- Akun dan Kategori / Akun Tujuan -->
+            
             <div class="grid grid-cols-2 gap-3">
 
                 <div
@@ -1499,7 +1581,7 @@
 
             </div>
 
-            <!-- Catatan -->
+            
             <div class="space-y-1">
                 <label class="text-[10px] font-bold text-slate-400 uppercase">
                     Catatan
@@ -1518,7 +1600,7 @@
                 >
             </div>
 
-            <!-- Simpan -->
+            
             <div class="pt-2">
                 <button
                     type="submit"
@@ -1538,7 +1620,7 @@
     </div>
 </div>
 
-    <!-- Modal Kelola Akun -->
+    
     <div id="setupAccountModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full overflow-hidden">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -1605,7 +1687,7 @@
         </div>
     </div>
 
-    <!-- Modal Kelola Kategori -->
+    
     <div id="setupCategoryModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full overflow-hidden">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -1635,7 +1717,7 @@
         </div>
     </div>
 
-    <!-- Modal Rincian Saldo -->
+    
 <div
     id="balanceDetailModal"
     onclick="if (event.target === this) closeBalanceDetailModal()"
@@ -1690,7 +1772,7 @@
             </button>
         </div>
 
-        <!-- Daftar akun -->
+        
         <div
             id="balanceDetailList"
             class="
@@ -1701,7 +1783,7 @@
             "
         ></div>
 
-        <!-- Total -->
+        
         <div class="
             px-4 py-4
             border-t border-slate-100 dark:border-slate-800
@@ -1729,7 +1811,7 @@
     </div>
 </div>
 
-    <!-- Modal Detail Transaksi -->
+    
 <div
     id="transactionDetailModal"
     onclick="handleTransactionDetailBackdrop(event)"
@@ -1747,7 +1829,7 @@
                max-w-md w-full
                overflow-hidden"
     >
-        <!-- Header -->
+        
         <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
                 <i
@@ -1768,10 +1850,10 @@
             </button>
         </div>
 
-        <!-- Content -->
+        
         <div class="p-5 space-y-5">
 
-            <!-- Ringkasan nominal -->
+            
             <div class="flex items-center gap-4">
                 <div
                     id="detailTransactionIconContainer"
@@ -1808,7 +1890,7 @@
                 </div>
             </div>
 
-            <!-- Informasi transaksi -->
+            
             <div class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
 
                 <div class="flex justify-between gap-4 p-3">
@@ -1883,7 +1965,7 @@
                 </div>
             </div>
 
-            <!-- Action -->
+            
             <div class="flex gap-2">
                 <button
                     type="button"
@@ -1919,7 +2001,7 @@
     </div>
 </div>
 
-<!-- Loan Form Modal -->
+
 <div
     id="loanFormModal"
     onclick="handleLoanFormBackdrop(event)"
@@ -2116,7 +2198,7 @@
     </form>
 </div>
 
-<!-- Loan Detail Modal -->
+
 <div
     id="loanDetailModal"
     onclick="handleLoanDetailBackdrop(event)"
@@ -2313,7 +2395,7 @@
     </div>
 </div>
 
-<!-- Loan Notice Modal -->
+
 <div
     id="loanNoticeModal"
     onclick="handleLoanNoticeBackdrop(event)"
@@ -2343,7 +2425,7 @@
     </div>
 </div>
 
-<!-- Confirm Unlink Repayment Modal -->
+
 <div
     id="loanUnlinkConfirmModal"
     onclick="handleLoanUnlinkBackdrop(event)"
@@ -2435,7 +2517,7 @@
     </div>
 </div>
 
-<!-- Loan Delete Confirm Modal -->
+
 <div
     id="loanDeleteConfirmModal"
     onclick="handleLoanDeleteBackdrop(event)"
@@ -2527,7 +2609,7 @@
     </div>
 </div>
 
-<!-- Loan Repayment Modal -->
+
 <div
     id="loanRepaymentModal"
     onclick="handleLoanRepaymentBackdrop(event)"
@@ -2655,7 +2737,7 @@
 
 
 
-    <!-- Confirm Delete Modal -->
+    
     <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-5 text-center space-y-4">
             <div class="mx-auto w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
@@ -2675,7 +2757,7 @@
         </div>
     </div>
 
-    <!-- Wipe Data Modal -->
+    
     <div id="wipeDataModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-rose-200 dark:border-rose-900/50 rounded-2xl shadow-xl max-w-md w-full p-6 text-center space-y-4">
             <div class="mx-auto w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400"><i data-lucide="trash-2" class="w-7 h-7"></i></div>
@@ -2690,7 +2772,7 @@
         </div>
     </div>
 
-    <!-- Modal Peringatan Belum Ada Akun -->
+    
     <div id="noAccountModal" class="hidden fixed inset-0 z-[70] bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
             <div class="mx-auto w-14 h-14 rounded-full bg-blueSystem-50 dark:bg-blueSystem-900/30 flex items-center justify-center text-blueSystem-500">
@@ -2710,11 +2792,6 @@
     <footer class="hidden md:block bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-4 text-center text-xs text-slate-400 mt-auto">
         <p>&copy; 2026 ARAH by Hanif Alkhairi</p>
     </footer>
-
-    <div id="globalLoader" class="hidden fixed inset-0 z-[100] bg-white dark:bg-slate-950 flex items-center justify-center">
-        <img src="./assets/wordmark-bl.png" alt="ARAH" class="arah-loader-logo block dark:hidden h-8 w-auto object-contain">
-        <img src="./assets/wordmark-wh.png" alt="ARAH" class="arah-loader-logo hidden dark:block h-8 w-auto object-contain">
-    </div>
 
     <div id="successModal" class="hidden fixed inset-0 z-[90] bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
@@ -2740,6 +2817,11 @@
     function openWipeModal() { document.getElementById('wipeDataModal').classList.remove('hidden'); }
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
-    <script src="app.js?v=20260812-saldo-acuan"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.91.0"></script>
+    <script src="supabase-config.js?v=20260812-privacy"></script>
+    <script src="supabase-auth.js?v=20260812-privacy"></script>
+    <script src="privacy-vault.js?v=20260812-privacy"></script>
+    <script src="supabase-data.js?v=20260812-privacy"></script>
+    <script src="app.js?v=20260812-privacy"></script>
 </body>
 </html>

@@ -45,13 +45,7 @@
         max-width: 100%;
     }
 
-    /*
-     * Stable date control for Safari/iOS/desktop.
-     * The browser's native date input remains responsible for the picker,
-     * but it is transparent and absolutely positioned. The visible field is
-     * our own normal ARAH control, so WebKit cannot alter its height,
-     * alignment, rounded corners, or intrinsic width.
-     */
+    
     .arah-date-shell {
         position: relative;
         display: flex;
