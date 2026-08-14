@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin ARAH</title>
+    <link rel="icon" type="image/png" href="./assets/arah-iconbl.png">
+    <script>
+        // Apply the saved theme before the first paint so the startup screen
+        // never flashes in light mode when the user uses dark mode.
+        try {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        } catch (_) {}
+    </script>
+    <link rel="stylesheet" href="./assets/styles.css?v=20260813-admin4-spa">
+    <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .admin-clickable-row { cursor: pointer; transition: background-color .15s ease; }
+        .admin-clickable-row:hover { background: rgba(15, 23, 42, .035); }
+        .dark .admin-clickable-row:hover { background: rgba(148, 163, 184, .055); }
+        .admin-chart-canvas { width: 100%; height: 220px; display: block; }
+
+        :root {
+            --admin-neon-blue: #138bff;
+            --admin-neon-cyan: #22d3ee;
+            --admin-neon-indigo: #4f7cff;
+            --admin-neon-line: rgba(34, 211, 238, .18);
+            --admin-neon-glow: rgba(19, 139, 255, .18);
+        }
+
+        body.admin-neon {
+            background-image:
+                radial-gradient(circle at 9% -8%, rgba(34, 211, 238, .09), transparent 31rem),
+                radial-gradient(circle at 92% 4%, rgba(79, 124, 255, .09), transparent 34rem);
+            background-attachment: fixed;
+        }
+
+        .dark body.admin-neon {
+            background-color: #06101d;
+            background-image:
+                radial-gradient(circle at 8% -5%, rgba(34, 211, 238, .13), transparent 32rem),
+                radial-gradient(circle at 92% 3%, rgba(37, 99, 235, .16), transparent 36rem),
+                linear-gradient(180deg, rgba(2, 12, 25, .15), rgba(2, 10, 20, .48));
+        }
+
+        .admin-neon #adminLogin::before,
+        .admin-neon #adminApp::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgba(14, 165, 233, .025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, .025) 1px, transparent 1px);
+            background-size: 46px 46px;
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.45), transparent 85%);
+                    mask-image: linear-gradient(to bottom, rgba(0,0,0,.45), transparent 85%);
+        }
+
+        .admin-neon-panel {
+            position: relative;
+            border-color: rgba(14, 165, 233, .16) !important;
+            box-shadow:
+                0 14px 44px rgba(15, 23, 42, .045),
+                0 0 0 1px rgba(14, 165, 233, .035),
+                0 0 18px rgba(14, 165, 233, .035);
+        }
+
+        .dark .admin-neon-panel {
+            border-color: rgba(56, 189, 248, .26) !important;
+            background:
+                linear-gradient(145deg, rgba(7, 18, 34, .96), rgba(2, 8, 20, .92)) !important;
+            box-shadow:
+                0 18px 55px rgba(0, 0, 0, .26),
+                0 0 24px rgba(34, 211, 238, .07),
+                0 0 0 1px rgba(34, 211, 238, .045),
+                inset 0 1px 0 rgba(125, 211, 252, .05);
+        }
+
+        .dark .admin-neon-panel::after {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            pointer-events: none;
+            background: linear-gradient(120deg,
+                rgba(34, 211, 238, .10),
+                transparent 22%,
+                transparent 76%,
+                rgba(79, 124, 255, .08));
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            padding: 1px;
+        }
+
+        .admin-neon header {
+            border-color: rgba(14, 165, 233, .10) !important;
+            box-shadow: 0 9px 30px rgba(15, 23, 42, .04);
+        }
+
+        .dark .admin-neon header {
+            background: rgba(3, 10, 23, .78) !important;
+            border-color: rgba(34, 211, 238, .13) !important;
+            box-shadow:
+                0 12px 38px rgba(0, 0, 0, .28),
+                0 1px 0 rgba(34, 211, 238, .045);
+        }
+
+        .admin-neon input,
+        .admin-neon select,
+        .admin-neon textarea {
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+        }
+
+        .admin-neon input:focus,
+        .admin-neon select:focus,
+        .admin-neon textarea:focus {
+            border-color: rgba(14, 165, 233, .82) !important;
+            box-shadow:
+                0 0 0 3px rgba(14, 165, 233, .11),
+                0 0 22px rgba(34, 211, 238, .07);
+        }
+
+        .dark .admin-neon input:focus,
+        .dark .admin-neon select:focus,
+        .dark .admin-neon textarea:focus {
+            background-color: rgba(7, 21, 39, .95) !important;
+            box-shadow:
+                0 0 0 3px rgba(34, 211, 238, .10),
+                0 0 26px rgba(34, 211, 238, .09);
+        }
+
+        .admin-neon [class*="bg-blueSystem-500"] {
+            background: linear-gradient(135deg, #0877e6, #0ea5e9) !important;
+            box-shadow:
+                0 8px 20px rgba(0, 86, 163, .17),
+                0 0 0 rgba(34, 211, 238, 0);
+            transition: transform .16s ease, box-shadow .18s ease, filter .18s ease;
+        }
+
+        .admin-neon [class*="bg-blueSystem-500"]:hover {
+            filter: brightness(1.07);
+            transform: translateY(-1px);
+            box-shadow:
+                0 10px 28px rgba(0, 86, 163, .23),
+                0 0 22px rgba(34, 211, 238, .12);
+        }
+
+        .dark .admin-neon [class*="bg-blueSystem-500"] {
+            background: linear-gradient(135deg, #0879ef, #13b6df) !important;
+            box-shadow:
+                0 10px 30px rgba(0, 97, 190, .20),
+                0 0 24px rgba(34, 211, 238, .10);
+        }
+
+        .admin-neon .admin-clickable-row {
+            position: relative;
+        }
+
+        .admin-neon .admin-clickable-row:hover {
+            background: rgba(14, 165, 233, .045);
+            box-shadow: inset 3px 0 0 rgba(14, 165, 233, .42);
+        }
+
+        .dark .admin-neon .admin-clickable-row:hover {
+            background: linear-gradient(90deg, rgba(14, 165, 233, .075), rgba(34, 211, 238, .018));
+            box-shadow:
+                inset 3px 0 0 rgba(34, 211, 238, .55),
+                inset 0 1px 0 rgba(34, 211, 238, .025);
+        }
+
+        .admin-neon-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .admin-neon-card::before {
+            content: "";
+            position: absolute;
+            width: 74px;
+            height: 74px;
+            right: -30px;
+            top: -32px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, .08);
+            filter: blur(8px);
+            pointer-events: none;
+        }
+
+        .admin-neon-card {
+            border-color: rgba(14, 165, 233, .14) !important;
+            box-shadow:
+                0 10px 28px rgba(15, 23, 42, .045),
+                0 0 14px rgba(14, 165, 233, .035);
+        }
+
+        .admin-neon-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(14, 165, 233, .30) !important;
+            box-shadow:
+                0 12px 32px rgba(15, 23, 42, .065),
+                0 0 24px rgba(14, 165, 233, .08);
+        }
+
+        .dark .admin-neon-card {
+            border-color: rgba(56, 189, 248, .24) !important;
+            background: linear-gradient(145deg, rgba(7, 19, 36, .96), rgba(3, 10, 23, .94)) !important;
+            box-shadow:
+                0 14px 36px rgba(0, 0, 0, .22),
+                0 0 18px rgba(34, 211, 238, .055),
+                0 0 0 1px rgba(34, 211, 238, .035),
+                inset 0 1px 0 rgba(125, 211, 252, .045);
+        }
+
+        .dark .admin-neon-card:hover {
+            border-color: rgba(34, 211, 238, .38) !important;
+            box-shadow:
+                0 18px 42px rgba(0, 0, 0, .28),
+                0 0 30px rgba(34, 211, 238, .10),
+                0 0 0 1px rgba(34, 211, 238, .055);
+        }
+
+        .admin-badge {
+            border: 1px solid transparent;
+        }
+
+        .dark .admin-badge-green {
+            border-color: rgba(52, 211, 153, .15);
+            box-shadow: 0 0 14px rgba(52, 211, 153, .055);
+        }
+
+        .dark .admin-badge-blue {
+            border-color: rgba(56, 189, 248, .18);
+            box-shadow: 0 0 15px rgba(34, 211, 238, .065);
+        }
+
+        .dark .admin-badge-violet {
+            border-color: rgba(167, 139, 250, .16);
+            box-shadow: 0 0 14px rgba(139, 92, 246, .055);
+        }
+
+        .dark .admin-badge-amber {
+            border-color: rgba(251, 191, 36, .14);
+        }
+
+        .dark .admin-badge-rose {
+            border-color: rgba(251, 113, 133, .15);
+        }
+
+        .admin-neon #adminModal {
+            background:
+                radial-gradient(circle at 50% 30%, rgba(14, 165, 233, .08), transparent 25rem),
+                rgba(2, 6, 23, .68);
+        }
+
+        .admin-neon #adminModal > div {
+            box-shadow:
+                0 28px 85px rgba(0, 0, 0, .31),
+                0 0 38px rgba(14, 165, 233, .07);
+        }
+
+        .dark .admin-neon #adminModal > div {
+            border-color: rgba(34, 211, 238, .18) !important;
+        }
+
+        .admin-neon .admin-chart-canvas {
+            filter: drop-shadow(0 0 4px rgba(14, 165, 233, .04));
+        }
+
+
+        .admin-spa-nav {
+            scrollbar-width: none;
+        }
+        .admin-spa-nav::-webkit-scrollbar {
+            display: none;
+        }
+        .admin-spa-nav-button {
+            position: relative;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: .42rem;
+            min-height: 34px;
+            padding: 0 .82rem;
+            border-radius: .8rem;
+            border: 1px solid transparent;
+            color: #64748b;
+            background: transparent;
+            font-size: 10px;
+            font-weight: 700;
+            transition: color .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+        }
+        .admin-spa-nav-button:hover {
+            color: #0369a1;
+            border-color: rgba(14, 165, 233, .15);
+            background: rgba(14, 165, 233, .045);
+        }
+        .admin-spa-nav-button.is-active {
+            color: #0369a1;
+            border-color: rgba(14, 165, 233, .25);
+            background: linear-gradient(135deg, rgba(14, 165, 233, .10), rgba(34, 211, 238, .045));
+            box-shadow: 0 0 18px rgba(14, 165, 233, .06), inset 0 1px 0 rgba(255,255,255,.20);
+        }
+        .admin-spa-nav-button.is-active::after {
+            content: "";
+            position: absolute;
+            left: 20%;
+            right: 20%;
+            bottom: -4px;
+            height: 1px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, transparent, #0ea5e9, #22d3ee, transparent);
+            box-shadow: 0 0 9px rgba(34, 211, 238, .35);
+        }
+        .dark .admin-spa-nav-button {
+            color: #7f97ad;
+        }
+        .dark .admin-spa-nav-button:hover {
+            color: #a5f3fc;
+            border-color: rgba(34, 211, 238, .18);
+            background: rgba(34, 211, 238, .045);
+        }
+        .dark .admin-spa-nav-button.is-active {
+            color: #a5f3fc;
+            border-color: rgba(34, 211, 238, .31);
+            background: linear-gradient(135deg, rgba(14, 165, 233, .13), rgba(34, 211, 238, .065));
+            box-shadow: 0 0 22px rgba(34, 211, 238, .085), inset 0 1px 0 rgba(125, 211, 252, .055);
+        }
+        .admin-spa-view {
+            animation: adminViewIn .18s ease;
+        }
+        @keyframes adminViewIn {
+            from { opacity: 0; transform: translateY(3px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .admin-page-heading {
+            position: relative;
+            padding-top: .25rem;
+        }
+        .admin-page-heading::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: -5px;
+            width: 44px;
+            height: 2px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #0ea5e9, #22d3ee, transparent);
+            box-shadow: 0 0 12px rgba(34, 211, 238, .28);
+        }
+        .admin-helpdesk-badge {
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(34, 211, 238, .22);
+            background: rgba(34, 211, 238, .08);
+            color: #0891b2;
+            font-size: 9px;
+            font-weight: 800;
+            box-shadow: 0 0 12px rgba(34, 211, 238, .08);
+        }
+        .dark .admin-helpdesk-badge {
+            color: #a5f3fc;
+            border-color: rgba(34, 211, 238, .28);
+            background: rgba(34, 211, 238, .09);
+        }
+
+
+        #adminImportCsvToggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            flex: 0 0 48px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, .28);
+            background: rgba(148, 163, 184, .18);
+            transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        #adminImportCsvToggle > span {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .18);
+            transform: translateX(0);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+
+        #adminImportCsvToggle[aria-pressed="true"] {
+            border-color: rgba(34, 211, 238, .42);
+            background: linear-gradient(135deg, rgba(14, 165, 233, .78), rgba(34, 211, 238, .72));
+            box-shadow: 0 0 18px rgba(34, 211, 238, .12);
+        }
+
+        #adminImportCsvToggle[aria-pressed="true"] > span {
+            transform: translateX(20px);
+            box-shadow: 0 2px 10px rgba(2, 132, 199, .22);
+        }
+
+        .dark #adminImportCsvToggle {
+            border-color: rgba(100, 116, 139, .38);
+            background: rgba(30, 41, 59, .92);
+        }
+
+        .dark #adminImportCsvToggle[aria-pressed="true"] {
+            border-color: rgba(34, 211, 238, .48);
+            background: linear-gradient(135deg, rgba(3, 105, 161, .95), rgba(8, 145, 178, .88));
+            box-shadow: 0 0 20px rgba(34, 211, 238, .16);
+        }
+
+
+
+        .admin-commercial-switch {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            flex: 0 0 48px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,.28);
+            background: rgba(148,163,184,.18);
+            transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .admin-commercial-switch > span {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(15,23,42,.18);
+            transform: translateX(0);
+            transition: transform .18s ease;
+        }
+        .admin-commercial-switch[aria-pressed="true"] {
+            border-color: rgba(34,211,238,.42);
+            background: linear-gradient(135deg, rgba(14,165,233,.78), rgba(34,211,238,.72));
+            box-shadow: 0 0 18px rgba(34,211,238,.12);
+        }
+        .admin-commercial-switch[aria-pressed="true"] > span { transform: translateX(20px); }
+        .dark .admin-commercial-switch { border-color: rgba(100,116,139,.38); background: rgba(30,41,59,.92); }
+        .dark .admin-commercial-switch[aria-pressed="true"] {
+            border-color: rgba(34,211,238,.48);
+            background: linear-gradient(135deg, rgba(3,105,161,.95), rgba(8,145,178,.88));
+            box-shadow: 0 0 20px rgba(34,211,238,.16);
+        }
+
+        #adminStartupLoader {
+            background: #f8fafc;
+            transition: opacity .22s ease, visibility .22s ease;
+        }
+
+        html.dark #adminStartupLoader {
+            background: #06101d;
+        }
+
+        #adminStartupLoader.is-leaving {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .admin-startup-logo {
+            opacity: 0;
+            transform: translateY(4px) scale(.985);
+            animation: adminLogoFadeIn .55s ease forwards;
+            filter: drop-shadow(0 0 14px rgba(14, 165, 233, .04));
+        }
+
+        .dark .admin-startup-logo {
+            filter: drop-shadow(0 0 16px rgba(34, 211, 238, .07));
+        }
+
+        @keyframes adminLogoFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .admin-neon-card,
+            .admin-neon [class*="bg-blueSystem-500"] {
+                transition: none !important;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="admin-neon min-h-screen bg-slate-50 text-slate-800 dark:bg-[#06101d] dark:text-slate-100 transition-colors duration-200">
+
+    <div id="adminStartupLoader" class="fixed inset-0 z-[500] flex items-center justify-center p-4" aria-live="polite" aria-label="Memuat Admin ARAH">
+        <div class="admin-startup-logo">
+            <img src="./assets/wordmark-bl.png" alt="ARAH" class="h-8 w-auto dark:hidden">
+            <img src="./assets/wordmark-wh.png" alt="ARAH" class="h-8 w-auto hidden dark:block">
+        </div>
+    </div>
+
+    <button id="adminLoginTheme" type="button" class="hidden fixed top-4 right-4 z-20 w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-center text-slate-500 dark:text-slate-300 shadow-sm" aria-label="Ubah tema">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+    </button>
+
+    <div id="adminLogin" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-7">
+                <div class="inline-flex items-end gap-2">
+                    <img src="./assets/wordmark-bl.png" alt="ARAH" class="h-8 w-auto dark:hidden">
+                    <img src="./assets/wordmark-wh.png" alt="ARAH" class="h-8 w-auto hidden dark:block">
+                    <span style="transform: translateY(6px);" class="text-[10px] font-semibold text-slate-400 leading-none">Admin</span>
+                </div>
+            </div>
+            <form id="adminLoginForm" class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-4">
+                <div id="adminLoginMessage" class="hidden rounded-xl border px-3 py-2.5 text-[11px]"></div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email Admin</label>
+                    <input id="adminEmail" type="email" autocomplete="email" required class="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-blueSystem-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
+                    <div class="relative">
+                        <input id="adminPassword" type="password" autocomplete="current-password" required class="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 pl-3 pr-11 py-2.5 text-sm focus:outline-none focus:border-blueSystem-500">
+                        <button type="button" data-password-toggle="adminPassword" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <button id="adminLoginButton" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold">Masuk Admin</button>
+                <a href="./index.html" class="block text-center text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">Kembali ke ARAH</a>
+            </form>
+        </div>
+    </div>
+
+    <div id="adminApp" class="hidden min-h-screen">
+        <header class="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+            <div class="max-w-[1600px] mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
+                <div class="flex items-end gap-2">
+                    <img src="./assets/wordmark-bl.png" alt="ARAH" class="h-6 w-auto dark:hidden">
+                    <img src="./assets/wordmark-wh.png" alt="ARAH" class="h-6 w-auto hidden dark:block">
+                    <span style="transform: translateY(1.5px);" class="text-[10px] font-semibold text-slate-400 leading-none">Admin</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="adminTheme" type="button" class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-300" aria-label="Ubah tema">
+                        <i data-lucide="moon" class="w-4 h-4"></i>
+                    </button>
+                    <button id="adminLogout" class="rounded-xl bg-slate-900 dark:bg-white px-3 py-2 text-xs font-semibold text-white dark:text-slate-900">Keluar</button>
+                </div>
+            </div>
+            <nav class="admin-spa-nav max-w-[1600px] mx-auto px-4 sm:px-6 pb-3 flex items-center gap-2 overflow-x-auto" aria-label="Navigasi Admin">
+                <button type="button" data-admin-route="dashboard" class="admin-spa-nav-button">
+                    <i data-lucide="chart-no-axes-combined" class="w-3.5 h-3.5"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button type="button" data-admin-route="users" class="admin-spa-nav-button">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                    <span>Pengguna</span>
+                </button>
+                <button id="adminAdministratorsNav" type="button" data-admin-route="administrators" class="admin-spa-nav-button">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    <span>Administrator</span>
+                </button>
+                <button type="button" data-admin-route="licenses" class="admin-spa-nav-button">
+                    <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i>
+                    <span>Lisensi</span>
+                </button>
+                <button id="adminMessagesNav" type="button" data-admin-route="messages" class="admin-spa-nav-button">
+                    <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                    <span>Update</span>
+                </button>
+                <button type="button" data-admin-route="helpdesk" class="admin-spa-nav-button">
+                    <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                    <span>Help Desk</span>
+                    <span id="adminHelpdeskBadge" class="admin-helpdesk-badge hidden"></span>
+                </button>
+            </nav>
+        </header>
+
+        <main class="max-w-[1600px] mx-auto p-4 sm:p-6">
+            <div id="adminMessage" class="hidden mb-5 rounded-xl border px-3 py-2.5 text-xs"></div>
+
+            <!-- Dashboard: monitoring only -->
+            <section data-admin-view="dashboard" class="admin-spa-view space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Dashboard</h1>
+                    <p class="mt-1 text-xs text-slate-400">Monitoring kondisi, aktivitas, dan pertumbuhan ARAH.</p>
+                </div>
+
+                <section id="adminStats" class="grid grid-cols-2 lg:grid-cols-6 gap-3"></section>
+
+                <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5">
+                        <div class="mb-4">
+                            <h2 class="font-bold text-sm">Pertumbuhan Pengguna</h2>
+                            <p class="mt-1 text-[11px] text-slate-400">Pendaftaran akun dalam 6 bulan terakhir.</p>
+                        </div>
+                        <canvas id="adminGrowthChart" class="admin-chart-canvas"></canvas>
+                    </div>
+                    <div class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5">
+                        <div class="mb-4">
+                            <h2 class="font-bold text-sm">Aktivitas Pengguna</h2>
+                            <p class="mt-1 text-[11px] text-slate-400">Dikelompokkan berdasarkan aktivitas terakhir.</p>
+                        </div>
+                        <canvas id="adminActivityChart" class="admin-chart-canvas"></canvas>
+                    </div>
+                </section>
+            </section>
+
+            <!-- Users -->
+            <section data-admin-view="users" class="admin-spa-view hidden space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Pengguna</h1>
+                    <p class="mt-1 text-xs text-slate-400">Klik pengguna untuk membuka detail, lisensi, dan pengaturan akses.</p>
+                </div>
+
+                <section class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                        <div>
+                            <h2 class="font-bold text-sm">Daftar Pengguna</h2>
+                            <p class="text-[11px] text-slate-400">Status online berdasarkan aktivitas 2 menit terakhir.</p>
+                        </div>
+                        <input id="adminUserSearch" type="search" placeholder="Cari nama atau email..." class="w-full sm:w-72 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[820px] text-left">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-[10px] uppercase tracking-wide text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3">Pengguna</th>
+                                    <th class="px-4 py-3">Status</th>
+                                    <th class="px-4 py-3">Aktivitas Terakhir</th>
+                                    <th class="px-4 py-3">Lisensi</th>
+                                    <th class="px-4 py-3">Dibuat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminUsersBody" class="divide-y divide-slate-100 dark:divide-slate-900 text-xs"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- Administrators -->
+            <section data-admin-view="administrators" class="admin-spa-view hidden space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Administrator</h1>
+                    <p class="mt-1 text-xs text-slate-400">Khusus Superadmin untuk menambahkan atau mengubah akses Admin.</p>
+                </div>
+
+                <section id="adminManagersSection" class="hidden admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h2 class="font-bold text-sm">Administrator ARAH</h2>
+                            <p class="text-[11px] text-slate-400">Tambah Admin baru atau klik administrator untuk mengubah aksesnya.</p>
+                        </div>
+                        <button id="adminAddManager" type="button" class="rounded-xl bg-blueSystem-500 hover:bg-blueSystem-600 text-white px-3 py-2 text-[11px] font-bold">Tambah Admin</button>
+                    </div>
+                    <div id="adminManagers" class="divide-y divide-slate-100 dark:divide-slate-900"></div>
+                </section>
+
+                <section id="adminFeatureSection" class="hidden admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+                        <h2 class="font-bold text-sm">Fitur Pengguna</h2>
+                        <p class="mt-1 text-[11px] text-slate-400">Kontrol fitur khusus yang ditampilkan pada aplikasi user.</p>
+                    </div>
+                    <div class="p-4 sm:p-5 flex items-center justify-between gap-5">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-xs text-slate-900 dark:text-white">Import CSV</span>
+                                <span class="rounded-full border border-cyan-400/15 bg-cyan-500/5 px-2 py-0.5 text-[9px] font-bold text-cyan-700 dark:text-cyan-300">DEVELOPER</span>
+                            </div>
+                            <p class="mt-1 text-[10px] leading-relaxed text-slate-400">Tampilkan atau sembunyikan Import Akun, Kategori, dan Transaksi CSV pada menu Pengaturan user.</p>
+                        </div>
+                        <button id="adminImportCsvToggle" type="button" data-feature-toggle="import_csv_enabled" aria-pressed="false" aria-label="Tampilkan Import CSV pada user">
+                            <span aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </section>
+            </section>
+
+
+            <!-- Licenses -->
+            <section data-admin-view="licenses" class="admin-spa-view hidden space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Lisensi ARAH</h1>
+                    <p class="mt-1 text-xs text-slate-400">Kontrol akses berbayar dan pantau pembayaran ARAH.</p>
+                </div>
+
+                <section id="adminLicenseStats" class="grid grid-cols-2 xl:grid-cols-4 gap-3"></section>
+
+                <section id="adminCommercialConfigSection" class="hidden admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+                        <h2 class="font-bold text-sm">Akses Berbayar</h2>
+                        <p class="mt-1 text-[11px] text-slate-400">Aktifkan setelah webhook Lynk dan halaman pembelian sudah selesai diuji.</p>
+                    </div>
+                    <div class="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-5">
+                        <div class="min-w-0">
+                            <div class="font-semibold text-xs text-slate-900 dark:text-white">Wajib Lisensi</div>
+                            <p class="mt-1 text-[10px] leading-relaxed text-slate-400">Jika aktif, user tanpa lisensi akan melihat halaman aktivasi sebelum Dashboard.</p>
+                        </div>
+                        <button id="adminCommercialModeToggle" type="button" class="admin-commercial-switch" aria-pressed="false" aria-label="Aktifkan mode berbayar"><span aria-hidden="true"></span></button>
+                    </div>
+                    <form id="adminPurchaseUrlForm" class="p-4 sm:p-5">
+                        <label for="adminPurchaseUrl" class="block text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">URL Pembelian Lynk</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input id="adminPurchaseUrl" type="url" placeholder="https://lynk.id/..." class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-xs focus:outline-none focus:border-blueSystem-500">
+                            <button id="adminSavePurchaseUrl" type="submit" class="rounded-xl bg-blueSystem-500 hover:bg-blueSystem-600 text-white px-4 py-2.5 text-[11px] font-bold">Simpan</button>
+                        </div>
+                        <p id="adminPurchaseUrlStatus" class="hidden mt-2 text-[10px] text-emerald-500">Tersimpan.</p>
+                    </form>
+                </section>
+
+                <section class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800">
+                        <h2 class="font-bold text-sm">Pembayaran Lynk</h2>
+                        <p class="mt-1 text-[11px] text-slate-400">Pembayaran terbaru dan status klaim lisensinya.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[900px] text-left">
+                            <thead class="bg-slate-50 dark:bg-slate-900 text-[10px] uppercase tracking-wide text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3">Pembeli</th><th class="px-4 py-3">Produk</th><th class="px-4 py-3">Nominal</th><th class="px-4 py-3">TRX ID</th><th class="px-4 py-3">Lisensi</th><th class="px-4 py-3">Tanggal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminPaymentsBody" class="divide-y divide-slate-100 dark:divide-slate-900 text-xs"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- Messages -->
+            <section data-admin-view="messages" class="admin-spa-view hidden space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Update ARAH</h1>
+                    <p class="mt-1 text-xs text-slate-400">Kirim informasi dan update yang akan muncul di aplikasi user.</p>
+                </div>
+
+                <section class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h2 class="font-bold text-sm">Riwayat Update</h2>
+                            <p class="mt-1 text-[11px] text-slate-400">Update terbaru akan langsung muncul di aplikasi user.</p>
+                        </div>
+                        <button id="adminCreateMessage" type="button" class="rounded-xl bg-blueSystem-500 hover:bg-blueSystem-600 text-white px-3 py-2 text-[11px] font-bold">Kirim Update</button>
+                    </div>
+                    <div id="adminAnnouncements" class="divide-y divide-slate-100 dark:divide-slate-900"></div>
+                </section>
+            </section>
+
+            <!-- Help Desk -->
+            <section data-admin-view="helpdesk" class="admin-spa-view hidden space-y-6">
+                <div class="admin-page-heading">
+                    <h1 class="text-xl font-bold">Help Desk</h1>
+                    <p class="mt-1 text-xs text-slate-400">Tiket bantuan dan permintaan pengguna.</p>
+                </div>
+
+                <section class="admin-neon-panel bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h2 class="font-bold text-sm">Tiket Bantuan</h2>
+                            <p class="text-[11px] text-slate-400">Proses tiket bantuan dan permintaan pengguna ARAH.</p>
+                        </div>
+                        <select id="adminTicketFilter" class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs">
+                            <option value="all">Semua status</option>
+                            <option value="new">Baru</option>
+                            <option value="in_progress">Diproses</option>
+                            <option value="waiting_user">Menunggu User</option>
+                            <option value="resolved">Selesai</option>
+                            <option value="closed">Ditutup</option>
+                        </select>
+                    </div>
+                    <div id="adminTickets" class="divide-y divide-slate-100 dark:divide-slate-900"></div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="adminModal" class="hidden fixed inset-0 z-[500] bg-slate-950/60 backdrop-blur-sm p-4 items-center justify-center">
+        <div class="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl p-5">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 id="adminModalTitle" class="font-bold text-base">Admin</h3>
+                    <p id="adminModalDescription" class="mt-1 text-[11px] text-slate-400"></p>
+                </div>
+                <button id="adminModalClose" type="button" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-700 dark:hover:text-slate-200" aria-label="Tutup">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="adminModalBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.91.0"></script>
+    <script src="./supabase-config.js?v=20260813-admin2"></script>
+    <script src="./admin.js?v=20260813-commercial1"></script>
+</body>
+</html>

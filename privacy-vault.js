@@ -4,6 +4,9 @@
     const decoder = new TextDecoder();
     const databaseName = 'arah-private-vault';
     const storeName = 'keys';
+    const vaultVersion = 4;
+    const kdfIterations = 600000;
+    const kdfAlgorithm = 'PBKDF2-SHA256';
     let activeUserId = '';
     let encryptionKey = null;
     let tokenKey = null;
@@ -32,22 +35,6 @@
         return bytes;
     }
 
-    function bytesToHex(bytes) {
-        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
-    }
-
-    function recoveryCodeFromBytes(bytes) {
-        return bytesToHex(bytes).match(/.{1,4}/g).join('-');
-    }
-
-    function recoveryBytesFromCode(value) {
-        const clean = String(value || '').replace(/[^0-9a-f]/gi, '');
-        if (clean.length !== 64) throw new Error('Kunci Pemulihan harus berisi 64 karakter heksadesimal.');
-        const bytes = new Uint8Array(32);
-        for (let i = 0; i < 32; i += 1) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-        return bytes;
-    }
-
     function randomBytes(length) {
         return window.crypto.getRandomValues(new Uint8Array(length));
     }
@@ -57,7 +44,9 @@
             const request = indexedDB.open(databaseName, 1);
             request.onupgradeneeded = () => {
                 const database = request.result;
-                if (!database.objectStoreNames.contains(storeName)) database.createObjectStore(storeName, { keyPath: 'userId' });
+                if (!database.objectStoreNames.contains(storeName)) {
+                    database.createObjectStore(storeName, { keyPath: 'userId' });
+                }
             };
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error || new Error('Penyimpanan kunci perangkat tidak tersedia.'));
@@ -79,7 +68,13 @@
         const database = await openKeyDatabase();
         return new Promise((resolve, reject) => {
             const transaction = database.transaction(storeName, 'readwrite');
-            transaction.objectStore(storeName).put({ userId, aesKey, hmacKey, savedAt: Date.now() });
+            transaction.objectStore(storeName).put({
+                userId,
+                vaultVersion,
+                aesKey,
+                hmacKey,
+                savedAt: Date.now()
+            });
             transaction.oncomplete = () => {
                 database.close();
                 resolve();
@@ -92,84 +87,79 @@
     }
 
     async function importMasterKeys(rawBytes) {
-        const aesKey = await crypto.subtle.importKey('raw', rawBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-        const hmacKey = await crypto.subtle.importKey('raw', rawBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const aesKey = await crypto.subtle.importKey(
+            'raw',
+            rawBytes,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt', 'decrypt']
+        );
+        const hmacKey = await crypto.subtle.importKey(
+            'raw',
+            rawBytes,
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['sign']
+        );
         return { aesKey, hmacKey };
     }
 
-    function getGate() {
-        return document.getElementById('privacyVaultGate');
+    async function derivePasswordKey(password, salt, iterations = kdfIterations) {
+        const material = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(String(password || '')),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+        );
+
+        return crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt,
+                iterations: Number(iterations) || kdfIterations,
+                hash: 'SHA-256'
+            },
+            material,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
     }
 
-    function setPanel(panelId) {
-        ['privacyVaultBusy', 'privacyVaultCreated', 'privacyVaultUnlock'].forEach(id => {
-            document.getElementById(id)?.classList.toggle('hidden', id !== panelId);
-        });
-        getGate()?.classList.remove('hidden');
+    async function buildPasswordWrap(userId, keyVersion, masterRaw, password) {
+        const salt = randomBytes(16);
+        const iv = randomBytes(12);
+        const passwordKey = await derivePasswordKey(password, salt, kdfIterations);
+        const additionalData = encoder.encode(`ARAH:password-wrap:v4:${userId}:${keyVersion}`);
+        const wrapped = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv, additionalData, tagLength: 128 },
+            passwordKey,
+            masterRaw
+        );
+
+        return {
+            vault_version: vaultVersion,
+            key_version: keyVersion,
+            kdf_algorithm: kdfAlgorithm,
+            kdf_iterations: kdfIterations,
+            password_salt: bytesToBase64Url(salt),
+            password_wrap_iv: bytesToBase64Url(iv),
+            password_wrapped_key: bytesToBase64Url(new Uint8Array(wrapped))
+        };
     }
 
-    function hideGate() {
-        getGate()?.classList.add('hidden');
-    }
-
-    function waitForConfirmation() {
-        return new Promise(resolve => {
-            const button = document.getElementById('privacyVaultConfirmSaved');
-            if (!button) return resolve();
-            button.onclick = () => resolve();
-        });
-    }
-
-    function waitForRecoveryCode() {
-        return new Promise((resolve, reject) => {
-            const form = document.getElementById('privacyVaultUnlockForm');
-            const input = document.getElementById('privacyVaultRecoveryInput');
-            const message = document.getElementById('privacyVaultMessage');
-            if (!form || !input) return reject(new Error('Form Kunci Pemulihan tidak tersedia.'));
-            input.value = '';
-            if (message) {
-                message.textContent = '';
-                message.classList.add('hidden');
-            }
-            const handler = event => {
-                event.preventDefault();
-                try {
-                    const bytes = recoveryBytesFromCode(input.value);
-                    form.removeEventListener('submit', handler);
-                    resolve(bytes);
-                } catch (error) {
-                    if (message) {
-                        message.textContent = error.message;
-                        message.classList.remove('hidden');
-                    }
-                }
-            };
-            form.addEventListener('submit', handler);
-            input.focus();
-        });
-    }
-
-    async function copyRecoveryCode() {
-        const code = document.getElementById('privacyVaultRecoveryCode')?.textContent || '';
-        if (!code) return;
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(code);
-        } else {
-            const textarea = document.createElement('textarea');
-            textarea.value = code;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            textarea.remove();
-        }
-        const button = document.getElementById('privacyVaultCopy');
-        if (button) {
-            const original = button.textContent;
-            button.textContent = 'Tersalin';
-            setTimeout(() => { button.textContent = original; }, 1200);
-        }
+    async function unwrapMasterWithPassword(userId, profile, password) {
+        const salt = base64UrlToBytes(profile.password_salt);
+        const iv = base64UrlToBytes(profile.password_wrap_iv);
+        const passwordKey = await derivePasswordKey(password, salt, profile.kdf_iterations);
+        const additionalData = encoder.encode(`ARAH:password-wrap:v4:${userId}:${profile.key_version}`);
+        const master = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv, additionalData, tagLength: 128 },
+            passwordKey,
+            base64UrlToBytes(profile.password_wrapped_key)
+        );
+        return new Uint8Array(master);
     }
 
     async function getAuthenticatedUser() {
@@ -184,120 +174,180 @@
     async function readVaultProfile(userId) {
         const { data, error } = await client
             .from('vault_profiles')
-            .select('user_id,key_version,wrapped_key,wrap_iv')
+            .select('user_id,key_version,vault_version,kdf_algorithm,kdf_iterations,password_salt,password_wrap_iv,password_wrapped_key,created_at,updated_at')
             .eq('user_id', userId)
             .maybeSingle();
         if (error) throw error;
         return data || null;
     }
 
-    async function createVault(user) {
-        setPanel('privacyVaultBusy');
-        const masterRaw = randomBytes(32);
-        const recoveryRaw = randomBytes(32);
-        const recoveryKey = await crypto.subtle.importKey('raw', recoveryRaw, { name: 'AES-GCM' }, false, ['encrypt']);
-        const wrapIv = randomBytes(12);
-        const additionalData = encoder.encode(`ARAH:recovery:v1:${user.id}`);
-        const wrappedBuffer = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv: wrapIv, additionalData, tagLength: 128 },
-            recoveryKey,
-            masterRaw
-        );
-        const imported = await importMasterKeys(masterRaw);
-        const { error } = await client.from('vault_profiles').insert({
-            user_id: user.id,
-            key_version: 1,
-            wrapped_key: bytesToBase64Url(new Uint8Array(wrappedBuffer)),
-            wrap_iv: bytesToBase64Url(wrapIv)
-        });
-        if (error) throw error;
-        await saveDeviceKeys(user.id, imported.aesKey, imported.hmacKey);
-        activeUserId = user.id;
-        encryptionKey = imported.aesKey;
-        tokenKey = imported.hmacKey;
-        const recoveryCode = recoveryCodeFromBytes(recoveryRaw);
-        masterRaw.fill(0);
-        recoveryRaw.fill(0);
-        const codeElement = document.getElementById('privacyVaultRecoveryCode');
-        if (codeElement) codeElement.textContent = recoveryCode;
-        setPanel('privacyVaultCreated');
-        await waitForConfirmation();
-        hideGate();
+    async function requireVaultPassword(message) {
+        const current = window.ARAHAuth?.getVaultPassword?.();
+        if (current) return current;
+        if (!window.ARAHAuth?.waitForVaultPassword) {
+            throw new Error('Password diperlukan untuk membuka data ARAH di perangkat ini.');
+        }
+        return window.ARAHAuth.waitForVaultPassword(message);
     }
 
-    async function unlockExistingVault(user, profile) {
-        setPanel('privacyVaultUnlock');
-        while (true) {
-            const recoveryRaw = await waitForRecoveryCode();
+    async function activateMasterKey(userId, masterRaw) {
+        const imported = await importMasterKeys(masterRaw);
+        await saveDeviceKeys(userId, imported.aesKey, imported.hmacKey);
+        activeUserId = userId;
+        encryptionKey = imported.aesKey;
+        tokenKey = imported.hmacKey;
+    }
+
+    async function invokeRecoveryServer(body) {
+        const { data, error } = await client.functions.invoke('vault-recovery', { body });
+
+        if (error) {
+            let payload = null;
+
             try {
-                const recoveryKey = await crypto.subtle.importKey('raw', recoveryRaw, { name: 'AES-GCM' }, false, ['decrypt']);
-                const additionalData = encoder.encode(`ARAH:recovery:v1:${user.id}`);
-                const masterBuffer = await crypto.subtle.decrypt(
-                    {
-                        name: 'AES-GCM',
-                        iv: base64UrlToBytes(profile.wrap_iv),
-                        additionalData,
-                        tagLength: 128
-                    },
-                    recoveryKey,
-                    base64UrlToBytes(profile.wrapped_key)
-                );
-                const masterRaw = new Uint8Array(masterBuffer);
-                const imported = await importMasterKeys(masterRaw);
-                await saveDeviceKeys(user.id, imported.aesKey, imported.hmacKey);
-                activeUserId = user.id;
-                encryptionKey = imported.aesKey;
-                tokenKey = imported.hmacKey;
-                masterRaw.fill(0);
-                recoveryRaw.fill(0);
-                hideGate();
-                return;
-            } catch (error) {
-                recoveryRaw.fill(0);
-                const message = document.getElementById('privacyVaultMessage');
-                if (message) {
-                    message.textContent = 'Kunci Pemulihan tidak cocok. Periksa kembali lalu coba lagi.';
-                    message.classList.remove('hidden');
+                if (error?.context?.json) {
+                    payload = await error.context.json();
                 }
-                setPanel('privacyVaultUnlock');
+            } catch (_) {}
+
+            const stage = payload?.stage ? ` [${payload.stage}]` : '';
+            const message =
+                payload?.error ||
+                payload?.message ||
+                error?.message ||
+                'Layanan pemulihan Vault belum tersedia.';
+
+            const details = [
+                payload?.code ? `Kode: ${payload.code}` : '',
+                payload?.details ? `Detail: ${payload.details}` : '',
+                payload?.hint ? `Hint: ${payload.hint}` : ''
+            ].filter(Boolean).join('\n');
+
+            const uiMessage = String(message || '').replace(/supabase/gi, 'ARAH');
+            throw new Error(`${uiMessage}${stage}${details ? `\n${details}` : ''}`);
+        }
+
+        if (!data?.ok) {
+            const stage = data?.stage ? ` [${data.stage}]` : '';
+            throw new Error(`${data?.error || 'Layanan pemulihan Vault gagal memproses permintaan.'}${stage}`);
+        }
+
+        return data;
+    }
+
+    async function createVaultV4(user, password, legacyProfile = null) {
+        if (legacyProfile && Number(legacyProfile.vault_version || 3) < vaultVersion) {
+            const { error: deleteError } = await client
+                .from('vault_items')
+                .delete()
+                .eq('user_id', user.id);
+            if (deleteError) throw deleteError;
+        }
+
+        const masterRaw = randomBytes(32);
+        const keyVersion = 1;
+
+        try {
+            const profile = await buildPasswordWrap(user.id, keyVersion, masterRaw, password);
+            await invokeRecoveryServer({
+                action: 'setup',
+                masterKey: bytesToBase64Url(masterRaw),
+                profile
+            });
+            await activateMasterKey(user.id, masterRaw);
+        } finally {
+            masterRaw.fill(0);
+            window.ARAHAuth?.clearVaultPassword?.();
+        }
+    }
+
+    async function unlockVaultV4(user, profile, password) {
+        let masterRaw;
+        try {
+            try {
+                masterRaw = await unwrapMasterWithPassword(user.id, profile, password);
+            } catch (passwordWrapError) {
+                const recovered = await invokeRecoveryServer({ action: 'recover' });
+                masterRaw = base64UrlToBytes(String(recovered?.masterKey || ''));
+
+                if (masterRaw.length !== 32) throw passwordWrapError;
+
+                const repairedProfile = await buildPasswordWrap(
+                    user.id,
+                    Number(profile.key_version || 1),
+                    masterRaw,
+                    password
+                );
+
+                await invokeRecoveryServer({
+                    action: 'setup',
+                    masterKey: bytesToBase64Url(masterRaw),
+                    profile: repairedProfile
+                });
             }
+
+            await activateMasterKey(user.id, masterRaw);
+        } catch (error) {
+            const wrapped = new Error('Data terenkripsi ARAH tidak dapat dibuka. Coba atur ulang password melalui email.');
+            wrapped.cause = error;
+            throw wrapped;
+        } finally {
+            masterRaw?.fill?.(0);
+            window.ARAHAuth?.clearVaultPassword?.();
         }
     }
 
     async function ensureUnlocked() {
         const user = await getAuthenticatedUser();
         if (activeUserId === user.id && encryptionKey && tokenKey) return user;
+
         if (unlockPromise) {
             await unlockPromise;
             return user;
         }
+
         unlockPromise = (async () => {
             const profile = await readVaultProfile(user.id);
-            if (profile) {
+
+            if (profile && Number(profile.vault_version || 3) >= vaultVersion && profile.password_wrapped_key) {
                 const stored = await readDeviceKeys(user.id).catch(() => null);
-                if (stored?.aesKey && stored?.hmacKey) {
+                if (stored?.vaultVersion === vaultVersion && stored?.aesKey && stored?.hmacKey) {
                     activeUserId = user.id;
                     encryptionKey = stored.aesKey;
                     tokenKey = stored.hmacKey;
-                    hideGate();
+                    window.ARAHAuth?.clearVaultPassword?.();
                     return;
                 }
-                await unlockExistingVault(user, profile);
+
+                const password = await requireVaultPassword('Masukkan password untuk membuka data ARAH di perangkat ini.');
+                await unlockVaultV4(user, profile, password);
                 return;
             }
-            await createVault(user);
+
+            const password = await requireVaultPassword(
+                profile
+                    ? 'Masukkan password untuk memperbarui Vault ARAH ke sistem keamanan terbaru.'
+                    : 'Masukkan password untuk menyiapkan Vault ARAH.'
+            );
+            await createVaultV4(user, password, profile);
         })();
+
         try {
             await unlockPromise;
         } finally {
             unlockPromise = null;
         }
+
         return user;
     }
 
     async function token(value) {
         await ensureUnlocked();
-        const signature = await crypto.subtle.sign('HMAC', tokenKey, encoder.encode(`ARAH:token:v1:${String(value)}`));
+        const signature = await crypto.subtle.sign(
+            'HMAC',
+            tokenKey,
+            encoder.encode(`ARAH:token:v1:${String(value)}`)
+        );
         return bytesToBase64Url(new Uint8Array(signature));
     }
 
@@ -344,7 +394,6 @@
         token,
         digest,
         encryptPayload,
-        decryptPayload,
-        copyRecoveryCode
+        decryptPayload
     });
 })();

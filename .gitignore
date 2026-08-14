@@ -1,6 +1,12 @@
 node_modules/
+.vscode/
 
 .DS_Store
 Thumbs.db
+*.log
 
-.vscode/
+.env
+.env.*
+!.env.example
+
+supabase/.temp/

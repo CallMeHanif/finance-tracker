@@ -38,10 +38,12 @@
     }
 
     function friendlyDataError(error) {
-        const message = String(error?.message || '');
+        const message = String(error?.message || '')
+            .replace(/supabase/gi, 'ARAH')
+            .trim();
         const lower = message.toLowerCase();
         if (lower.includes('vault_profiles') || lower.includes('vault_items') || lower.includes('schema cache')) return 'Penyimpanan privat ARAH belum siap digunakan.';
-        if (lower.includes('operationerror') || lower.includes('decrypt')) return 'Data tidak dapat dibuka dengan Kunci Pemulihan perangkat ini.';
+        if (lower.includes('operationerror') || lower.includes('decrypt')) return 'Data terenkripsi tidak dapat dibuka. Coba masuk ulang atau gunakan Bantuan Admin.';
         if (lower.includes('jwt') || lower.includes('session')) return 'Sesi ARAH sudah tidak valid. Silakan masuk kembali.';
         if (lower.includes('failed to fetch') || lower.includes('network')) return 'Koneksi data terputus. Periksa internet lalu coba lagi.';
         return message || 'Terjadi masalah saat mengakses data ARAH.';

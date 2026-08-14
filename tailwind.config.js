@@ -1,12 +1,17 @@
-
 module.exports = {
     darkMode: 'class',
 
     content: [
         './index.html',
+        './admin.html',
+        './recover.html',
         './app.js',
         './supabase-auth.js',
-        './supabase-data.js'
+        './privacy-vault.js',
+        './supabase-data.js',
+        './activity.js',
+        './admin.js',
+        './recover.js'
     ],
 
     theme: {

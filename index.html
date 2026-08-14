@@ -21,7 +21,7 @@
         content="ARAH adalah personal finance tracker untuk mencatat dan memahami perjalanan keuanganmu."
     >
 
-    <link rel="stylesheet" href="./assets/styles.css?v=20260812-privacy">
+    <link rel="stylesheet" href="./assets/styles.css?v=20260813-user52">
     <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <style>
@@ -68,16 +68,616 @@
 }
 
 
+        /* ARAH User UI — aligned with Admin, intentionally softer */
+        :root {
+            --arah-user-blue: #0b75c9;
+            --arah-user-cyan: #22b8cf;
+        }
+
+        body.user-polish {
+            background-image:
+                radial-gradient(circle at 8% -8%, rgba(14, 165, 233, .045), transparent 31rem),
+                radial-gradient(circle at 92% 2%, rgba(59, 130, 246, .035), transparent 34rem);
+            background-attachment: fixed;
+        }
+
+        .dark body.user-polish {
+            background-color: #0b1220;
+            background-image:
+                radial-gradient(circle at 8% -7%, rgba(14, 165, 233, .075), transparent 32rem),
+                radial-gradient(circle at 92% 2%, rgba(37, 99, 235, .065), transparent 35rem);
+        }
+
+        .user-polish > header {
+            background: rgba(255, 255, 255, .93) !important;
+            border-color: rgba(14, 165, 233, .10) !important;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 8px 28px rgba(15, 23, 42, .045);
+        }
+
+        .dark .user-polish > header {
+            background: rgba(11, 18, 32, .90) !important;
+            border-color: rgba(56, 189, 248, .10) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+        }
+
+        .user-polish main [class~="rounded-2xl"][class~="border"] {
+            border-color: rgba(14, 165, 233, .115) !important;
+            box-shadow:
+                0 9px 28px rgba(15, 23, 42, .035),
+                0 0 14px rgba(14, 165, 233, .018);
+        }
+
+        .dark .user-polish main [class~="rounded-2xl"][class~="border"] {
+            border-color: rgba(56, 189, 248, .13) !important;
+            box-shadow:
+                0 11px 30px rgba(0, 0, 0, .15),
+                0 0 16px rgba(34, 211, 238, .022);
+        }
+
+        .user-polish main input,
+        .user-polish main select,
+        .user-polish main textarea,
+        .user-polish #authGate input,
+        .user-polish #authGate select,
+        .user-polish #authGate textarea {
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+        }
+
+        .user-polish main input:focus,
+        .user-polish main select:focus,
+        .user-polish main textarea:focus,
+        .user-polish #authGate input:focus,
+        .user-polish #authGate select:focus,
+        .user-polish #authGate textarea:focus {
+            border-color: rgba(14, 165, 233, .65) !important;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, .08);
+        }
+
+        .user-polish header nav button.bg-white,
+        .dark .user-polish header nav button.dark\:bg-slate-800 {
+            border: 1px solid rgba(14, 165, 233, .12);
+            box-shadow: 0 0 12px rgba(14, 165, 233, .035);
+        }
+
+        .user-page-heading {
+            position: relative;
+            padding-top: .25rem;
+        }
+
+        .user-page-heading::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: -5px;
+            width: 38px;
+            height: 2px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, rgba(14, 165, 233, .9), rgba(34, 211, 238, .65), transparent);
+            box-shadow: 0 0 8px rgba(34, 211, 238, .12);
+        }
+
+        .user-page-title {
+            font-size: 1.25rem;
+            line-height: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .dark .user-page-title {
+            color: #ffffff;
+        }
+
+        .user-page-description {
+            margin-top: .25rem;
+            font-size: .75rem;
+            line-height: 1.25rem;
+            color: #94a3b8;
+        }
+
+
+        .user-polish main [class~="rounded-2xl"][class~="border"],
+        .user-auth-card {
+            position: relative;
+            border-color: rgba(14, 165, 233, .14) !important;
+            background-image:
+                linear-gradient(90deg, rgba(14,165,233,.26), rgba(34,211,238,.08), transparent 28px),
+                linear-gradient(180deg, rgba(14,165,233,.22), rgba(34,211,238,.06), transparent 26px);
+            background-repeat: no-repeat;
+            background-size: 30px 1px, 1px 28px;
+            background-position: left top, left top;
+            box-shadow: 0 10px 28px rgba(15,23,42,.035), 0 0 13px rgba(14,165,233,.022);
+        }
+
+        .dark .user-polish main [class~="rounded-2xl"][class~="border"],
+        .dark .user-auth-card {
+            border-color: rgba(56,189,248,.17) !important;
+            background-image:
+                linear-gradient(90deg, rgba(34,211,238,.34), rgba(56,189,248,.09), transparent 30px),
+                linear-gradient(180deg, rgba(34,211,238,.28), rgba(56,189,248,.07), transparent 28px);
+            box-shadow: 0 12px 30px rgba(0,0,0,.14), 0 0 15px rgba(34,211,238,.026);
+        }
+
+        .user-auth-card {
+            box-shadow: 0 16px 42px rgba(15,23,42,.055), 0 0 14px rgba(14,165,233,.024);
+        }
+
+        .dark .user-auth-card {
+            box-shadow: 0 18px 44px rgba(0,0,0,.20), 0 0 16px rgba(34,211,238,.028);
+        }
+
+        .user-polish #authGate > div > div:first-child {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            background-image: none !important;
+        }
+
+        .user-page-title { margin: 0; line-height: 1.4rem; }
+        .user-page-description { margin-top: .20rem !important; line-height: 1rem; }
+
+        .user-desktop-nav {
+            background: transparent !important;
+            padding: 0 !important;
+            gap: .3rem !important;
+        }
+
+        .user-desktop-nav-button {
+            border: 1px solid transparent;
+            color: #64748b;
+            background: transparent;
+            border-radius: .75rem;
+            padding: .45rem .8rem;
+            transition: color .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+        }
+
+        .user-desktop-nav-button:hover {
+            color: #0369a1;
+            border-color: rgba(14,165,233,.13);
+            background: rgba(14,165,233,.04);
+        }
+
+        .user-desktop-nav-button.is-active {
+            color: #0369a1;
+            border-color: rgba(14,165,233,.22);
+            background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(34,211,238,.035));
+            box-shadow: 0 0 15px rgba(14,165,233,.04);
+        }
+
+        .dark .user-desktop-nav-button { color: #7f97ad; }
+        .dark .user-desktop-nav-button:hover {
+            color: #bae6fd;
+            border-color: rgba(56,189,248,.15);
+            background: rgba(56,189,248,.035);
+        }
+        .dark .user-desktop-nav-button.is-active {
+            color: #bae6fd;
+            border-color: rgba(56,189,248,.22);
+            background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(34,211,238,.035));
+            box-shadow: 0 0 16px rgba(34,211,238,.045);
+        }
+
+        .transaction-mobile-top {
+            background: transparent !important;
+            border-bottom: 0 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+
+        /* Selected user cards: Admin-inspired, but intentionally softer */
+        .user-polish main [class~="rounded-2xl"][class~="border"] {
+            overflow: hidden;
+        }
+
+        .user-polish main [class~="rounded-2xl"][class~="border"]::after,
+        .user-auth-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, rgba(14,165,233,.28), transparent 42px) top left / 48px 1px no-repeat,
+                linear-gradient(180deg, rgba(14,165,233,.22), transparent 36px) top left / 1px 42px no-repeat,
+                linear-gradient(270deg, rgba(34,211,238,.14), transparent 34px) bottom right / 40px 1px no-repeat,
+                linear-gradient(0deg, rgba(34,211,238,.11), transparent 30px) bottom right / 1px 36px no-repeat;
+            opacity: .75;
+        }
+
+        .dark .user-polish main [class~="rounded-2xl"][class~="border"]::after,
+        .dark .user-auth-card::after {
+            background:
+                linear-gradient(90deg, rgba(34,211,238,.42), transparent 46px) top left / 52px 1px no-repeat,
+                linear-gradient(180deg, rgba(34,211,238,.34), transparent 40px) top left / 1px 46px no-repeat,
+                linear-gradient(270deg, rgba(56,189,248,.20), transparent 38px) bottom right / 44px 1px no-repeat,
+                linear-gradient(0deg, rgba(56,189,248,.16), transparent 34px) bottom right / 1px 40px no-repeat;
+            opacity: .82;
+        }
+
+        /* Transaction filters: consistent shape, no native arrow collision */
+        .tx-filter-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr) minmax(0, 1.18fr);
+            gap: .5rem;
+        }
+
+        .tx-filter-control {
+            position: relative;
+            min-width: 0;
+        }
+
+        .tx-filter-select {
+            width: 100%;
+            min-width: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            padding-right: 2rem !important;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .tx-filter-chevron {
+            position: absolute;
+            right: .65rem;
+            top: 50%;
+            width: .8rem;
+            height: .8rem;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        @media (min-width: 1024px) {
+            .tx-filter-grid {
+                display: flex;
+                width: auto;
+                gap: .5rem;
+            }
+
+            .tx-filter-control:nth-child(1) { width: 142px; }
+            .tx-filter-control:nth-child(2) { width: 142px; }
+            .tx-filter-control:nth-child(3) { width: 156px; }
+        }
+
+        /* Startup loader before auth/session decision */
+        #startupLoader {
+            transition: opacity .18s ease, visibility .18s ease;
+        }
+
+        #startupLoader.startup-loader-leave {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+
+        /* Loader: logo only, no spinner */
+        .startup-loader-logo {
+            opacity: 0;
+            animation: arahStartupLogoFade .55s ease forwards;
+        }
+
+        @keyframes arahStartupLogoFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* User cards: rounded full border, Admin-like stroke/glow without sci-fi corner cuts */
+        .user-polish main [class~="rounded-2xl"][class~="border"],
+        .user-auth-card {
+            overflow: hidden;
+            background-image: none !important;
+            border-color: rgba(14, 165, 233, .18) !important;
+            box-shadow:
+                0 12px 34px rgba(15, 23, 42, .045),
+                0 0 18px rgba(14, 165, 233, .035),
+                0 0 0 1px rgba(14, 165, 233, .025);
+        }
+
+        .dark .user-polish main [class~="rounded-2xl"][class~="border"],
+        .dark .user-auth-card {
+            border-color: rgba(56, 189, 248, .24) !important;
+            box-shadow:
+                0 14px 38px rgba(0, 0, 0, .20),
+                0 0 22px rgba(34, 211, 238, .055),
+                0 0 0 1px rgba(34, 211, 238, .035),
+                inset 0 1px 0 rgba(125, 211, 252, .035);
+        }
+
+        .user-polish main [class~="rounded-2xl"][class~="border"]::after,
+        .user-auth-card::after {
+            display: none !important;
+            content: none !important;
+        }
+
+
+        /* User message center */
+        .user-message-button {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            background: transparent;
+            transition: background-color .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease;
+        }
+
+        .user-message-button:hover,
+        .user-message-button.is-open {
+            color: #0369a1;
+            background: rgba(14, 165, 233, .07);
+            box-shadow: inset 0 0 0 1px rgba(14, 165, 233, .12);
+        }
+
+        .dark .user-message-button {
+            color: #94a3b8;
+        }
+
+        .dark .user-message-button:hover,
+        .dark .user-message-button.is-open {
+            color: #bae6fd;
+            background: rgba(34, 211, 238, .055);
+            box-shadow:
+                inset 0 0 0 1px rgba(56, 189, 248, .16),
+                0 0 14px rgba(34, 211, 238, .035);
+        }
+
+        .user-message-badge {
+            position: absolute;
+            top: -3px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #0ea5e9;
+            color: #fff;
+            border: 2px solid #fff;
+            font-size: 9px;
+            line-height: 1;
+            font-weight: 800;
+            box-shadow: 0 3px 10px rgba(14, 165, 233, .24);
+        }
+
+
+        .user-message-badge[hidden] {
+            display: none !important;
+        }
+        .dark .user-message-badge {
+            background: #22d3ee;
+            color: #082f49;
+            border-color: #0f172a;
+        }
+
+        #userMessagePanel {
+            position: fixed;
+            top: 76px;
+            right: max(16px, calc((100vw - 1600px) / 2 + 24px));
+            z-index: 90;
+            width: min(380px, calc(100vw - 32px));
+            max-height: min(68vh, 620px);
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(14, 165, 233, .16);
+            background: rgba(255, 255, 255, .98);
+            box-shadow:
+                0 22px 60px rgba(15, 23, 42, .16),
+                0 0 22px rgba(14, 165, 233, .035);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .dark #userMessagePanel {
+            border-color: rgba(56, 189, 248, .20);
+            background: rgba(6, 16, 29, .98);
+            box-shadow:
+                0 24px 64px rgba(0, 0, 0, .34),
+                0 0 26px rgba(34, 211, 238, .055);
+        }
+
+        .user-message-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 15px;
+            border-bottom: 1px solid rgba(148, 163, 184, .14);
+        }
+
+        .dark .user-message-panel-head {
+            border-bottom-color: rgba(56, 189, 248, .10);
+        }
+
+        .user-message-panel-body {
+            max-height: min(58vh, 530px);
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .user-message-empty {
+            padding: 34px 18px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 11px;
+            line-height: 1.55;
+        }
+
+        .user-message-item {
+            position: relative;
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            border: 1px solid transparent;
+            border-radius: 14px;
+            background: transparent;
+            transition: background-color .16s ease, border-color .16s ease;
+        }
+
+        .user-message-item + .user-message-item {
+            margin-top: 4px;
+        }
+
+        .user-message-item:hover {
+            background: rgba(14, 165, 233, .04);
+            border-color: rgba(14, 165, 233, .08);
+        }
+
+        .dark .user-message-item:hover {
+            background: rgba(34, 211, 238, .035);
+            border-color: rgba(56, 189, 248, .09);
+        }
+
+        .user-message-item.is-unread {
+            background: rgba(14, 165, 233, .055);
+            border-color: rgba(14, 165, 233, .11);
+        }
+
+        .dark .user-message-item.is-unread {
+            background: rgba(34, 211, 238, .045);
+            border-color: rgba(56, 189, 248, .12);
+        }
+
+        .user-message-unread-dot {
+            position: absolute;
+            top: 14px;
+            right: 13px;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #0ea5e9;
+            box-shadow: 0 0 10px rgba(14, 165, 233, .30);
+        }
+
+        .dark .user-message-unread-dot {
+            background: #22d3ee;
+        }
+
+        .user-message-kind {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 3px 7px;
+            font-size: 8px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: .02em;
+            background: rgba(14, 165, 233, .08);
+            color: #0369a1;
+        }
+
+        .dark .user-message-kind {
+            background: rgba(34, 211, 238, .07);
+            color: #a5f3fc;
+        }
+
+        .user-message-mark-all {
+            border: 0;
+            background: transparent;
+            color: #0284c7;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .user-message-mark-all:disabled {
+            opacity: .42;
+            cursor: default;
+        }
+
+        .dark .user-message-mark-all {
+            color: #7dd3fc;
+        }
+
+        @media (max-width: 640px) {
+            #userMessagePanel {
+                top: 72px;
+                left: 12px;
+                right: 12px;
+                width: auto;
+            }
+        }
+
+
+        /* Auth UI refinements */
+        #authTabs .auth-tab-selected {
+            background: #ffffff !important;
+            color: #0056a3 !important;
+            box-shadow:
+                0 1px 3px rgba(15, 23, 42, .08),
+                0 0 0 1px rgba(14, 165, 233, .05);
+        }
+
+        #authTabs .auth-tab-idle {
+            color: #64748b !important;
+        }
+
+        html.dark #authTabs .auth-tab-selected {
+            background: #ffffff !important;
+            color: #0056a3 !important;
+            box-shadow:
+                0 2px 7px rgba(0, 0, 0, .18),
+                0 0 14px rgba(34, 211, 238, .05);
+        }
+
+        html.dark #authTabs .auth-tab-idle {
+            color: #94a3b8 !important;
+        }
+
+        .auth-compact-placeholder::placeholder {
+            font-size: 11px;
+            line-height: 1rem;
+        }
+
+
+        /* Commercial license gate */
+        #licenseGate {
+            background: #f8fafc;
+        }
+
+        html.dark #licenseGate {
+            background: #0b1220;
+        }
+
+        .license-gate-card {
+            border-color: rgba(14,165,233,.16) !important;
+            box-shadow: 0 18px 54px rgba(15,23,42,.07), 0 0 18px rgba(14,165,233,.025);
+        }
+
+        html.dark .license-gate-card {
+            border-color: rgba(56,189,248,.18) !important;
+            box-shadow: 0 22px 60px rgba(0,0,0,.22), 0 0 22px rgba(34,211,238,.035);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .user-polish main input,
+            .user-polish main select,
+            .user-polish main textarea {
+                transition: none !important;
+            }
+        }
+
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-[#0b1220] dark:text-slate-100 flex flex-col transition-colors duration-200">
+<body class="user-polish min-h-screen overflow-x-hidden bg-slate-50 text-slate-800 dark:bg-[#0b1220] dark:text-slate-100 flex flex-col transition-colors duration-200">
 
-    <div id="globalLoader" class="fixed inset-0 z-[300] bg-white dark:bg-slate-950 flex items-center justify-center">
-        <img src="./assets/wordmark-bl.png" alt="ARAH" class="arah-loader-logo block dark:hidden h-8 w-auto object-contain">
-        <img src="./assets/wordmark-wh.png" alt="ARAH" class="arah-loader-logo hidden dark:block h-8 w-auto object-contain">
+    <div id="startupLoader" class="fixed inset-0 z-[500] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4" aria-live="polite" aria-label="Memuat ARAH">
+        <div class="flex items-center justify-center">
+            <img src="./assets/wordmark-bl.png" alt="ARAH" class="startup-loader-logo block dark:hidden h-8 w-auto object-contain">
+            <img src="./assets/wordmark-wh.png" alt="ARAH" class="startup-loader-logo hidden dark:block h-8 w-auto object-contain">
+        </div>
     </div>
 
-    <div id="authGate" class="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4">
+
+    <div id="authGate" class="fixed inset-0 z-[400] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4">
         <div class="w-full max-w-sm">
             <div class="mb-7 text-center">
                 <img src="./assets/wordmark-bl.png" alt="ARAH" class="mx-auto block dark:hidden h-8 w-auto object-contain">
@@ -85,8 +685,8 @@
                 <p class="mt-2 text-xs text-slate-400">Atur Rupiah, Arahkan Hidup</p>
             </div>
 
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 sm:p-6">
-                <div class="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-5">
+            <div class="user-auth-card bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6">
+                <div id="authTabs" class="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-5">
                     <button id="authTabLogin" type="button" onclick="ARAHAuth.showMode('login')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all">Masuk</button>
                     <button id="authTabRegister" type="button" onclick="ARAHAuth.showMode('register')" class="px-3 py-2 rounded-lg text-xs font-semibold transition-all">Daftar</button>
                 </div>
@@ -96,11 +696,17 @@
                 <form id="authLoginForm" class="space-y-4">
                     <div>
                         <label for="authLoginEmail" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
-                        <input id="authLoginEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <input id="authLoginEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
                     </div>
                     <div>
-                        <label for="authLoginPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
-                        <input id="authLoginPassword" type="password" autocomplete="current-password" required placeholder="Masukkan password" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="authLoginPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">Password</label>
+                            <button type="button" onclick="ARAHAuth.showMode('forgot')" class="text-[10px] font-semibold text-blueSystem-500 hover:text-blueSystem-600">Lupa password?</button>
+                        </div>
+                        <div class="relative">
+                            <input id="authLoginPassword" type="password" autocomplete="current-password" required placeholder="Masukkan password" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 pr-11 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                            <button type="button" onclick="togglePasswordVisibility('authLoginPassword', this)" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password"><svg data-auth-eye-open xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696C3.8 7.41 7.9 4.5 12 4.5s8.2 2.91 9.938 7.152a1 1 0 0 1 0 .696C20.2 16.59 16.1 19.5 12 19.5S3.8 16.59 2.062 12.348Z"/><circle cx="12" cy="12" r="3"/></svg><svg data-auth-eye-off class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M6.713 6.713C4.907 7.937 3.5 9.735 2.756 11.78a.6.6 0 0 0 0 .44C4.18 16.139 7.79 19 12 19c1.079 0 2.123-.188 3.094-.534"/><path d="M10.73 5.08A9.8 9.8 0 0 1 12 5c4.21 0 7.82 2.861 9.244 6.78a.6.6 0 0 1 0 .44 10.1 10.1 0 0 1-2.098 3.423"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/></svg></button>
+                        </div>
                     </div>
                     <button id="authLoginButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all">Masuk</button>
                 </form>
@@ -108,63 +714,66 @@
                 <form id="authRegisterForm" class="hidden space-y-4">
                     <div>
                         <label for="authRegisterName" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama</label>
-                        <input id="authRegisterName" type="text" autocomplete="name" required placeholder="Nama kamu" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <input id="authRegisterName" type="text" autocomplete="name" required placeholder="Nama kamu" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
                     </div>
                     <div>
                         <label for="authRegisterEmail" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
-                        <input id="authRegisterEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <input id="authRegisterEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
                     </div>
                     <div>
                         <label for="authRegisterPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
-                        <input id="authRegisterPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Minimal 8 karakter" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <div class="relative">
+                            <input id="authRegisterPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Minimal 8 karakter" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 pr-11 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                            <button type="button" onclick="togglePasswordVisibility('authRegisterPassword', this)" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password"><svg data-auth-eye-open xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696C3.8 7.41 7.9 4.5 12 4.5s8.2 2.91 9.938 7.152a1 1 0 0 1 0 .696C20.2 16.59 16.1 19.5 12 19.5S3.8 16.59 2.062 12.348Z"/><circle cx="12" cy="12" r="3"/></svg><svg data-auth-eye-off class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M6.713 6.713C4.907 7.937 3.5 9.735 2.756 11.78a.6.6 0 0 0 0 .44C4.18 16.139 7.79 19 12 19c1.079 0 2.123-.188 3.094-.534"/><path d="M10.73 5.08A9.8 9.8 0 0 1 12 5c4.21 0 7.82 2.861 9.244 6.78a.6.6 0 0 1 0 .44 10.1 10.1 0 0 1-2.098 3.423"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/></svg></button>
+                        </div>
                     </div>
                     <div>
                         <label for="authRegisterPasswordConfirm" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Konfirmasi Password</label>
-                        <input id="authRegisterPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Ulangi password" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                        <div class="relative">
+                            <input id="authRegisterPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Ulangi password" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 pr-11 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                            <button type="button" onclick="togglePasswordVisibility('authRegisterPasswordConfirm', this)" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password"><svg data-auth-eye-open xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696C3.8 7.41 7.9 4.5 12 4.5s8.2 2.91 9.938 7.152a1 1 0 0 1 0 .696C20.2 16.59 16.1 19.5 12 19.5S3.8 16.59 2.062 12.348Z"/><circle cx="12" cy="12" r="3"/></svg><svg data-auth-eye-off class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M6.713 6.713C4.907 7.937 3.5 9.735 2.756 11.78a.6.6 0 0 0 0 .44C4.18 16.139 7.79 19 12 19c1.079 0 2.123-.188 3.094-.534"/><path d="M10.73 5.08A9.8 9.8 0 0 1 12 5c4.21 0 7.82 2.861 9.244 6.78a.6.6 0 0 1 0 .44 10.1 10.1 0 0 1-2.098 3.423"/><path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/></svg></button>
+                        </div>
                     </div>
                     <button id="authRegisterButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all">Buat Akun</button>
-                    <p class="text-center text-[10px] leading-relaxed text-slate-400">Setelah daftar, cek email untuk mengonfirmasi akun sebelum masuk.</p>
+                    <p class="text-center text-[10px] leading-relaxed text-slate-400">Gunakan email aktif untuk verifikasi akun dan pemulihan password.</p>
+                </form>
+
+                <form id="authForgotForm" class="hidden space-y-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Lupa Password</h2>
+                        <p class="mt-1 text-[11px] leading-relaxed text-slate-400">Masukkan email yang kamu pake untuk akun ARAH</p>
+                    </div>
+                    <div>
+                        <label for="authForgotEmail" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+                        <input id="authForgotEmail" type="email" autocomplete="email" required placeholder="nama@email.com" class="auth-compact-placeholder w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
+                    </div>
+                    <button id="authForgotButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all">Kirim Link Reset</button>
+                    <button type="button" onclick="ARAHAuth.showMode('login')" class="w-full py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Kembali ke Masuk</button>
                 </form>
             </div>
-
-            <p class="mt-4 text-center text-[10px] text-slate-400">ARAH Beta</p>
-        </div>
+</div>
     </div>
 
-    <div id="privacyVaultGate" class="hidden fixed inset-0 z-[400] bg-slate-50 dark:bg-[#0b1220] flex items-center justify-center p-4">
-        <div class="w-full max-w-md">
-            <div class="mb-6 text-center">
+
+    <div id="licenseGate" class="hidden fixed inset-0 z-[390] flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="mb-7 text-center">
                 <img src="./assets/wordmark-bl.png" alt="ARAH" class="mx-auto block dark:hidden h-8 w-auto object-contain">
                 <img src="./assets/wordmark-wh.png" alt="ARAH" class="mx-auto hidden dark:block h-8 w-auto object-contain">
+                <p class="mt-2 text-xs text-slate-400">Atur Rupiah, Arahkan Hidup</p>
             </div>
-            <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 sm:p-6">
-                <div id="privacyVaultBusy" class="text-center space-y-3">
-                    <div class="mx-auto w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                        <i data-lucide="lock-keyhole" class="w-5 h-5 text-blueSystem-500"></i>
-                    </div>
-                    <h2 class="font-bold text-sm text-slate-900 dark:text-white">Menyiapkan data privat</h2>
-                    <p class="text-xs leading-relaxed text-slate-400">Data keuangan akan dilindungi di perangkat sebelum disimpan.</p>
+            <div class="license-gate-card bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6">
+                <div class="w-10 h-10 rounded-xl border border-sky-200/70 dark:border-cyan-400/15 bg-sky-50 dark:bg-cyan-500/5 flex items-center justify-center text-blueSystem-500 dark:text-cyan-300">
+                    <i data-lucide="key-round" class="w-5 h-5"></i>
                 </div>
-                <div id="privacyVaultCreated" class="hidden space-y-4">
-                    <div>
-                        <h2 class="font-bold text-base text-slate-900 dark:text-white">Simpan Kunci Pemulihan</h2>
-                        <p class="mt-1.5 text-xs leading-relaxed text-slate-400">Kunci ini diperlukan saat membuka data di perangkat baru. ARAH tidak menyimpan salinannya dan tidak dapat memulihkan data tanpa kunci ini.</p>
-                    </div>
-                    <div id="privacyVaultRecoveryCode" class="rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs font-semibold leading-relaxed break-all text-slate-700 dark:text-slate-200 select-all"></div>
-                    <button id="privacyVaultCopy" type="button" onclick="ARAHVault.copyRecoveryCode()" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-xs font-bold">Salin Kunci</button>
-                    <button id="privacyVaultConfirmSaved" type="button" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold">Saya Sudah Menyimpannya</button>
+                <h1 id="licenseGateTitle" class="mt-4 text-base font-bold text-slate-900 dark:text-white">Aktifkan ARAH</h1>
+                <p id="licenseGateDescription" class="mt-1.5 text-[11px] leading-relaxed text-slate-400">Akun ini belum memiliki lisensi ARAH yang aktif.</p>
+                <div class="mt-5 space-y-2">
+                    <a id="licensePurchaseButton" href="#" target="_blank" rel="noopener noreferrer" class="hidden block w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold text-center transition-all">Aktifkan ARAH</a>
+                    <button id="licenseRecheckButton" type="button" class="w-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 py-2.5 rounded-xl text-xs font-semibold">Sudah membeli? Cek lagi</button>
+                    <button id="licenseLogoutButton" type="button" class="w-full py-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">Keluar dari akun</button>
                 </div>
-                <div id="privacyVaultUnlock" class="hidden space-y-4">
-                    <div>
-                        <h2 class="font-bold text-base text-slate-900 dark:text-white">Buka Data Privat</h2>
-                        <p class="mt-1.5 text-xs leading-relaxed text-slate-400">Perangkat ini belum memiliki kunci untuk membuka data keuanganmu. Masukkan Kunci Pemulihan satu kali untuk mempercayai perangkat ini.</p>
-                    </div>
-                    <div id="privacyVaultMessage" class="hidden rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2.5 text-[11px] leading-relaxed text-rose-700 dark:text-rose-300"></div>
-                    <form id="privacyVaultUnlockForm" class="space-y-3">
-                        <input id="privacyVaultRecoveryInput" type="text" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blueSystem-500">
-                        <button type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white py-2.5 rounded-xl text-xs font-bold">Buka Data</button>
-                    </form>
-                </div>
+                <p id="licenseGateStatus" class="hidden mt-4 text-[10px] leading-relaxed text-slate-400"></p>
             </div>
         </div>
     </div>
@@ -206,23 +815,40 @@
                     </div>
                 </a>
 
-                <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold">
-                    <button onclick="switchPage('dashboard')" id="nav-dashboard" class="px-4 py-1.5 rounded-lg transition-all">Dashboard</button>
-                    <button onclick="switchPage('transactions')" id="nav-transactions" class="px-4 py-1.5 rounded-lg transition-all">Transaksi</button>
-                    <button onclick="switchPage('loans')" id="nav-loans" class="px-4 py-1.5 rounded-lg transition-all">Pinjaman</button>
-                    <button onclick="switchPage('reports')" id="nav-reports" class="px-4 py-1.5 rounded-lg transition-all">Laporan</button>
-                    <button onclick="switchPage('settings')" id="nav-settings" class="px-4 py-1.5 rounded-lg transition-all">Pengaturan</button>
+                <nav class="user-desktop-nav hidden md:flex items-center text-xs font-semibold">
+                    <button onclick="switchPage('dashboard')" id="nav-dashboard" class="user-desktop-nav-button">Dashboard</button>
+                    <button onclick="switchPage('transactions')" id="nav-transactions" class="user-desktop-nav-button">Transaksi</button>
+                    <button onclick="switchPage('loans')" id="nav-loans" class="user-desktop-nav-button">Pinjaman</button>
+                    <button onclick="switchPage('reports')" id="nav-reports" class="user-desktop-nav-button">Laporan</button>
+                    <button onclick="switchPage('settings')" id="nav-settings" class="user-desktop-nav-button">Pengaturan</button>
                 </nav>
             </div>
             
-            <div class="flex items-center gap-3">
-                <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+            <div class="flex items-center gap-1.5">
+                <button id="userMessageButton" type="button" onclick="toggleUserMessagePanel()" class="user-message-button" aria-label="Buka update" aria-expanded="false">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                    <span id="userMessageBadge" class="user-message-badge" hidden></span>
+                </button>
+                <button onclick="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors" aria-label="Ubah tema">
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
                     <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
                 </button>
             </div>
         </div>
     </header>
+
+
+    <section id="userMessagePanel" class="hidden" aria-label="Update ARAH">
+        <div class="user-message-panel-head">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white">Update</h2>
+            </div>
+            <button id="userMessageMarkAll" type="button" onclick="markAllUserMessagesRead()" class="user-message-mark-all">Tandai dibaca</button>
+        </div>
+        <div id="userMessageList" class="user-message-panel-body">
+            <div class="user-message-empty">Belum ada update.</div>
+        </div>
+    </section>
 
 <nav
     id="bottomMobileNav"
@@ -306,8 +932,9 @@
     <main class="max-w-[1600px] mx-auto w-full px-6 py-6 pb-32 md:pb-6 flex-1">
         
         <div id="page-dashboard" class="page-content hidden space-y-5">
-            <div class="px-1">
-                <h1 id="dashboardGreeting" class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Halo</h1>
+            <div class="px-1 user-page-heading">
+                <h1 class="user-page-title">Dashboard</h1>
+                <p class="user-page-description">Ringkasan kondisi dan aktivitas keuanganmu.</p>
             </div>
             <div class="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 shadow-sm">
                 <div class="flex items-center gap-2">
@@ -684,11 +1311,11 @@
 
         
         <div id="page-transactions" class="page-content hidden grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-            <div class="md:hidden col-span-full sticky top-16 z-30 -mx-1 -mt-6 px-1 pt-8 pb-3 bg-slate-50/95 dark:bg-[#0b1220]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
-                <div class="px-1 flex items-start justify-between gap-3">
+            <div class="transaction-mobile-top md:hidden col-span-full px-1 pb-1">
+                <div class="px-1 flex items-start justify-between gap-3 user-page-heading">
                     <div class="min-w-0">
-                        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
-                        <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
+                        <h1 class="user-page-title">Transaksi</h1>
+                        <p class="user-page-description">Kelola seluruh transaksi keuanganmu.</p>
                     </div>
                 </div>
 
@@ -705,24 +1332,31 @@
                     >
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 mt-2.5">
-                    <select id="txMonthFilterMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter tanggal transaksi" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none">
-                        <option value="">Semua Tanggal</option>
-                    </select>
-                    <select id="txFilterAccountMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter akun" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none"></select>
-                    <select id="txFilterCategoryMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter kategori" class="block w-full min-w-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2.5 text-[10px] focus:outline-none"></select>
+                <div class="tx-filter-grid mt-2.5">
+                    <div class="tx-filter-control">
+                        <select id="txMonthFilterMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter tanggal transaksi" class="tx-filter-select block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2.5 text-[10px] focus:outline-none focus:border-blueSystem-500">
+                            <option value="">Semua Tanggal</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+                    </div>
+                    <div class="tx-filter-control">
+                        <select id="txFilterAccountMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter akun" class="tx-filter-select block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2.5 text-[10px] focus:outline-none focus:border-blueSystem-500"></select>
+                        <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+                    </div>
+                    <div class="tx-filter-control">
+                        <select id="txFilterCategoryMobile" onchange="syncTransactionFilters('mobile')" aria-label="Filter kategori" class="tx-filter-select block bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2.5 text-[10px] focus:outline-none focus:border-blueSystem-500"></select>
+                        <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+                    </div>
                 </div>
+            </div>
+
+            <div class="hidden md:block col-span-full px-1 user-page-heading">
+                <h1 class="user-page-title">Transaksi</h1>
+                <p class="user-page-description">Kelola seluruh transaksi keuanganmu.</p>
             </div>
 
             <div class="hidden md:block lg:col-span-4 space-y-3 lg:space-y-4 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] overflow-y-auto pr-1 custom-scrollbar">
                 
-                <div class="px-1 flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Transaksi</h1>
-                        <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Kelola seluruh transaksi keuanganmu.</p>
-                    </div>
-                </div>
-
                 <div class="hidden md:block bg-slate-950 text-white rounded-2xl p-4 shadow-md">
                     <div class="grid grid-cols-2 gap-2 text-center divide-x divide-slate-800">
                         <div>
@@ -782,7 +1416,7 @@
 
     
     <div class="
-        grid grid-cols-3 gap-2
+        tx-filter-grid
         w-full
         bg-white dark:bg-slate-950
         border border-slate-200 dark:border-slate-800
@@ -794,54 +1428,22 @@
         lg:p-0 lg:shadow-none
         lg:items-center
     ">
-        <select
-            id="txMonthFilter"
-            onchange="syncTransactionFilters('desktop')"
-            aria-label="Filter tanggal transaksi"
-            class="
-                block w-full min-w-0
-                bg-slate-50 dark:bg-slate-900
-                border border-slate-200 dark:border-slate-800
-                rounded-xl
-                px-2 py-2
-                text-[10px] sm:text-xs
-                focus:outline-none
-            "
-        >
-            <option value="">
-                Semua Tanggal
-            </option>
-        </select>
+        <div class="tx-filter-control">
+            <select id="txMonthFilter" onchange="syncTransactionFilters('desktop')" aria-label="Filter tanggal transaksi" class="tx-filter-select block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2 text-[10px] sm:text-xs focus:outline-none focus:border-blueSystem-500">
+                <option value="">Semua Tanggal</option>
+            </select>
+            <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+        </div>
 
-        <select
-            id="txFilterAccount"
-            onchange="syncTransactionFilters('desktop')"
-            aria-label="Filter akun"
-            class="
-                block w-full min-w-0
-                bg-slate-50 dark:bg-slate-900
-                border border-slate-200 dark:border-slate-800
-                rounded-xl
-                px-2 py-2
-                text-[10px] sm:text-xs
-                focus:outline-none
-            "
-        ></select>
+        <div class="tx-filter-control">
+            <select id="txFilterAccount" onchange="syncTransactionFilters('desktop')" aria-label="Filter akun" class="tx-filter-select block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2 text-[10px] sm:text-xs focus:outline-none focus:border-blueSystem-500"></select>
+            <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+        </div>
 
-        <select
-            id="txFilterCategory"
-            onchange="syncTransactionFilters('desktop')"
-            aria-label="Filter kategori"
-            class="
-                block w-full min-w-0
-                bg-slate-50 dark:bg-slate-900
-                border border-slate-200 dark:border-slate-800
-                rounded-xl
-                px-2 py-2
-                text-[10px] sm:text-xs
-                focus:outline-none
-            "
-        ></select>
+        <div class="tx-filter-control">
+            <select id="txFilterCategory" onchange="syncTransactionFilters('desktop')" aria-label="Filter kategori" class="tx-filter-select block bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3 py-2 text-[10px] sm:text-xs focus:outline-none focus:border-blueSystem-500"></select>
+            <i data-lucide="chevron-down" class="tx-filter-chevron"></i>
+        </div>
 
         <button
             onclick="openTransactionModal()"
@@ -917,28 +1519,10 @@
     class="page-content hidden space-y-4"
 >
     
-<div class="
-    px-1
-    flex items-start
-    justify-between
-    gap-3
-">
+<div class="px-1 flex items-start justify-between gap-3 user-page-heading">
     <div class="min-w-0">
-        <h1 class="
-            text-2xl lg:text-3xl
-            font-bold
-            text-slate-900 dark:text-white
-        ">
-            Pinjaman
-        </h1>
-
-        <p class="
-            mt-1.5
-            text-xs leading-relaxed
-            text-slate-500 dark:text-slate-400
-        ">
-            Pantau hutang, piutang, cicilan, dan pelunasannya.
-        </p>
+        <h1 class="user-page-title">Pinjaman</h1>
+        <p class="user-page-description">Pantau hutang, piutang, cicilan, dan pelunasannya.</p>
     </div>
 
     <button
@@ -1202,6 +1786,10 @@
 
         
         <div id="page-reports" class="page-content hidden space-y-5">
+            <div class="px-1 user-page-heading">
+                <h1 class="user-page-title">Laporan</h1>
+                <p class="user-page-description">Pantau pola pendapatan, pengeluaran, dan kategori keuanganmu.</p>
+            </div>
             <div class="grid grid-cols-1 gap-5">
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="line-chart" class="text-blueSystem-500 w-4 h-4"></i> Tren Pendapatan & Pengeluaran</h3>
@@ -1233,9 +1821,9 @@
 
         
         <div id="page-settings" class="page-content hidden space-y-4">
-            <div class="px-1">
-                <h1 class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Pengaturan</h1>
-                <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Atur akun, kategori, dan data ARAH.</p>
+            <div class="px-1 user-page-heading">
+                <h1 class="user-page-title">Pengaturan</h1>
+                <p class="user-page-description">Atur akun, kategori, dan data ARAH.</p>
             </div>
 
             <div class="space-y-3">
@@ -1257,17 +1845,17 @@
             <div class="space-y-3">
                 <p class="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Data</p>
                 <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                    <button type="button" onclick="openCsvImportPicker('account')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                    <button type="button" data-feature="import-csv" onclick="openCsvImportPicker('account')" class="hidden w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
                         <span class="w-9 h-9 shrink-0 rounded-xl bg-blueSystem-50 dark:bg-blueSystem-900/30 text-blueSystem-500 flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4"></i></span>
                         <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Akun CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan data akun keuangan dari file CSV.</span></span>
                         <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
                     </button>
-                    <button type="button" onclick="openCsvImportPicker('category')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                    <button type="button" data-feature="import-csv" onclick="openCsvImportPicker('category')" class="hidden w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
                         <span class="w-9 h-9 shrink-0 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-500 flex items-center justify-center"><i data-lucide="tags" class="w-4 h-4"></i></span>
                         <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Kategori CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan kategori transaksi dari file CSV.</span></span>
                         <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
                     </button>
-                    <button type="button" onclick="openCsvImportPicker('transaction')" class="w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                    <button type="button" data-feature="import-csv" onclick="openCsvImportPicker('transaction')" class="hidden w-full px-4 py-4 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
                         <span class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center"><i data-lucide="receipt-text" class="w-4 h-4"></i></span>
                         <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-900 dark:text-white">Import Transaksi CSV</span><span class="mt-0.5 block text-[11px] text-slate-400">Masukkan riwayat transaksi dari file CSV.</span></span>
                         <i data-lucide="file-up" class="w-4 h-4 shrink-0 text-slate-400"></i>
@@ -1305,7 +1893,7 @@
             <div class="flex items-center justify-between gap-3 px-1">
                 <div class="flex items-center gap-3 min-w-0">
                     <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
-                    <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Akun Keuangan</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola seluruh akun yang digunakan di ARAH.</p></div>
+                    <div class="min-w-0"><h1 class="user-page-title">Akun Keuangan</h1><p class="user-page-description">Kelola seluruh akun yang digunakan di ARAH.</p></div>
                 </div>
                 <div class="shrink-0 flex items-center gap-2">
                     <button type="button" onclick="openSettingsModal('account')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Akun</span><span class="sm:hidden">Tambah</span></button>
@@ -1321,7 +1909,7 @@
             <div class="flex items-center justify-between gap-3 px-1">
                 <div class="flex items-center gap-3 min-w-0">
                     <button type="button" onclick="switchPage('settings')" aria-label="Kembali ke Pengaturan" class="w-9 h-9 shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 flex items-center justify-center"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
-                    <div class="min-w-0"><h1 class="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Kategori Transaksi</h1><p class="mt-0.5 text-[11px] text-slate-400">Kelola kategori uang masuk, keluar, dan netral.</p></div>
+                    <div class="min-w-0"><h1 class="user-page-title">Kategori Transaksi</h1><p class="user-page-description">Kelola kategori uang masuk, keluar, dan netral.</p></div>
                 </div>
                 <div class="shrink-0 flex items-center gap-2">
                     <button type="button" onclick="openSettingsModal('category')" class="bg-blueSystem-500 hover:bg-blueSystem-600 text-white font-semibold py-2 px-3 rounded-xl text-[11px] transition-all flex items-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Tambah Kategori</span><span class="sm:hidden">Tambah</span></button>
@@ -2809,6 +3397,19 @@
     </div>
 
     <script>
+    function togglePasswordVisibility(inputId, button) {
+        const input = document.getElementById(inputId);
+        if (!input || !button) return;
+
+        const revealing = input.type === 'password';
+        input.type = revealing ? 'text' : 'password';
+        button.setAttribute('aria-label', revealing ? 'Sembunyikan password' : 'Tampilkan password');
+
+        const eyeOpen = button.querySelector('[data-auth-eye-open]');
+        const eyeOff = button.querySelector('[data-auth-eye-off]');
+        eyeOpen?.classList.toggle('hidden', revealing);
+        eyeOff?.classList.toggle('hidden', !revealing);
+    }
     function closeMobileMenu() {
         document.getElementById('mobileMenu').classList.add('hidden');
         document.querySelector('#burgerBtn i').setAttribute('data-lucide', 'menu');
@@ -2818,10 +3419,11 @@
     function closeWipeModal() { document.getElementById('wipeDataModal').classList.add('hidden'); }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.91.0"></script>
-    <script src="supabase-config.js?v=20260812-privacy"></script>
-    <script src="supabase-auth.js?v=20260812-privacy"></script>
-    <script src="privacy-vault.js?v=20260812-privacy"></script>
-    <script src="supabase-data.js?v=20260812-privacy"></script>
-    <script src="app.js?v=20260812-privacy"></script>
+    <script src="supabase-config.js?v=20260813-v4"></script>
+    <script src="supabase-auth.js?v=20260814-authui562"></script>
+    <script src="privacy-vault.js?v=20260813-emailreset1"></script>
+    <script src="supabase-data.js?v=20260813-user5"></script>
+    <script src="activity.js?v=20260813-v4.1"></script>
+    <script src="app.js?v=20260813-commercial1"></script>
 </body>
 </html>
