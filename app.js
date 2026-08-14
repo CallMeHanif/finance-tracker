@@ -573,6 +573,425 @@ function parseNominal(value) {
     return Number.isFinite(number) ? number : 0;
 }
 
+
+
+let arahMessageState = {
+    items: [],
+    readIds: new Set(),
+    channel: null,
+    refreshTimer: null
+};
+
+function escapeMessageHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function formatUserMessageDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+}
+
+function userMessageKindLabel(kind) {
+    const labels = {
+        update: 'UPDATE',
+        info: 'INFORMASI',
+        maintenance: 'MAINTENANCE'
+    };
+    return labels[String(kind || '')] || 'UPDATE';
+}
+
+function renderUserMessages() {
+    const list = document.getElementById('userMessageList');
+    const badge = document.getElementById('userMessageBadge');
+    const markAll = document.getElementById('userMessageMarkAll');
+    const subtitle = document.getElementById('userMessageSubtitle');
+
+    if (!list || !badge) return;
+
+    const unreadCount = arahMessageState.items.filter(
+        item => !arahMessageState.readIds.has(item.id)
+    ).length;
+
+    badge.hidden = unreadCount <= 0;
+    badge.textContent = unreadCount > 0
+        ? (unreadCount > 99 ? '99+' : String(unreadCount))
+        : '';
+
+    if (markAll) markAll.disabled = unreadCount <= 0;
+
+    if (!arahMessageState.items.length) {
+        list.innerHTML = '<div class="user-message-empty">Belum ada update.</div>';
+        window.lucide?.createIcons?.();
+        return;
+    }
+
+    list.innerHTML = arahMessageState.items.map(item => {
+        const unread = !arahMessageState.readIds.has(item.id);
+        return `
+            <button type="button"
+                class="user-message-item ${unread ? 'is-unread' : ''}"
+                data-user-message-id="${escapeMessageHtml(item.id)}">
+                ${unread ? '<span class="user-message-unread-dot" aria-hidden="true"></span>' : ''}
+                <div class="flex items-center gap-2 pr-5">
+                    <span class="user-message-kind">${escapeMessageHtml(userMessageKindLabel(item.kind))}</span>
+                    <span class="text-[9px] text-slate-400">${escapeMessageHtml(formatUserMessageDate(item.created_at))}</span>
+                </div>
+                <h3 class="mt-2 pr-5 text-xs font-bold text-slate-900 dark:text-white">${escapeMessageHtml(item.title)}</h3>
+                <p class="mt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400 whitespace-pre-line">${escapeMessageHtml(item.message)}</p>
+            </button>
+        `;
+    }).join('');
+
+    window.lucide?.createIcons?.();
+}
+
+async function loadUserMessages({ silent = false } = {}) {
+    const client = window.ARAHAuth?.client;
+    const user = window.ARAHAuth?.getUser?.();
+    if (!client || !user?.id) return;
+
+    try {
+        const { data: messages, error: messageError } = await client
+            .from('announcements')
+            .select('id,title,message,kind,created_at')
+            .eq('is_published', true)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (messageError) throw messageError;
+
+        const items = Array.isArray(messages) ? messages : [];
+        let readIds = new Set();
+
+        if (items.length) {
+            const ids = items.map(item => item.id);
+            const { data: reads, error: readError } = await client
+                .from('announcement_reads')
+                .select('announcement_id')
+                .eq('user_id', user.id)
+                .in('announcement_id', ids);
+
+            if (readError) throw readError;
+            readIds = new Set((reads || []).map(item => item.announcement_id));
+        }
+
+        arahMessageState.items = items;
+        arahMessageState.readIds = readIds;
+        renderUserMessages();
+    } catch (error) {
+        if (!silent) console.warn('Update ARAH belum dapat dimuat:', error);
+    }
+}
+
+async function markUserMessageRead(messageId) {
+    const id = String(messageId || '');
+    const client = window.ARAHAuth?.client;
+    const user = window.ARAHAuth?.getUser?.();
+
+    if (!id || !client || !user?.id || arahMessageState.readIds.has(id)) return;
+
+    arahMessageState.readIds.add(id);
+    renderUserMessages();
+
+    const { error } = await client
+        .from('announcement_reads')
+        .upsert({
+            announcement_id: id,
+            user_id: user.id,
+            read_at: new Date().toISOString()
+        }, {
+            onConflict: 'announcement_id,user_id'
+        });
+
+    if (error) {
+        arahMessageState.readIds.delete(id);
+        renderUserMessages();
+        console.warn('Status update belum dapat disimpan:', error);
+    }
+}
+
+async function markAllUserMessagesRead() {
+    const client = window.ARAHAuth?.client;
+    const user = window.ARAHAuth?.getUser?.();
+    if (!client || !user?.id) return;
+
+    const unread = arahMessageState.items.filter(
+        item => !arahMessageState.readIds.has(item.id)
+    );
+
+    if (!unread.length) return;
+
+    const previousReadIds = new Set(arahMessageState.readIds);
+    unread.forEach(item => arahMessageState.readIds.add(item.id));
+    renderUserMessages();
+
+    const rows = unread.map(item => ({
+        announcement_id: item.id,
+        user_id: user.id,
+        read_at: new Date().toISOString()
+    }));
+
+    const { error } = await client
+        .from('announcement_reads')
+        .upsert(rows, {
+            onConflict: 'announcement_id,user_id'
+        });
+
+    if (error) {
+        arahMessageState.readIds = previousReadIds;
+        renderUserMessages();
+        console.warn('Status update belum dapat disimpan:', error);
+    }
+}
+
+function toggleUserMessagePanel(forceOpen) {
+    const panel = document.getElementById('userMessagePanel');
+    const button = document.getElementById('userMessageButton');
+    if (!panel || !button) return;
+
+    const currentlyOpen = !panel.classList.contains('hidden');
+    const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !currentlyOpen;
+
+    panel.classList.toggle('hidden', !shouldOpen);
+    button.classList.toggle('is-open', shouldOpen);
+    button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+
+    if (shouldOpen) {
+        loadUserMessages({ silent: true });
+    }
+}
+
+function initializeUserMessageCenter() {
+    const client = window.ARAHAuth?.client;
+    if (!client) return;
+
+    if (arahMessageState.channel) {
+        client.removeChannel(arahMessageState.channel);
+    }
+
+    arahMessageState.channel = client
+        .channel('arah-user-announcements')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'announcements'
+            },
+            () => loadUserMessages({ silent: true })
+        )
+        .subscribe();
+
+    if (arahMessageState.refreshTimer) {
+        window.clearInterval(arahMessageState.refreshTimer);
+    }
+
+    arahMessageState.refreshTimer = window.setInterval(
+        () => loadUserMessages({ silent: true }),
+        60000
+    );
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            loadUserMessages({ silent: true });
+        }
+    });
+}
+
+
+let arahFeatureFlags = {
+    importCsvEnabled: false
+};
+
+function normalizeFeatureBoolean(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return false;
+}
+
+function applyFeatureFlags() {
+    document.querySelectorAll('[data-feature="import-csv"]').forEach(element => {
+        element.classList.toggle('hidden', !arahFeatureFlags.importCsvEnabled);
+    });
+}
+
+async function loadFeatureFlags() {
+    arahFeatureFlags.importCsvEnabled = false;
+    applyFeatureFlags();
+
+    const client = window.ARAHAuth?.client;
+    if (!client) return;
+
+    try {
+        const { data, error } = await client
+            .from('app_settings')
+            .select('key,value')
+            .eq('key', 'import_csv_enabled')
+            .maybeSingle();
+
+        if (error) throw error;
+
+        arahFeatureFlags.importCsvEnabled =
+            normalizeFeatureBoolean(data?.value);
+
+        applyFeatureFlags();
+    } catch (error) {
+        console.warn('Pengaturan fitur ARAH belum dapat dimuat:', error);
+        arahFeatureFlags.importCsvEnabled = false;
+        applyFeatureFlags();
+    }
+}
+
+
+let arahLicenseState = {
+    commercialModeEnabled: false,
+    access: true,
+    purchaseUrl: '',
+    reason: ''
+};
+
+function hideLicenseGate() {
+    document.getElementById('licenseGate')?.classList.add('hidden');
+}
+
+function showLicenseGate(result = {}) {
+    const gate = document.getElementById('licenseGate');
+    if (!gate) return;
+
+    const title = document.getElementById('licenseGateTitle');
+    const description = document.getElementById('licenseGateDescription');
+    const purchaseButton = document.getElementById('licensePurchaseButton');
+    const status = document.getElementById('licenseGateStatus');
+    const reason = String(result?.reason || 'pending');
+
+    if (reason === 'suspended') {
+        if (title) title.textContent = 'Lisensi Dinonaktifkan';
+        if (description) description.textContent = 'Akses akun ini sedang dinonaktifkan. Hubungi ARAH jika kamu membutuhkan bantuan.';
+    } else if (reason === 'inactive') {
+        if (title) title.textContent = 'Lisensi Tidak Aktif';
+        if (description) description.textContent = 'Lisensi akun ini sedang tidak aktif.';
+    } else {
+        if (title) title.textContent = 'Aktifkan ARAH';
+        if (description) description.textContent = 'Akun ini belum memiliki lisensi ARAH yang aktif.';
+    }
+
+    const purchaseUrl = String(result?.purchaseUrl || '').trim();
+    if (purchaseButton) {
+        purchaseButton.href = purchaseUrl || '#';
+        purchaseButton.classList.toggle('hidden', !purchaseUrl || reason === 'suspended');
+    }
+
+    if (status) {
+        status.textContent = '';
+        status.classList.add('hidden');
+    }
+
+    gate.classList.remove('hidden');
+    window.lucide?.createIcons?.();
+}
+
+function settingBoolean(value) {
+    if (value === true || value === 1) return true;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return false;
+}
+
+async function readCommercialPublicConfig() {
+    const client = window.ARAHAuth?.client;
+    if (!client) return { enabled: false, purchaseUrl: '' };
+
+    const { data, error } = await client
+        .from('app_settings')
+        .select('key,value')
+        .in('key', ['commercial_mode_enabled', 'purchase_url']);
+
+    if (error) throw error;
+    const map = new Map((data || []).map(item => [String(item.key || ''), item.value]));
+    return {
+        enabled: settingBoolean(map.get('commercial_mode_enabled')),
+        purchaseUrl: typeof map.get('purchase_url') === 'string' ? String(map.get('purchase_url') || '') : ''
+    };
+}
+
+async function checkCommercialAccess({ showChecking = false } = {}) {
+    const client = window.ARAHAuth?.client;
+    if (!client) return false;
+
+    const recheckButton = document.getElementById('licenseRecheckButton');
+    const status = document.getElementById('licenseGateStatus');
+
+    if (showChecking && recheckButton) {
+        recheckButton.disabled = true;
+        recheckButton.textContent = 'Memeriksa...';
+    }
+
+    try {
+        // Fail-safe rollout: while commercial mode is OFF, license-api is not required.
+        const publicConfig = await readCommercialPublicConfig();
+        arahLicenseState.purchaseUrl = publicConfig.purchaseUrl;
+
+        if (!publicConfig.enabled) {
+            arahLicenseState = { commercialModeEnabled: false, access: true, purchaseUrl: publicConfig.purchaseUrl, reason: '' };
+            hideLicenseGate();
+            return true;
+        }
+
+        const { data, error } = await client.functions.invoke('license-api', { body: { action: 'status' } });
+        if (error) throw error;
+        if (!data?.ok) throw new Error(data?.error || 'Lisensi ARAH tidak dapat diperiksa.');
+
+        arahLicenseState = {
+            commercialModeEnabled: Boolean(data.commercialModeEnabled),
+            access: Boolean(data.access),
+            purchaseUrl: String(data.purchaseUrl || publicConfig.purchaseUrl || ''),
+            reason: String(data.reason || '')
+        };
+
+        if (arahLicenseState.access) {
+            hideLicenseGate();
+            return true;
+        }
+
+        showLicenseGate(data);
+        if (showChecking && status) {
+            status.textContent = 'Pembayaran belum ditemukan untuk email akun ini.';
+            status.classList.remove('hidden');
+        }
+        return false;
+    } catch (error) {
+        console.error('Pemeriksaan lisensi ARAH gagal:', error);
+        showLicenseGate({ reason: 'pending', purchaseUrl: arahLicenseState.purchaseUrl });
+        if (status) {
+            status.textContent = 'Lisensi belum dapat diperiksa. Coba lagi beberapa saat.';
+            status.classList.remove('hidden');
+        }
+        return false;
+    } finally {
+        if (recheckButton) {
+            recheckButton.disabled = false;
+            recheckButton.textContent = 'Sudah membeli? Cek lagi';
+        }
+    }
+}
+
+async function handleLicenseRecheck() {
+    const allowed = await checkCommercialAccess({ showChecking: true });
+    if (allowed) window.location.reload();
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
 
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
@@ -584,6 +1003,16 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     await window.ARAHAuth.ready;
     await window.ARAHAuth.requireSession();
+
+    const commercialAccessAllowed = await checkCommercialAccess();
+    if (!commercialAccessAllowed) {
+        window.lucide?.createIcons?.();
+        return;
+    }
+
+    await loadFeatureFlags();
+    await loadUserMessages();
+    initializeUserMessageCenter();
     if (localStorage.getItem('isBalanceObscured') === 'true') isBalanceObscured = true;
 
     const now = new Date();
@@ -635,6 +1064,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     lucide.createIcons();
 });
+
+
+document.getElementById('licenseRecheckButton')?.addEventListener('click', handleLicenseRecheck);
+
+document.getElementById('licenseLogoutButton')?.addEventListener('click', async () => {
+    try {
+        await window.ARAHAuth?.signOut?.();
+    } finally {
+        window.location.reload();
+    }
+});
+
 
 function toggleObscure() {
     isBalanceObscured = !isBalanceObscured;
@@ -693,11 +1134,9 @@ function switchPage(pageId) {
 
     targetPage.classList.remove('hidden');
 
-    document.querySelectorAll('header nav button').forEach(button => {
-        button.className = `
-            px-4 py-1.5 rounded-lg transition-all
-            text-slate-500 dark:text-slate-400 hover:text-slate-900
-        `;
+    document.querySelectorAll('.user-desktop-nav-button').forEach(button => {
+        button.classList.remove('is-active');
+        button.removeAttribute('aria-current');
     });
 
     const navPageId = pageId.startsWith('settings-')
@@ -706,11 +1145,8 @@ function switchPage(pageId) {
 
     const activeDesktopButton = document.getElementById('nav-' + navPageId);
     if (activeDesktopButton) {
-        activeDesktopButton.className = `
-            px-4 py-1.5 rounded-lg transition-all
-            bg-white dark:bg-slate-800
-            text-blueSystem-500 dark:text-white shadow-sm
-        `;
+        activeDesktopButton.classList.add('is-active');
+        activeDesktopButton.setAttribute('aria-current', 'page');
     }
 
     document.querySelectorAll(
@@ -6603,7 +7039,11 @@ async function persistWorkspace() {
         saveBlocked = false;
     } catch (error) {
         console.error('Gagal menyimpan data:', error);
-        alert('Perubahan belum tersimpan. Periksa koneksi internet lalu coba lagi.');
+        const message =
+            window.ARAHData?.friendlyDataError?.(error) ||
+            error?.message ||
+            'Perubahan belum tersimpan. Coba lagi.';
+        alert(message);
     } finally {
         lastLocalSaveAt = Date.now();
         saveInFlight = false;
@@ -6647,7 +7087,11 @@ async function loadWorkspace({
     } catch (error) {
         console.error('Gagal memuat data:', error);
         if (!silent) {
-            alert('Data belum dapat dimuat. Periksa koneksi internet lalu coba lagi.');
+            const message =
+                window.ARAHData?.friendlyDataError?.(error) ||
+                error?.message ||
+                'Data belum dapat dimuat. Coba lagi.';
+            alert(message);
         }
     } finally {
         loadInFlight = false;
@@ -6717,6 +7161,8 @@ function initializeRefreshFallback() {
 }
 
 function openCsvImportPicker(type) {
+    if (!arahFeatureFlags.importCsvEnabled) return;
+
     const inputMap = {
         account: 'accountCsvFileInput',
         category: 'categoryCsvFileInput',
@@ -7348,6 +7794,28 @@ function initializeFloatingTransactionButton() {
         updateFloatingTransactionButton
     );
 }
+
+
+document.addEventListener('click', event => {
+    const messageItem = event.target.closest('[data-user-message-id]');
+    if (messageItem) {
+        markUserMessageRead(messageItem.dataset.userMessageId);
+        return;
+    }
+
+    const panel = document.getElementById('userMessagePanel');
+    const button = document.getElementById('userMessageButton');
+
+    if (
+        panel &&
+        button &&
+        !panel.classList.contains('hidden') &&
+        !panel.contains(event.target) &&
+        !button.contains(event.target)
+    ) {
+        toggleUserMessagePanel(false);
+    }
+});
 
 document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;

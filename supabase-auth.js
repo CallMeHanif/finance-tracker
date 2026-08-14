@@ -1,6 +1,8 @@
 
 (function initializeARAHAuthModule() {
-    window.ARAH_BOOT_STARTED_AT = window.ARAH_BOOT_STARTED_AT || Date.now();
+    const startupLoaderShownAt = performance.now();
+    const startupLoaderMinimumMs = 1000;
+
     const config = window.ARAH_SUPABASE_CONFIG;
     const supabaseLibrary = window.supabase;
 
@@ -30,10 +32,13 @@
 
     let currentSession = null;
     let currentMode = 'login';
+    let pendingVaultPassword = '';
     let authenticatedResolve = null;
     let authenticatedPromise = new Promise(resolve => {
         authenticatedResolve = resolve;
     });
+
+    let vaultPasswordWaiters = [];
 
     function getElement(id) {
         return document.getElementById(id);
@@ -50,6 +55,13 @@
     function showMessage(message, type = 'error') {
         const element = getElement('authMessage');
         if (!element) return;
+
+        // Login & Register tetap clean: hanya error yang ditampilkan.
+        if ((currentMode === 'login' || currentMode === 'register') && type !== 'error') {
+            element.classList.add('hidden');
+            element.textContent = '';
+            return;
+        }
 
         if (!message) {
             element.classList.add('hidden');
@@ -92,8 +104,15 @@
         element.classList.remove('hidden');
     }
 
+    function cleanAuthUiMessage(value) {
+        return String(value || '')
+            .replace(/supabase/gi, 'ARAH')
+            .trim();
+    }
+
     function friendlyAuthError(error) {
-        const message = String(error?.message || '').toLowerCase();
+        const rawMessage = cleanAuthUiMessage(error?.message);
+        const message = rawMessage.toLowerCase();
 
         if (message.includes('invalid login credentials')) {
             return 'Email atau password tidak cocok.';
@@ -108,14 +127,14 @@
         }
 
         if (message.includes('password')) {
-            return error?.message || 'Password belum memenuhi ketentuan keamanan.';
+            return rawMessage || 'Password belum memenuhi ketentuan keamanan.';
         }
 
         if (message.includes('rate limit')) {
             return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
         }
 
-        return error?.message || 'Terjadi masalah saat menghubungkan akun ARAH.';
+        return rawMessage || 'Terjadi masalah saat menghubungkan akun ARAH.';
     }
 
     function updateAccountUI(session = currentSession) {
@@ -128,20 +147,25 @@
 
         const emailElement = getElement('authUserEmail');
         const nameElement = getElement('authUserName');
-        const greetingElement = getElement('dashboardGreeting');
 
         if (emailElement) emailElement.textContent = email;
         if (nameElement) nameElement.textContent = name;
-        if (greetingElement) greetingElement.textContent = `Halo, ${name}`;
     }
 
-    function hideStartupLoader() {
-        const loader = getElement('globalLoader');
-        if (!loader) return;
 
-        const elapsed = Date.now() - window.ARAH_BOOT_STARTED_AT;
-        const delay = Math.max(0, 850 - elapsed);
-        window.setTimeout(() => loader.classList.add('hidden'), delay);
+    function hideStartupLoader() {
+        const loader = getElement('startupLoader');
+        if (!loader || loader.dataset.closed === '1') return;
+
+        loader.dataset.closed = '1';
+
+        const elapsed = performance.now() - startupLoaderShownAt;
+        const remaining = Math.max(0, startupLoaderMinimumMs - elapsed);
+
+        window.setTimeout(() => {
+            loader.classList.add('startup-loader-leave');
+            window.setTimeout(() => loader.classList.add('hidden'), 220);
+        }, remaining);
     }
 
     function showGate() {
@@ -167,18 +191,22 @@
     }
 
     function showMode(mode) {
-        currentMode = mode === 'register' ? 'register' : 'login';
+        currentMode = ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
 
         const loginForm = getElement('authLoginForm');
         const registerForm = getElement('authRegisterForm');
+        const forgotForm = getElement('authForgotForm');
+        const tabs = getElement('authTabs');
         const loginTab = getElement('authTabLogin');
         const registerTab = getElement('authTabRegister');
 
         loginForm?.classList.toggle('hidden', currentMode !== 'login');
         registerForm?.classList.toggle('hidden', currentMode !== 'register');
+        forgotForm?.classList.toggle('hidden', currentMode !== 'forgot');
+        tabs?.classList.toggle('hidden', currentMode === 'forgot');
 
-        const activeClasses = ['bg-white', 'dark:bg-slate-800', 'text-blueSystem-500', 'shadow-sm'];
-        const inactiveClasses = ['text-slate-500', 'dark:text-slate-400'];
+        const activeClasses = ['auth-tab-selected'];
+        const inactiveClasses = ['auth-tab-idle'];
 
         [loginTab, registerTab].forEach(tab => {
             if (!tab) return;
@@ -188,23 +216,93 @@
         if (currentMode === 'login') {
             loginTab?.classList.add(...activeClasses);
             registerTab?.classList.add(...inactiveClasses);
-        } else {
+        } else if (currentMode === 'register') {
             registerTab?.classList.add(...activeClasses);
             loginTab?.classList.add(...inactiveClasses);
+        }
+
+        if (currentMode === 'forgot') {
+            const loginEmail = String(getElement('authLoginEmail')?.value || '').trim();
+            const forgotEmail = getElement('authForgotEmail');
+            if (forgotEmail && loginEmail && !forgotEmail.value) forgotEmail.value = loginEmail;
+            window.setTimeout(() => forgotEmail?.focus(), 30);
         }
 
         showMessage('');
     }
 
+    function resolveVaultPasswordWaiters(password) {
+        const cleanPassword = String(password || '');
+        if (!cleanPassword || !vaultPasswordWaiters.length) return;
+
+        const waiters = vaultPasswordWaiters;
+        vaultPasswordWaiters = [];
+
+        waiters.forEach(resolve => {
+            try {
+                resolve(cleanPassword);
+            } catch (_) {}
+        });
+    }
+
+    async function waitForVaultPassword(message = 'Masukkan password untuk membuka data ARAH.') {
+        if (pendingVaultPassword) return pendingVaultPassword;
+
+        showGate();
+        showMode('login');
+
+        const emailInput = getElement('authLoginEmail');
+        const passwordInput = getElement('authLoginPassword');
+        const sessionEmail = currentSession?.user?.email || '';
+
+        if (emailInput && sessionEmail) {
+            emailInput.value = sessionEmail;
+            emailInput.readOnly = true;
+        }
+
+        if (passwordInput) {
+            passwordInput.value = '';
+            window.setTimeout(() => passwordInput.focus(), 50);
+        }
+
+        // Tidak perlu banner informasi Vault di halaman login.
+        // Error tetap ditampilkan lewat authMessage seperti biasa.
+        showMessage('');
+
+        return new Promise(resolve => {
+            vaultPasswordWaiters.push(resolve);
+        });
+    }
+
     async function signIn(email, password) {
+        const cleanPassword = String(password || '');
+        const cleanEmail = String(email || '').trim();
+
+        // Penting: simpan password SEBELUM signInWithPassword dipanggil.
+        // Supabase dapat memicu SIGNED_IN sebelum promise signIn selesai.
+        // Tanpa ini, loader data bisa berjalan lebih dulu dan Vault mengira
+        // password tidak tersedia.
+        pendingVaultPassword = cleanPassword;
+
         const { data, error } = await client.auth.signInWithPassword({
-            email: String(email || '').trim(),
-            password: String(password || '')
+            email: cleanEmail,
+            password: cleanPassword
         });
 
-        if (error) throw error;
-        if (!data?.session) throw new Error('Session login tidak terbentuk.');
+        if (error) {
+            pendingVaultPassword = '';
+            throw error;
+        }
 
+        if (!data?.session) {
+            pendingVaultPassword = '';
+            throw new Error('Session login tidak terbentuk.');
+        }
+
+        const emailInput = getElement('authLoginEmail');
+        if (emailInput) emailInput.readOnly = false;
+
+        resolveVaultPasswordWaiters(cleanPassword);
         resolveAuthenticated(data.session);
         return data.session;
     }
@@ -227,11 +325,22 @@
         if (error) throw error;
 
         if (data?.session) {
+            // Sama seperti login: hanya disimpan sementara di RAM.
+            pendingVaultPassword = String(password || '');
             resolveAuthenticated(data.session);
             return { requiresEmailConfirmation: false };
         }
 
         return { requiresEmailConfirmation: true };
+    }
+
+    async function requestPasswordReset(email) {
+        const cleanEmail = String(email || '').trim();
+        if (!cleanEmail) throw new Error('Masukkan email akun ARAH.');
+
+        const redirectTo = new URL('./recover.html', window.location.href).href;
+        const { error } = await client.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
+        if (error) throw error;
     }
 
     async function signOut() {
@@ -242,6 +351,8 @@
         }
 
         currentSession = null;
+        pendingVaultPassword = '';
+        vaultPasswordWaiters = [];
         window.location.reload();
     }
 
@@ -257,6 +368,7 @@
 
         const loginForm = getElement('authLoginForm');
         const registerForm = getElement('authRegisterForm');
+        const forgotForm = getElement('authForgotForm');
 
         loginForm?.addEventListener('submit', async event => {
             event.preventDefault();
@@ -320,6 +432,27 @@
             }
         });
 
+        forgotForm?.addEventListener('submit', async event => {
+            event.preventDefault();
+            showMessage('');
+
+            const button = getElement('authForgotButton');
+            setButtonBusy(button, true, 'Mengirim...', 'Kirim Link Reset');
+
+            try {
+                await requestPasswordReset(getElement('authForgotEmail')?.value);
+                showMessage(
+                    'Jika email tersebut terdaftar di ARAH, link untuk membuat password baru akan dikirim. Cek inbox dan folder spam.',
+                    'success'
+                );
+            } catch (error) {
+                console.error('Permintaan reset password ARAH gagal:', error);
+                showMessage(friendlyAuthError(error));
+            } finally {
+                setButtonBusy(button, false, 'Mengirim...', 'Kirim Link Reset');
+            }
+        });
+
         const { data, error } = await client.auth.getSession();
 
         if (error) {
@@ -330,8 +463,10 @@
         if (data?.session) {
             resolveAuthenticated(data.session);
         } else {
-            hideStartupLoader();
+            showGate();
         }
+
+        hideStartupLoader();
 
         client.auth.onAuthStateChange((event, session) => {
             currentSession = session || null;
@@ -355,7 +490,20 @@
         showMode,
         signOut,
         getSession: () => currentSession,
-        getUser: () => currentSession?.user || null
+        getUser: () => currentSession?.user || null,
+
+        // Dipakai Privacy Vault v4 hanya selama proses unlock.
+        getVaultPassword: () => pendingVaultPassword,
+
+        // Jika session sudah ada (mis. setelah klik link verifikasi email)
+        // tetapi perangkat belum memiliki kunci Vault, minta password lagi
+        // melalui form login yang sama.
+        waitForVaultPassword,
+
+        // Wajib dipanggil Privacy Vault setelah password selesai digunakan.
+        clearVaultPassword: () => {
+            pendingVaultPassword = '';
+        }
     };
 
     window.ARAHAuth.ready = init();

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atur Ulang Password ARAH</title>
+    <link rel="icon" type="image/png" href="./assets/arah-iconbl.png">
+    <script>
+        try {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+        } catch (_) {}
+    </script>
+    <link rel="stylesheet" href="./assets/styles.css?v=20260813-reset1">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .reset-card { border-color: rgba(14,165,233,.14); box-shadow: 0 16px 42px rgba(15,23,42,.055), 0 0 14px rgba(14,165,233,.024); }
+        html.dark .reset-card { border-color: rgba(56,189,248,.18); box-shadow: 0 18px 44px rgba(0,0,0,.2), 0 0 16px rgba(34,211,238,.03); }
+
+        .recovery-compact-placeholder::placeholder {
+            font-size: 11px;
+            line-height: 1rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 dark:bg-[#0b1220] text-slate-800 dark:text-slate-100 flex items-center justify-center p-4">
+    <main class="w-full max-w-sm">
+        <div class="text-center mb-7">
+            <img src="./assets/wordmark-bl.png" alt="ARAH" class="mx-auto h-8 w-auto dark:hidden">
+            <img src="./assets/wordmark-wh.png" alt="ARAH" class="mx-auto h-8 w-auto hidden dark:block">
+            <p class="mt-2 text-xs text-slate-400">Atur Rupiah, Arahkan Hidup</p>
+        </div>
+        <form id="recoveryForm" class="reset-card bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4">
+            <div>
+                <h1 class="font-bold text-base">Buat Password Baru</h1>
+                <p class="mt-1 text-[11px] leading-relaxed text-slate-400">Gunakan password baru minimal 8 karakter untuk akun ARAH kamu.</p>
+            </div>
+            <div id="recoveryMessage" class="hidden rounded-xl border px-3 py-2.5 text-[11px] leading-relaxed"></div>
+            <div>
+                <label for="recoveryPassword" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Password Baru</label>
+                <div class="relative">
+                    <input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Minimal 8 karakter" class="recovery-compact-placeholder w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 pl-3 pr-11 py-2.5 text-sm focus:outline-none focus:border-blueSystem-500">
+                    <button type="button" data-password-toggle="recoveryPassword" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password">
+                        <svg data-eye-open xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.062 12.348a1 1 0 0 1 0-.696C3.8 7.41 7.9 4.5 12 4.5s8.2 2.91 9.938 7.152a1 1 0 0 1 0 .696C20.2 16.59 16.1 19.5 12 19.5S3.8 16.59 2.062 12.348Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg data-eye-off class="hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m2 2 20 20"/>
+                            <path d="M6.713 6.713C4.907 7.937 3.5 9.735 2.756 11.78a.6.6 0 0 0 0 .44C4.18 16.139 7.79 19 12 19c1.079 0 2.123-.188 3.094-.534"/>
+                            <path d="M10.73 5.08A9.8 9.8 0 0 1 12 5c4.21 0 7.82 2.861 9.244 6.78a.6.6 0 0 1 0 .44 10.1 10.1 0 0 1-2.098 3.423"/>
+                            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label for="recoveryPasswordConfirm" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Konfirmasi Password</label>
+                <div class="relative">
+                    <input id="recoveryPasswordConfirm" type="password" minlength="8" autocomplete="new-password" required placeholder="Ulangi password baru" class="recovery-compact-placeholder w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 pl-3 pr-11 py-2.5 text-sm focus:outline-none focus:border-blueSystem-500">
+                    <button type="button" data-password-toggle="recoveryPasswordConfirm" class="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label="Tampilkan password">
+                        <svg data-eye-open xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2.062 12.348a1 1 0 0 1 0-.696C3.8 7.41 7.9 4.5 12 4.5s8.2 2.91 9.938 7.152a1 1 0 0 1 0 .696C20.2 16.59 16.1 19.5 12 19.5S3.8 16.59 2.062 12.348Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg data-eye-off class="hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="m2 2 20 20"/>
+                            <path d="M6.713 6.713C4.907 7.937 3.5 9.735 2.756 11.78a.6.6 0 0 0 0 .44C4.18 16.139 7.79 19 12 19c1.079 0 2.123-.188 3.094-.534"/>
+                            <path d="M10.73 5.08A9.8 9.8 0 0 1 12 5c4.21 0 7.82 2.861 9.244 6.78a.6.6 0 0 1 0 .44 10.1 10.1 0 0 1-2.098 3.423"/>
+                            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button id="recoveryButton" type="submit" class="w-full bg-blueSystem-500 hover:bg-blueSystem-600 text-white rounded-xl py-2.5 text-xs font-bold">Simpan Password Baru</button>
+            <a href="./index.html" class="block text-center text-[11px] font-semibold text-slate-400 hover:text-slate-600">Kembali ke halaman masuk</a>
+        </form>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.91.0"></script>
+    <script src="./supabase-config.js?v=20260813-reset1"></script>
+    <script src="./recover.js?v=20260813-authui551"></script>
+</body>
+</html>
