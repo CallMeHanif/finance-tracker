@@ -155,7 +155,30 @@
                 .maybeSingle();
 
             if (profileError) throw profileError;
-            if (!profile || Number(profile.vault_version) < 4 || !profile.recovery_wrapped_key) {
+
+            // Akun baru yang belum pernah membuka aplikasi berlisensi bisa
+            // belum memiliki Vault profile. Tidak ada data Vault yang perlu
+            // dipertahankan, jadi password boleh langsung diperbarui.
+            if (!profile) {
+                const { error: passwordError } = await client.auth.updateUser({ password });
+                if (passwordError) throw passwordError;
+
+                await client.auth.signOut().catch(() => {});
+                form.reset();
+                showMessage('Password berhasil diperbarui. Kamu bisa masuk kembali menggunakan password baru.', 'success');
+
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = 'Berhasil';
+                }
+
+                window.setTimeout(() => window.location.replace('./index.html'), 1400);
+                return;
+            }
+
+            // Jika Vault sudah ada, recovery wrap harus tersedia supaya Master
+            // Key tetap bisa dipertahankan saat password diganti.
+            if (Number(profile.vault_version) < 4 || !profile.recovery_wrapped_key) {
                 throw new Error('Data terenkripsi akun ini belum mendukung pemulihan password.');
             }
 
